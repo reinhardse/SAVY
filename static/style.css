@@ -193,3 +193,21 @@ nav a.on{color:var(--ink);font-weight:600;background:#f0f1f6}
 .cnt{font-style:normal;font-size:12px;color:var(--muted);margin-left:2px;font-variant-numeric:tabular-nums}
 .tagchip.on .cnt{color:#cfd3dd}
 .donechip svg{width:18px;height:18px}
+
+/* === версия 7: плавные переходы, без мигания при добавлении ссылки === */
+.overlay{animation:ovIn .18s ease-out both}
+.sheet{animation:shIn .26s cubic-bezier(.2,.8,.2,1) both}
+@keyframes ovIn{from{opacity:0}to{opacity:1}}
+@keyframes shIn{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
+img.thumb,img.cover{animation:fadeIn .3s ease both}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.row{transition:background-color .15s}
+.row:active{background:#f6f7fa}
+.rb{transition:background-color .15s,transform .15s}
+.rb:active{transform:scale(.92)}
+.paste input{transition:border-color .2s,opacity .2s}
+.paste input:disabled{opacity:.6}
+.sheet-loading{padding:48px 10px;text-align:center;color:var(--muted)}
+.sheet-loading::after{content:'';display:block;width:22px;height:22px;margin:14px auto 0;border-radius:50%;border:2.5px solid var(--line);border-top-color:var(--accent);animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

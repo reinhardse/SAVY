@@ -107,14 +107,15 @@ function bindPaste() {
   const go = async () => {
     const url = inp.value.trim();
     if (!url) return;
-    inp.value = ''; inp.disabled = true;
+    inp.value = ''; inp.disabled = true; inp.placeholder = 'Добавляю…';
+    sheet('<div class="sheet-loading">Добавляю ссылку</div>');
     try {
       const r = await api('/items', {method: 'POST', body: {url}});
       pollLeft = 6;
       if (!r.created) alert('Эта ссылка уже в библиотеке');
       await openItem(r.item.id);
-    } catch (err) { alert(err.message); }
-    finally { inp.disabled = false; }
+    } catch (err) { closeSheet(); alert(err.message); }
+    finally { inp.disabled = false; inp.placeholder = 'Вставить ссылку'; }
   };
   inp.onpaste = () => setTimeout(go, 0);
   inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } };
@@ -132,6 +133,7 @@ function row(i) {
 // перерисовываем список только если что-то изменилось, иначе клик теряется между опросами
 function paint(el, html) {
   if (el.dataset.h === html) return;
+  if ($('#ov') && el.dataset.h !== undefined) return; // окно открыто: список обновится после закрытия
   el.innerHTML = html;
   el.dataset.h = html;
   bindRows();
@@ -290,8 +292,13 @@ async function route() {
 function closeSheet() { $('#sheet-root').innerHTML = ''; route(); }
 
 function sheet(html) {
-  $('#sheet-root').innerHTML = `<div class="overlay" id="ov"><div class="sheet">${html}</div></div>`;
-  $('#ov').onclick = e => { if (e.target.id === 'ov') closeSheet(); };
+  let ov = $('#ov');
+  if (!ov) {
+    $('#sheet-root').innerHTML = `<div class="overlay" id="ov"><div class="sheet"></div></div>`;
+    ov = $('#ov');
+    ov.onclick = e => { if (e.target.id === 'ov') closeSheet(); };
+  }
+  ov.querySelector('.sheet').innerHTML = html;
 }
 
 function autosize(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
