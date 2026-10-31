@@ -121,9 +121,8 @@ def process_item(item_id: int):
         if not item:
             return
         m = meta.fetch_metadata(item.url, item.source)
+        # из сайта берём только заголовок (до 100 символов) и обложку; описание и автора не подтягиваем
         item.title = item.title or (m["title"] or "")[:100] or None
-        item.description = m["description"] or item.description
-        item.author = m["author"] or item.author
         item.meta_state = m["meta_state"]
         item.meta_raw = {"tried": m["tried"]}
         if m["thumbnail_url"]:

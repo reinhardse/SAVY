@@ -103,13 +103,23 @@ a.btn{text-decoration:none;display:inline-block}
 
 /* === версия 3: главная с тегами, лупа, карточка с кнопкой «Сохранить» === */
 .row .thumb{width:77px;height:77px;border-radius:17px}
-.more{flex:none;border:0;background:transparent;font-size:24px;line-height:1;color:var(--muted);padding:4px 4px 8px 10px;cursor:pointer;letter-spacing:1px}
 .titlerow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:6px 2px 18px}
 .titlerow .brand{margin:0}
 .iconbtn{flex:none;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--ink2);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
 .iconbtn svg{width:20px;height:20px}
 .search{margin:0 0 14px}
-.home-tags{margin:0 0 18px}
+/* ряд тегов на главной и кнопка поиска справа, той же высоты, что и теги */
+.tagrow{display:flex;align-items:center;gap:8px;margin:0 0 18px}
+.tagrow .tags{flex:1;min-width:0;margin:0}
+.iconbtn.sm{width:34px;height:34px;flex:none}
+.iconbtn.sm svg{width:17px;height:17px}
+/* карандаш и крестик справа у записи, всегда видны */
+.rb{flex:none;border:0;background:transparent;color:var(--muted);width:34px;height:34px;border-radius:50%;font-size:18px;line-height:1;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.rb.del{font-size:22px}
+.rb:hover{background:#f0f1f4}
+.rb.edit{margin-left:-4px}
+/* теги в карточке под короткой строкой */
+.tagsline{margin:0 0 14px}
 .tagchip{background:#fff}
 .tagchip.on{background:var(--ink)}
 /* теги в карточке выглядят как бейдж «Новое» */

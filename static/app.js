@@ -26,7 +26,7 @@ const ICONS = {
 };
 const LOUPE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>';
 
-let cats = [], q = '', pollLeft = 0, listParams = {}, searchTimer = null;
+let cats = [], q = '', pollLeft = 0, listParams = {}, searchTimer = null, openSearch = false;
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
@@ -116,45 +116,73 @@ function row(i) {
   const wait = i.meta_state === 'pending' ? ' · собираю данные…' : '';
   const meta = [SRC[i.source], TYPE[i.content_type], cat && cat.name].filter(Boolean).join(' · ') + wait;
   const badge = i.status === 'new' ? '<span class="badge">Новое</span>' : '';
-  return `<div class="row" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m">${esc(meta)}</div></div>${badge}<button class="more" data-id="${i.id}" aria-label="Открыть">⋯</button></div>`;
+  return `<div class="row" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m">${esc(meta)}</div></div>${badge}<button class="rb edit" data-id="${i.id}" aria-label="Открыть карточку">✎</button><button class="rb del" data-id="${i.id}" aria-label="Удалить">×</button></div>`;
+}
+
+// перерисовываем список только если что-то изменилось, иначе клик теряется между опросами
+function paint(el, html) {
+  if (el.dataset.h === html) return;
+  el.innerHTML = html;
+  el.dataset.h = html;
+  bindRows();
 }
 
 function bindRows() {
   document.querySelectorAll('.row').forEach(el => el.onclick = e => {
-    if (e.target.closest('.more')) return;
+    if (e.target.closest('.rb')) return;
     window.open(el.dataset.url, '_blank', 'noopener');
   });
-  document.querySelectorAll('.more').forEach(b => b.onclick = e => { e.stopPropagation(); openItem(+b.dataset.id); });
+  document.querySelectorAll('.rb.edit').forEach(b => b.onclick = e => { e.stopPropagation(); openItem(+b.dataset.id); });
+  document.querySelectorAll('.rb.del').forEach(b => b.onclick = async e => {
+    e.stopPropagation();
+    if (!confirm('Удалить материал?')) return;
+    await api('/items/' + b.dataset.id, {method: 'DELETE'});
+    route();
+  });
 }
 
 /* ---------- главная ---------- */
 async function home() {
   const [me, items, tags] = await Promise.all([api('/me'), api('/items?limit=15'), api('/tags')]);
   cats = me.categories;
+  const listHtml = items.length ? items.map(row).join('') : '<div class="empty">Пока пусто. Вставьте ссылку выше.</div>';
   $('#app').innerHTML = `<div class="brand">SAVE</div>
     <div class="hero"><div class="big">${me.total}</div><div class="sub">Материалов в библиотеке</div></div>
     ${pasteHtml()}
-    ${tags.length ? `<div class="tags home-tags">${tags.map(t => `<span class="tagchip" data-alltag="${esc(t.name)}">#${esc(t.name)}</span>`).join('')}</div>` : ''}
+    <div class="tagrow"><div class="tags">${tags.map(t => `<span class="tagchip" data-alltag="${esc(t.name)}">#${esc(t.name)}</span>`).join('')}</div><button class="iconbtn sm" id="hsbtn" aria-label="Поиск">${LOUPE}</button></div>
     <div class="tiles">${me.categories.map(c => {
       const st = styleOf(c.slug);
       return `<button class="tile" style="--c:${st.bg};--tc:${st.tc}" data-slug="${esc(c.slug)}">
         <div class="ic">${ICONS[c.slug] || ''}</div><div class="n">${c.count}</div><div class="l">${esc(c.name)}</div></button>`;
     }).join('')}</div>
     <h2>Последние сохранения</h2>
-    <div class="list">${items.length ? items.map(row).join('') : '<div class="empty">Пока пусто. Вставьте ссылку выше.</div>'}</div>${nav('home')}`;
+    <div class="list" id="list">${listHtml}</div>${nav('home')}`;
   document.querySelectorAll('.tile').forEach(t => t.onclick = () => { location.hash = '#/cat/' + t.dataset.slug; });
   document.querySelectorAll('[data-alltag]').forEach(t => t.onclick = () => { location.hash = '#/tag/' + encodeURIComponent(t.dataset.alltag); });
-  bindPaste(); bindRows(); schedulePoll(items);
+  $('#hsbtn').onclick = () => { openSearch = true; if (location.hash === '#/all') route(); else location.hash = '#/all'; };
+  bindPaste(); bindRows(); $('#list').dataset.h = listHtml;
+  schedulePoll(items, homeList);
+}
+
+// на главной обновляем только список последних, без перерисовки всей страницы
+async function homeList() {
+  const items = await api('/items?limit=15');
+  const el = $('#list');
+  if (!el) return;
+  paint(el, items.length ? items.map(row).join('') : '<div class="empty">Пока пусто. Вставьте ссылку выше.</div>');
+  schedulePoll(items, homeList);
 }
 
 /* ---------- списки ---------- */
 async function listView(title, params, active) {
   listParams = params;
+  const wantSearch = openSearch; openSearch = false;
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">${esc(title)}</div>
       <button class="iconbtn" id="sbtn" aria-label="Поиск">${LOUPE}</button></div>
-    <input class="search" id="q" placeholder="Поиск" style="display:${q ? 'block' : 'none'}" value="${esc(q)}">
+    <input class="search" id="q" placeholder="Поиск" style="display:${q || wantSearch ? 'block' : 'none'}" value="${esc(q)}">
     ${params.category ? '<div class="tags" id="tags"></div>' : ''}
     <div class="list" id="list"></div>${nav(active)}`;
+  if (wantSearch) setTimeout(() => $('#q').focus(), 0);
   $('#sbtn').onclick = () => {
     const box = $('#q');
     if (box.style.display === 'none') { box.style.display = 'block'; box.focus(); }
@@ -185,8 +213,8 @@ async function loadList() {
   const items = await api('/items?' + p);
   const el = $('#list');
   if (!el) return;
-  el.innerHTML = items.length ? items.map(row).join('') : `<div class="empty">${q ? 'Ничего не найдено' : 'Здесь пока пусто'}</div>`;
-  bindRows(); schedulePoll(items, loadList);
+  paint(el, items.length ? items.map(row).join('') : `<div class="empty">${q ? 'Ничего не найдено' : 'Здесь пока пусто'}</div>`);
+  schedulePoll(items, loadList);
 }
 
 function schedulePoll(items, fn) {
@@ -242,17 +270,16 @@ async function openItem(id) {
 
   const draw = () => {
     const catChips = cats.map(c => `<span class="chip ${draft.category === c.slug ? 'on' : ''}" data-cat="${esc(c.slug)}">${esc(c.name)}<i class="x" data-del="${esc(c.slug)}" title="Удалить категорию">×</i></span>`).join('');
-    const tagChips = draft.tags.map(t => `<span class="tagbadge">#${esc(t)}<i class="x" data-rm="${esc(t)}">×</i></span>`).join('') + '<span class="tagbadge add" id="addtag">+ тег</span>';
-    const meta = [SRC[it.source], TYPE[it.content_type], it.author].filter(Boolean).join(' · ');
+    const tagChips = draft.tags.map(t => `<span class="tagbadge">#${esc(t)}<i class="x" data-rm="${esc(t)}">×</i></span>`).join('');
+    const meta = [SRC[it.source], TYPE[it.content_type], cats.find(c => c.slug === draft.category)?.name].filter(Boolean).join(' · ');
     sheet(`${coverHtml(it, 'cover')}
       <textarea class="title-in auto" id="ti" maxlength="100" placeholder="Название">${esc(draft.title)}</textarea>
       <div class="meta-line">${esc(meta)}</div>
+      ${tagChips ? `<div class="tagsline" id="tagsbox">${tagChips}</div>` : ''}
       <textarea class="desc-in auto" id="de" placeholder="Описание">${esc(draft.description)}</textarea>
       ${it.meta_state === 'failed' ? '<p class="hint">Сайт не отдал название и картинку, поэтому они составлены из ссылки. Их можно поправить.</p>' : ''}
       <div class="lbl">Категория</div>
       <div class="chips" id="catbox">${catChips}<span class="chip ${!draft.category ? 'on' : ''}" data-cat="">Без категории</span><span class="chip add" id="addcat">+ категория</span></div>
-      <div class="lbl">Теги</div>
-      <div class="chips" id="tagsbox">${tagChips}</div>
       <div class="btnrow">
         <div class="left">
           <a class="btn pri" href="${esc(it.url)}" target="_blank" rel="noopener">Смотреть</a>
@@ -297,20 +324,7 @@ async function openItem(id) {
       inp.onblur = () => { if (!inp.value.trim()) draw(); };
     };
 
-    // теги: плюсом добавляются, крестиком снимаются
-    $('#addtag').onclick = () => {
-      $('#addtag').outerHTML = '<input class="chip-in" id="newtag" placeholder="Тег">';
-      const inp = $('#newtag'); inp.focus();
-      inp.onkeydown = e => {
-        if (e.key === 'Escape') return draw();
-        if (e.key !== 'Enter') return;
-        const name = inp.value.trim().toLowerCase();
-        if (!name) return;
-        draft.tags = [...new Set([...draft.tags, name])].sort();
-        draw();
-      };
-      inp.onblur = () => { if (!inp.value.trim()) draw(); };
-    };
+    // теги: только снимаются крестиком, новые не создаются
     document.querySelectorAll('[data-rm]').forEach(el => el.onclick = e => {
       e.stopPropagation();
       draft.tags = draft.tags.filter(t => t !== el.dataset.rm);
