@@ -89,7 +89,7 @@ async function api(path, opt = {}) {
 /* ---------- вход ---------- */
 function showLogin() {
   $('#sheet-root').innerHTML = '';
-  $('#app').innerHTML = `<form class="login" id="lf"><div class="brand">SAVE</div>
+  $('#app').innerHTML = `<form class="login" id="lf"><div class="brand logo">SAVE</div>
     <input class="in-text" type="password" id="pw" placeholder="Пароль" autofocus>
     <div class="err" id="le"></div><button class="btn pri">Войти</button></form>`;
   $('#lf').onsubmit = async e => {
@@ -105,7 +105,7 @@ function nav(active) {
 }
 
 function pasteHtml() {
-  return `<div class="paste"><input id="paste" placeholder="Вставить ссылку" inputmode="url" autocapitalize="off"></div>`;
+  return `<div class="paste"><input id="paste" placeholder="Вставить ссылку" inputmode="url" autocapitalize="off"><button class="paste-go" id="pastego" aria-label="Добавить"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button></div>`;
 }
 
 function bindPaste() {
@@ -125,6 +125,8 @@ function bindPaste() {
     finally { inp.disabled = false; inp.placeholder = 'Вставить ссылку'; }
   };
   inp.onpaste = () => setTimeout(go, 0);
+  const goBtn = $('#pastego');
+  if (goBtn) goBtn.onclick = go;
   inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } };
 }
 
@@ -173,7 +175,7 @@ async function home() {
   const [me, items, tags] = await Promise.all([api('/me'), api('/items?limit=15'), api('/tags')]);
   cats = me.categories;
   const listHtml = items.length ? items.map(row).join('') : '<div class="empty">Пока пусто. Вставьте ссылку выше.</div>';
-  $('#app').innerHTML = `<div class="titlerow"><div class="brand">SAVE</div>
+  $('#app').innerHTML = `<div class="titlerow"><div class="brand logo">SAVE</div>
       <button class="iconbtn" id="hsbtn" aria-label="Поиск">${LOUPE}</button></div>
     <div class="hero"><div class="big">${me.total}</div><div class="sub">Материалов в библиотеке</div></div>
     ${pasteHtml()}
@@ -340,11 +342,12 @@ async function openItem(id) {
     const names = [...new Set([...allTagNames, ...draft.tags])].sort();
     const tagChips = names.map(n => `<span class="tagbadge ${draft.tags.includes(n) ? '' : 'off'}" data-tt="${esc(n)}">#${esc(n)}</span>`).join('') + '<span class="tagbadge add" id="addtag">+ тег</span>';
     const meta = [SRC[it.source], TYPE[it.content_type]].filter(Boolean).join(' · ');
-    sheet(`${coverHtml(it, 'cover')}
-      <textarea class="title-in auto" id="ti" maxlength="100" placeholder="Название">${esc(draft.title)}</textarea>
+    sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">×</button>${coverHtml(it, 'cover')}
+      <div class="sheet-body">
+      <textarea class="title-in auto" id="ti" rows="1" maxlength="100" placeholder="Название">${esc(draft.title)}</textarea>
       <div class="metarow"><div class="meta-line">${esc(meta)}</div>
         ${draft.category ? `<button class="rb eye ${draft.done ? 'on' : ''}" id="ceye" aria-label="Прочитано">${draft.done ? EYE_ON : EYE}</button>` : ''}</div>
-      <textarea class="desc-in auto" id="de" placeholder="Описание">${esc(draft.description)}</textarea>
+      <textarea class="desc-in auto" id="de" rows="1" placeholder="Описание">${esc(draft.description)}</textarea>
       ${it.meta_state === 'failed' ? '<p class="hint">Сайт не отдал название и картинку, поэтому они составлены из ссылки. Их можно поправить.</p>' : ''}
       <div class="lbl">Категория</div>
       <div class="chips" id="catbox">${catChips}<span class="chip ${!draft.category ? 'on' : ''}" data-cat="">Без категории</span><span class="chip add" id="addcat">+ категория</span></div>
@@ -355,9 +358,10 @@ async function openItem(id) {
           <a class="btn pri" href="${esc(it.url)}" target="_blank" rel="noopener">Смотреть</a>
           <button class="btn bad" id="dl">Удалить</button></div>
         <button class="savebtn" id="sv"></button>
-      </div>`);
+      </div></div>`);
     document.querySelectorAll('textarea.auto').forEach(autosize);
     saveBtn();
+    $('#sx').onclick = closeSheet;
 
     // название и описание: правим в поле, сохраняем кнопкой «Сохранить»
     $('#ti').oninput = e => { draft.title = e.target.value.slice(0, 100); autosize(e.target); saveBtn(); };
