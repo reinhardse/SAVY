@@ -65,8 +65,8 @@ h2{font-size:22px;font-weight:700;letter-spacing:-.02em;margin:10px 2px 14px}
 .tile .l{font-size:15px;margin-top:6px;color:var(--muted);font-weight:500}
 
 /* список материалов: карточки с тенью */
-.list{display:flex;flex-direction:column;padding-bottom:20px}
-.row{position:relative;min-width:0;display:flex;gap:16px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line);cursor:pointer;transition:background-color .15s}
+.list{display:flex;flex-direction:column;padding:8px 0 20px}
+.row{position:relative;min-width:0;display:flex;gap:16px;align-items:center;padding:22px 0;border-bottom:1px solid var(--line);cursor:pointer;transition:background-color .15s}
 .row:last-child{border-bottom:0}
 .row:active{background:#fafafa}
 .thumb{width:var(--thumb);height:var(--thumb);border-radius:16px;flex:none;object-fit:cover;background:#f2f2f2;overflow:hidden}
