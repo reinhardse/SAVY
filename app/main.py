@@ -91,7 +91,7 @@ def item_out(i: Item) -> dict:
         "title": i.title, "description": i.description, "author": i.author,
         "thumb": f"/thumbs/{os.path.basename(i.thumb_path)}" if i.thumb_path else None,
         "category": i.category.slug if i.category else None,
-        "status": i.status, "is_favorite": bool(i.is_favorite), "note": i.note or "",
+        "status": i.status, "done": i.status == "done", "is_favorite": bool(i.is_favorite), "note": i.note or "",
         "tags": sorted(t.name for t in i.tags), "meta_state": i.meta_state,
         "created_at": i.created_at.isoformat() + "Z",
     }
@@ -167,6 +167,7 @@ class ItemPatch(BaseModel):
     description: str | None = None
     is_favorite: bool | None = None
     tags: list[str] | None = None
+    done: bool | None = None
 
 
 @app.post("/api/items")
@@ -186,8 +187,8 @@ def list_items(status: str | None = None, category: str | None = None, favorite:
     stmt = select(Item).where(Item.user_id == USER_ID)
     if status:
         stmt = stmt.where(Item.status == status)
-    else:
-        stmt = stmt.where(Item.status != "archived")
+    else:  # прочитанные, как и архив, не попадают в обычные списки: их видно только внутри категории
+        stmt = stmt.where(Item.status.notin_(["archived", "done"]))
     if category:
         c = cat_by_slug(db, category)
         stmt = stmt.where(Item.category_id == (c.id if c else -1))
@@ -227,6 +228,11 @@ def patch_item(item_id: int, body: ItemPatch, db: Session = Depends(get_db), _: 
         item.title = (body.title or "").strip()[:100] or None
     if "description" in fields:
         item.description = body.description
+    if "done" in fields and body.done is not None:
+        if body.done:
+            item.status = "done"
+        elif item.status == "done":
+            item.status = "planned" if item.category_id else "new"
     if "is_favorite" in fields and body.is_favorite is not None:
         item.is_favorite = body.is_favorite
     if "tags" in fields and body.tags is not None:
@@ -264,7 +270,7 @@ def refresh_item(item_id: int, tasks: BackgroundTasks, db: Session = Depends(get
 # ---------- сводка, категории, экспорт ----------
 @app.get("/api/me")
 def me(db: Session = Depends(get_db), _: int = Depends(require_auth)):
-    base = (Item.user_id == USER_ID, Item.status != "archived")
+    base = (Item.user_id == USER_ID, Item.status.notin_(["archived", "done"]))
     total = db.scalar(select(func.count()).select_from(Item).where(*base))
     new = db.scalar(select(func.count()).select_from(Item).where(*base, Item.status == "new"))
     done = db.scalar(select(func.count()).select_from(Item).where(Item.user_id == USER_ID, Item.status == "done"))
@@ -294,9 +300,14 @@ def add_category(body: CategoryIn, db: Session = Depends(get_db), _: int = Depen
 
 
 @app.get("/api/tags")
-def tags_list(category: str | None = None, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+def tags_list(category: str | None = None, status: str | None = None, db: Session = Depends(get_db),
+              _: int = Depends(require_auth)):
     """Теги: все теги библиотеки или только теги материалов раздела (появляются и исчезают сами)."""
     stmt = select(Item).where(Item.user_id == USER_ID)
+    if status:
+        stmt = stmt.where(Item.status == status)
+    else:
+        stmt = stmt.where(Item.status.notin_(["archived", "done"]))
     if category:
         c = cat_by_slug(db, category)
         if not c:

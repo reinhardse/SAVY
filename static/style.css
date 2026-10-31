@@ -45,14 +45,14 @@ h2{font-size:17px;font-weight:700;margin:4px 2px 6px}
 
 /* нижнее меню */
 nav{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom);z-index:5}
-nav .in{display:flex;width:100%;max-width:720px}
-nav a{flex:1;text-align:center;padding:9px 0 11px;font-size:12px;color:var(--muted);text-decoration:none}
+nav .in{display:flex;width:100%;max-width:720px;justify-content:flex-start;padding:0 10px}
+nav a{flex:none;text-align:center;padding:9px 16px 11px;font-size:12px;color:var(--muted);text-decoration:none}
 nav a b{display:block;font-size:19px;font-weight:400;line-height:1.25}
 nav a.on{color:var(--ink);font-weight:600}
 
 /* окна */
-.overlay{position:fixed;inset:0;background:rgba(15,18,30,.35);display:flex;align-items:flex-end;justify-content:center;z-index:20}
-.sheet{background:var(--card);width:100%;max-width:720px;max-height:92vh;overflow:auto;border-radius:22px 22px 0 0;padding:20px 20px calc(24px + env(safe-area-inset-bottom))}
+.overlay{position:fixed;inset:0;background:rgba(15,18,30,.35);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+.sheet{background:var(--card);width:100%;max-width:400px;max-height:88vh;overflow:auto;border-radius:22px;padding:16px 18px 18px}
 .sheet h3{margin:0 0 10px;font-size:20px;word-break:break-word}
 .sheet .cover{width:100%;height:200px;object-fit:cover;border-radius:16px;margin-bottom:14px;background:#eef0f4;display:block}
 .sheet .cover-gen{height:200px;border-radius:16px;margin-bottom:14px;font-size:18px;padding:16px}
@@ -143,3 +143,28 @@ textarea.auto{resize:none;overflow:hidden;display:block}
 .btnrow .left .btn{padding:11px 13px;font-size:15px}
 .btnrow .left{gap:6px}
 .savebtn{padding:11px 14px;font-size:15px;white-space:nowrap}
+
+/* === версия 4: глаз «прочитано», карандаш в строке, теги под записью, окно по центру === */
+.home-tags{margin:0 0 18px}
+.row .m{display:flex;align-items:center;gap:4px;min-width:0;color:var(--muted);font-size:14px;margin-top:3px}
+.row .m span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.rb{width:34px;height:34px}
+.rb svg{width:24px;height:24px;display:block}
+.rb.pen{width:28px;height:28px;flex:none}
+.rb.pen svg{width:15px;height:15px}
+.rb.eye svg{width:26px;height:26px}
+.rb.eye.on{background:transparent}
+.rb.eye:hover{background:transparent}
+.tagline{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.tagline .tagbadge{font-size:12.5px;padding:3px 9px;margin:0}
+.metarow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 10px}
+.metarow .meta-line{margin:0}
+.metarow .rb.eye{margin-right:-6px}
+.tagsbox{margin:0 0 12px}
+.donechip{display:inline-flex;align-items:center;justify-content:center;padding:4px 8px;line-height:0}
+.donechip svg{width:20px;height:20px}
+.sheet .cover{height:150px;margin-bottom:12px}
+.sheet .cover-gen{height:150px;margin-bottom:12px}
+.sheet .title-in.auto{font-size:20px;margin-bottom:6px}
+.sheet .lbl{margin:12px 0 6px}
+.sheet .btnrow{margin-top:16px}

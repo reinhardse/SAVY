@@ -1,6 +1,6 @@
 const SRC = {instagram: 'Instagram', youtube: 'YouTube', telegram: 'Telegram', tiktok: 'TikTok', web: 'Сайт'};
 const TYPE = {video: 'Видео', article: 'Статья', book: 'Книга', place: 'Место', product: 'Товар', image: 'Изображение', note: 'Заметка', other: 'Материал'};
-const NAV = [['home', 'Главная', '⌂'], ['inbox', 'Входящие', '✉'], ['all', 'Все', '☰'], ['fav', 'Избранное', '★'], ['archive', 'Архив', '▤']];
+const NAV = [['home', 'Главная', '⌂'], ['inbox', 'Входящие', '✉'], ['all', 'Все', '☰']];
 // стили стандартных категорий
 const COL = {
   watch:  {bg: '#e9eafb', tc: '#3b3f9a', c1: '#6c7bff', c2: '#a3adff'},
@@ -25,6 +25,10 @@ const ICONS = {
   buy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 7h14l-1.2 12.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>',
 };
 const LOUPE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>';
+const PEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>';
+// глаз: серый по умолчанию, пастельная зелёная галочка, когда материал проработан
+const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M7 12c1.5-2.5 3.2-3.8 5-3.8s3.5 1.3 5 3.8c-1.5 2.5-3.2 3.8-5 3.8S8.5 14.5 7 12z"/><circle cx="12" cy="12" r="1.7"/></svg>';
+const EYE_ON = '<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5" fill="#dcf2e5" stroke="#3fa975" stroke-width="1.8"/><path d="M7.5 12.5l3 3 6-6.5" stroke="#3fa975" stroke-width="2.2"/></svg>';
 
 let cats = [], q = '', pollLeft = 0, listParams = {}, searchTimer = null, openSearch = false;
 
@@ -111,12 +115,12 @@ function bindPaste() {
   inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } };
 }
 
+// строка материала: обложка, название, источник и карандаш, теги под ними; справа глаз и крестик
 function row(i) {
-  const cat = cats.find(c => c.slug === i.category);
   const wait = i.meta_state === 'pending' ? ' · собираю данные…' : '';
-  const meta = [SRC[i.source], TYPE[i.content_type], cat && cat.name].filter(Boolean).join(' · ') + wait;
-  const badge = i.status === 'new' ? '<span class="badge">Новое</span>' : '';
-  return `<div class="row" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m">${esc(meta)}</div></div>${badge}<button class="rb edit" data-id="${i.id}" aria-label="Открыть карточку">✎</button><button class="rb del" data-id="${i.id}" aria-label="Удалить">×</button></div>`;
+  const meta = [SRC[i.source], TYPE[i.content_type]].filter(Boolean).join(' · ') + wait;
+  const tags = i.tags.length ? `<div class="tagline">${i.tags.map(t => `<span class="tagbadge">#${esc(t)}</span>`).join('')}</div>` : '';
+  return `<div class="row" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m"><span>${esc(meta)}</span><button class="rb pen" data-id="${i.id}" aria-label="Открыть карточку">${PEN}</button></div>${tags}</div><button class="rb eye ${i.done ? 'on' : ''}" data-done="${i.id}" aria-label="Прочитано">${i.done ? EYE_ON : EYE}</button><button class="rb del" data-id="${i.id}" aria-label="Удалить">×</button></div>`;
 }
 
 // перерисовываем список только если что-то изменилось, иначе клик теряется между опросами
@@ -127,13 +131,21 @@ function paint(el, html) {
   bindRows();
 }
 
+// только внутри страницы: кнопки открытой карточки обслуживает своя логика
 function bindRows() {
-  document.querySelectorAll('.row').forEach(el => el.onclick = e => {
+  const app = $('#app');
+  app.querySelectorAll('.row').forEach(el => el.onclick = e => {
     if (e.target.closest('.rb')) return;
     window.open(el.dataset.url, '_blank', 'noopener');
   });
-  document.querySelectorAll('.rb.edit').forEach(b => b.onclick = e => { e.stopPropagation(); openItem(+b.dataset.id); });
-  document.querySelectorAll('.rb.del').forEach(b => b.onclick = async e => {
+  app.querySelectorAll('.rb.pen').forEach(b => b.onclick = e => { e.stopPropagation(); openItem(+b.dataset.id); });
+  app.querySelectorAll('.rb.eye').forEach(b => b.onclick = async e => {
+    e.stopPropagation();
+    const on = !b.classList.contains('on');
+    await api('/items/' + b.dataset.done, {method: 'PATCH', body: {done: on}});
+    route();
+  });
+  app.querySelectorAll('.rb.del').forEach(b => b.onclick = async e => {
     e.stopPropagation();
     if (!confirm('Удалить материал?')) return;
     await api('/items/' + b.dataset.id, {method: 'DELETE'});
@@ -146,10 +158,11 @@ async function home() {
   const [me, items, tags] = await Promise.all([api('/me'), api('/items?limit=15'), api('/tags')]);
   cats = me.categories;
   const listHtml = items.length ? items.map(row).join('') : '<div class="empty">Пока пусто. Вставьте ссылку выше.</div>';
-  $('#app').innerHTML = `<div class="brand">SAVE</div>
+  $('#app').innerHTML = `<div class="titlerow"><div class="brand">SAVE</div>
+      <button class="iconbtn" id="hsbtn" aria-label="Поиск">${LOUPE}</button></div>
     <div class="hero"><div class="big">${me.total}</div><div class="sub">Материалов в библиотеке</div></div>
     ${pasteHtml()}
-    <div class="tagrow"><div class="tags">${tags.map(t => `<span class="tagchip" data-alltag="${esc(t.name)}">#${esc(t.name)}</span>`).join('')}</div><button class="iconbtn sm" id="hsbtn" aria-label="Поиск">${LOUPE}</button></div>
+    ${tags.length ? `<div class="tags home-tags">${tags.map(t => `<span class="tagchip" data-alltag="${esc(t.name)}">#${esc(t.name)}</span>`).join('')}</div>` : ''}
     <div class="tiles">${me.categories.map(c => {
       const st = styleOf(c.slug);
       return `<button class="tile" style="--c:${st.bg};--tc:${st.tc}" data-slug="${esc(c.slug)}">
@@ -194,17 +207,22 @@ async function listView(title, params, active) {
   await loadList();
 }
 
-// Теги раздела: появляются, когда у материалов раздела есть тег, и исчезают, когда тега не остаётся
+// Теги раздела и значок ✓: им открываются прочитанные материалы раздела
 async function loadTags() {
   const el = $('#tags');
   if (!el) return;
-  const t = await api('/tags?category=' + encodeURIComponent(listParams.category));
-  el.style.display = t.length ? '' : 'none';
-  el.innerHTML = t.map(x => `<span class="tagchip ${listParams.tag === x.name ? 'on' : ''}" data-tag="${esc(x.name)}">#${esc(x.name)}</span>`).join('');
+  const doneOn = listParams.status === 'done';
+  const t = await api('/tags?category=' + encodeURIComponent(listParams.category) + (doneOn ? '&status=done' : ''));
+  el.innerHTML = t.map(x => `<span class="tagchip ${listParams.tag === x.name ? 'on' : ''}" data-tag="${esc(x.name)}">#${esc(x.name)}</span>`).join('')
+    + `<span class="tagchip donechip ${doneOn ? 'on' : ''}" id="donechip" title="Прочитано">${doneOn ? EYE_ON : EYE}</span>`;
   el.querySelectorAll('[data-tag]').forEach(b => b.onclick = () => {
     if (listParams.tag === b.dataset.tag) delete listParams.tag; else listParams.tag = b.dataset.tag;
     loadTags(); loadList();
   });
+  $('#donechip').onclick = () => {
+    if (listParams.status === 'done') delete listParams.status; else listParams.status = 'done';
+    loadTags(); loadList();
+  };
 }
 
 async function loadList() {
@@ -225,10 +243,7 @@ async function route() {
   const [view, ...rest] = (location.hash.slice(2) || 'home').split('/');
   const arg = decodeURIComponent(rest.join('/'));
   pollLeft = view === 'home' ? 6 : pollLeft;
-  const map = {
-    inbox: ['Входящие', {status: 'new'}], all: ['Все материалы', {}],
-    fav: ['Избранное', {favorite: true}], archive: ['Архив', {status: 'archived'}],
-  };
+  const map = {inbox: ['Входящие', {status: 'new'}], all: ['Все материалы', {}]};
   if (view === 'cat') {
     const c = cats.find(x => x.slug === arg);
     return listView(c ? c.name : 'Категория', {category: arg}, 'all');
@@ -238,7 +253,7 @@ async function route() {
   return home();
 }
 
-/* ---------- карточка материала ---------- */
+/* ---------- карточка материала: окно по центру ---------- */
 function closeSheet() { $('#sheet-root').innerHTML = ''; route(); }
 
 function sheet(html) {
@@ -250,7 +265,7 @@ function autosize(el) { el.style.height = 'auto'; el.style.height = el.scrollHei
 
 // состояние, с которым карточка сравнивается: то, что сохранено на сервере
 function snapshot(it) {
-  return {title: titleOf(it), description: it.description || '', category: it.category || null, tags: [...it.tags].sort()};
+  return {title: titleOf(it), description: it.description || '', category: it.category || null, tags: [...it.tags].sort(), done: !!it.done};
 }
 
 async function openItem(id) {
@@ -270,12 +285,13 @@ async function openItem(id) {
 
   const draw = () => {
     const catChips = cats.map(c => `<span class="chip ${draft.category === c.slug ? 'on' : ''}" data-cat="${esc(c.slug)}">${esc(c.name)}<i class="x" data-del="${esc(c.slug)}" title="Удалить категорию">×</i></span>`).join('');
-    const tagChips = draft.tags.map(t => `<span class="tagbadge">#${esc(t)}<i class="x" data-rm="${esc(t)}">×</i></span>`).join('');
-    const meta = [SRC[it.source], TYPE[it.content_type], cats.find(c => c.slug === draft.category)?.name].filter(Boolean).join(' · ');
+    const tagChips = draft.tags.map(t => `<span class="tagbadge">#${esc(t)}<i class="x" data-rm="${esc(t)}">×</i></span>`).join('') + '<span class="tagbadge add" id="addtag">+ тег</span>';
+    const meta = [SRC[it.source], TYPE[it.content_type]].filter(Boolean).join(' · ');
     sheet(`${coverHtml(it, 'cover')}
       <textarea class="title-in auto" id="ti" maxlength="100" placeholder="Название">${esc(draft.title)}</textarea>
-      <div class="meta-line">${esc(meta)}</div>
-      ${tagChips ? `<div class="tagsline" id="tagsbox">${tagChips}</div>` : ''}
+      <div class="metarow"><div class="meta-line">${esc(meta)}</div>
+        <button class="rb eye ${draft.done ? 'on' : ''}" id="ceye" aria-label="Прочитано">${draft.done ? EYE_ON : EYE}</button></div>
+      <div class="chips tagsbox" id="tagsbox">${tagChips}</div>
       <textarea class="desc-in auto" id="de" placeholder="Описание">${esc(draft.description)}</textarea>
       ${it.meta_state === 'failed' ? '<p class="hint">Сайт не отдал название и картинку, поэтому они составлены из ссылки. Их можно поправить.</p>' : ''}
       <div class="lbl">Категория</div>
@@ -292,6 +308,7 @@ async function openItem(id) {
     // название и описание: правим в поле, сохраняем кнопкой «Сохранить»
     $('#ti').oninput = e => { draft.title = e.target.value.slice(0, 100); autosize(e.target); saveBtn(); };
     $('#de').oninput = e => { draft.description = e.target.value; autosize(e.target); saveBtn(); };
+    $('#ceye').onclick = () => { draft.done = !draft.done; draw(); };
 
     // категория: нажатие выбирает, крестик удаляет категорию целиком
     document.querySelectorAll('#catbox [data-cat]').forEach(el => el.onclick = async e => {
@@ -324,7 +341,20 @@ async function openItem(id) {
       inp.onblur = () => { if (!inp.value.trim()) draw(); };
     };
 
-    // теги: только снимаются крестиком, новые не создаются
+    // теги: плюсом добавляются, крестиком снимаются
+    $('#addtag').onclick = () => {
+      $('#addtag').outerHTML = '<input class="chip-in" id="newtag" placeholder="Тег">';
+      const inp = $('#newtag'); inp.focus();
+      inp.onkeydown = e => {
+        if (e.key === 'Escape') return draw();
+        if (e.key !== 'Enter') return;
+        const name = inp.value.trim().toLowerCase();
+        if (!name) return;
+        draft.tags = [...new Set([...draft.tags, name])].sort();
+        draw();
+      };
+      inp.onblur = () => { if (!inp.value.trim()) draw(); };
+    };
     document.querySelectorAll('[data-rm]').forEach(el => el.onclick = e => {
       e.stopPropagation();
       draft.tags = draft.tags.filter(t => t !== el.dataset.rm);
@@ -338,6 +368,7 @@ async function openItem(id) {
         description: draft.description,
         category: draft.category,
         tags: draft.tags,
+        done: draft.done,
       }});
       base = snapshot(it);
       draft = JSON.parse(JSON.stringify(base));
