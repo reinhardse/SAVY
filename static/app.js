@@ -141,8 +141,8 @@ function row(i) {
   const wait = i.meta_state === 'pending' ? ' · собираю данные…' : '';
   const cat = cats.find(c => c.slug === i.category);
   const meta = [SRC[i.source], cat ? cat.name : 'Без категории'].join(' · ') + wait;
-  const eye = i.category ? eyeChip(i.done, `data-done="${i.id}"`) : '';
-  const tags = (eye || i.tags.length) ? `<div class="tagline">${eye}${i.tags.map(t => `<span class="tagbadge">#${esc(t)}</span>`).join('')}</div>` : '';
+  const eye = eyeChip(i.done, `data-done="${i.id}"`);
+  const tags = `<div class="tagline">${eye}${i.tags.map(t => `<span class="tagbadge">#${esc(t)}</span>`).join('')}</div>`;
   return `<div class="row" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m"><span>${esc(meta)}</span><button class="rb pen" data-id="${i.id}" aria-label="Открыть карточку">${PEN}</button></div>${tags}</div><button class="rb del" data-id="${i.id}" aria-label="Удалить">×</button></div>`;
 }
 
@@ -217,7 +217,7 @@ async function listView(title, params, active, withTags = false) {
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">${esc(title)}</div>
       <div class="tr-actions"><button class="iconbtn" id="bback" aria-label="Назад">${BACK}</button>
       <button class="iconbtn" id="sbtn" aria-label="Поиск">${LOUPE}</button></div></div>
-    ${params.category ? '<div class="catsub" id="csub"></div>' : ''}
+    ${params.category || params.inbox ? '<div class="catsub" id="csub"></div>' : ''}
     ${active === 'inbox' ? pasteHtml() : ''}
     <input class="search" id="q" placeholder="Поиск" style="display:${q || wantSearch ? 'block' : 'none'}" value="${esc(q)}">
     ${withTags ? '<div class="tags" id="tags"></div>' : ''}
@@ -250,18 +250,21 @@ async function loadTags() {
   const el = $('#tags');
   if (!el) return;
   const cat = listParams.category;
-  const doneOn = !!cat && listParams.status === 'done';
+  const inbox = !!listParams.inbox;
+  const hasEye = !!cat || inbox;  // у категории и у входящих есть глаз (прочитанное)
+  const doneOn = hasEye && listParams.status === 'done';
   const qs = new URLSearchParams();
   if (cat) { qs.set('category', cat); qs.set('all_status', '1'); }
+  if (inbox) { qs.set('inbox', '1'); qs.set('all_status', '1'); }
   const [st, t] = await Promise.all([
-    cat ? api('/categories/' + encodeURIComponent(cat) + '/stats') : Promise.resolve(null),
+    cat ? api('/categories/' + encodeURIComponent(cat) + '/stats') : inbox ? api('/inbox/stats') : Promise.resolve(null),
     api('/tags?' + qs),
   ]);
   if (st) { const sub = $('#csub'); if (sub) sub.textContent = `${st.count} ${plural(st.count)}`; }
   // «Все», теги и глаз работают одинаково: выбран один, остальные всегда видны
   const chips = [`<span class="tagchip ${!doneOn && !listParams.tag ? 'on' : ''}" data-all="1">Все</span>`];
   chips.push(...t.map(x => `<span class="tagchip ${!doneOn && listParams.tag === x.name ? 'on' : ''}" data-tag="${esc(x.name)}">#${esc(x.name)}<i class="cnt">${x.count}</i></span>`));
-  if (cat) chips.push(`<span class="tagchip donechip ${doneOn ? 'on' : ''}" data-eye="1" title="Прочитано">${doneOn ? EYE_ON : EYE}<i class="cnt">${st.done}</i></span>`);
+  if (hasEye) chips.push(`<span class="tagchip donechip ${doneOn ? 'on' : ''}" data-eye="1" title="Прочитано">${doneOn ? EYE_ON : EYE}<i class="cnt">${st.done}</i></span>`);
   el.innerHTML = chips.join('');
   el.querySelectorAll('[data-all]').forEach(b => b.onclick = () => { delete listParams.tag; delete listParams.status; loadTags(); loadList(); });
   el.querySelectorAll('[data-tag]').forEach(b => b.onclick = () => {
@@ -302,7 +305,7 @@ async function route() {
     return listView(c ? c.name : 'Категория', {category: arg}, 'all', true);
   }
   if (view === 'tag') return listView('#' + arg, {tag: arg}, 'all');
-  if (map[view]) return listView(map[view][0], map[view][1], view, view === 'all');
+  if (map[view]) return listView(map[view][0], map[view][1], view, view === 'all' || view === 'inbox');
   return home();
 }
 
@@ -349,7 +352,7 @@ async function openItem(id) {
     const catChips = cats.map(c => `<span class="chip ${draft.category === c.slug ? 'on' : ''}" data-cat="${esc(c.slug)}">${esc(c.name)}<i class="x" data-del="${esc(c.slug)}" title="Удалить категорию">×</i></span>`).join('');
     // все теги библиотеки видны всегда: выбранные подсвечены, нажатие добавляет или снимает тег у материала
     const names = [...new Set([...allTagNames, ...draft.tags])].sort();
-    const eyeTag = draft.category ? eyeChip(draft.done, 'id="ceye"') : '';
+    const eyeTag = eyeChip(draft.done, 'id="ceye"');
     const tagChips = eyeTag + names.map(n => `<span class="tagbadge ${draft.tags.includes(n) ? '' : 'off'}" data-tt="${esc(n)}">#${esc(n)}</span>`).join('') + '<span class="tagbadge add" id="addtag">+ тег</span>';
     const meta = [SRC[it.source], TYPE[it.content_type]].filter(Boolean).join(' · ');
     sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">×</button>${coverHtml(it, 'cover')}

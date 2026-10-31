@@ -228,8 +228,6 @@ def patch_item(item_id: int, body: ItemPatch, db: Session = Depends(get_db), _: 
         item.category_id = c.id if c else None
         if c and item.status == "new":
             item.status = "planned"
-        if not c and item.status == "done":  # без категории прочитанное не потеряется: возвращаем во входящие
-            item.status = "new"
     if "note" in fields:
         item.note = body.note
     if "title" in fields:
@@ -293,6 +291,15 @@ def categories(db: Session = Depends(get_db), _: int = Depends(require_auth)):
     return [cat_out(c) for c in db.scalars(select(Category).order_by(Category.sort))]
 
 
+@app.get("/api/inbox/stats")
+def inbox_stats(db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    """Входящие: сколько материалов без категории (непрочитанных) и сколько из них прочитано."""
+    counts = dict(db.execute(select(Item.status, func.count()).where(
+        Item.user_id == USER_ID, Item.category_id.is_(None)).group_by(Item.status)).all())
+    count = sum(v for k, v in counts.items() if k not in ("done", "archived"))
+    return {"count": count, "done": counts.get("done", 0)}
+
+
 @app.get("/api/categories/{slug}/stats")
 def category_stats(slug: str, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     """Сколько материалов в категории (непрочитанных) и сколько прочитано."""
@@ -320,7 +327,7 @@ def add_category(body: CategoryIn, db: Session = Depends(get_db), _: int = Depen
 
 
 @app.get("/api/tags")
-def tags_list(category: str | None = None, status: str | None = None, all_status: bool = False,
+def tags_list(category: str | None = None, status: str | None = None, all_status: bool = False, inbox: bool = False,
               db: Session = Depends(get_db), _: int = Depends(require_auth)):
     """Теги: все теги библиотеки или только теги материалов раздела (появляются и исчезают сами).
     all_status=1 — теги со всех материалов раздела, включая прочитанные: строка тегов не меняется от глаза."""
@@ -336,6 +343,8 @@ def tags_list(category: str | None = None, status: str | None = None, all_status
         if not c:
             return []
         stmt = stmt.where(Item.category_id == c.id)
+    if inbox:  # теги входящих: материалов без категории
+        stmt = stmt.where(Item.category_id.is_(None))
     counts: dict[str, int] = {}
     for it in db.scalars(stmt).unique():
         for t in it.tags:
