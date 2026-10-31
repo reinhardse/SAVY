@@ -63,8 +63,8 @@ def detect_source(url_norm: str) -> str:
 def guess_type_and_category(url_norm: str, source: str) -> tuple[str, str | None]:
     low = url_norm.lower()
     path = urlsplit(url_norm).path
-    if source == "kinopoisk":
-        return "video", "watch"
+    if source == "kinopoisk":  # фильмы и сериалы никуда не относим сами: категорию выбирает пользователь
+        return "video", None
     if source == "youtube" or source == "tiktok":
         return "video", "watch"
     if source == "instagram":
@@ -222,7 +222,7 @@ def fetch_metadata(url: str, source: str) -> dict:
                 info = {"method": "open_graph", "status": r.status_code if r else None}
                 if r is not None and r.status_code == 200:
                     og = _og(r.text, url)
-                    if source == "litres" and og.get("title") and " — " in og["title"]:
+                    if source in ("litres", "kinopoisk") and og.get("title") and " — " in og["title"]:
                         og["title"] = og["title"].split(" — ")[0].strip()  # «Название — Автор Издательство» -> «Название»
                     info["fields"] = [k for k, v in og.items() if v]
                     for k, v in og.items():
@@ -231,6 +231,12 @@ def fetch_metadata(url: str, source: str) -> dict:
                 out["tried"].append(info)
             except Exception as e:  # noqa: BLE001
                 out["tried"].append({"method": "open_graph", "error": type(e).__name__})
+    if source == "kinopoisk" and not out["thumbnail_url"]:
+        # постер фильма по его номеру: /film/301/ -> картинка с CDN Кинопоиска
+        m = re.search(r"/(?:film|series)/(\d+)", url)
+        if m:
+            out["thumbnail_url"] = f"https://st.kp.yandex.net/images/film_big/{m.group(1)}.jpg"
+            out["tried"].append({"method": "kp_poster", "status": "fallback"})
     got = [bool(out["title"]), bool(out["thumbnail_url"])]
     out["meta_state"] = "ok" if all(got) else "partial" if any(got) else "failed"
     return out
