@@ -55,12 +55,16 @@ def detect_source(url_norm: str) -> str:
         return "tiktok"
     if host.endswith("litres.ru"):
         return "litres"
+    if host.endswith("kinopoisk.ru"):
+        return "kinopoisk"
     return "web"
 
 
 def guess_type_and_category(url_norm: str, source: str) -> tuple[str, str | None]:
     low = url_norm.lower()
     path = urlsplit(url_norm).path
+    if source == "kinopoisk":
+        return "video", "watch"
     if source == "youtube" or source == "tiktok":
         return "video", "watch"
     if source == "instagram":

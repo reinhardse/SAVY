@@ -138,8 +138,9 @@ def save_url(db: Session, url: str, note: str | None, category: str | None, task
     if exists:
         return item_out(exists), False
     source = meta.detect_source(norm)
-    ctype, auto_cat = meta.guess_type_and_category(norm, source)
-    cat = cat_by_slug(db, category or auto_cat)
+    ctype, _ = meta.guess_type_and_category(norm, source)
+    # новая ссылка без выбранной категории попадает в «Без категории» (входящие), категорию не угадываем
+    cat = cat_by_slug(db, category)
     item = Item(user_id=USER_ID, url=url.strip(), url_norm=norm, source=source, content_type=ctype,
                 note=note, category_id=cat.id if cat else None)
     db.add(item)
