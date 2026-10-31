@@ -203,12 +203,34 @@ def _og(html: str, base: str) -> dict:
     }
 
 
-def _wikidata_title(client: httpx.Client, kp_id: str) -> str | None:
-    """Русское название фильма по номеру Кинопоиска (свойство P2603 в Wikidata): сам Кинопоиск роботам страницу не отдаёт."""
-    ua = {"User-Agent": "SAVE-personal-library/1.0 (link saver)"}
+WD_UA = {"User-Agent": "SAVE-personal-library/1.0 (https://github.com/reinhardse/SAVY)", "Accept": "application/json"}
+
+
+def _wikidata_title(client: httpx.Client, kp_id: str, dbg: list | None = None) -> str | None:
+    """Русское (а если нет — английское) название фильма по номеру Кинопоиска: свойство P2603 в Wikidata.
+    Сам Кинопоиск роботам страницу не отдаёт, поэтому спрашиваем у открытой базы. dbg — для журнала: что вернулось."""
+    dbg = dbg if dbg is not None else []
+    sparql = ('SELECT ?ru ?en WHERE { ?f wdt:P2603 "%s" . '
+              'OPTIONAL { ?f rdfs:label ?ru FILTER(LANG(?ru) = "ru") } '
+              'OPTIONAL { ?f rdfs:label ?en FILTER(LANG(?en) = "en") } } LIMIT 1' % kp_id)
+    try:
+        r = _get_retry(client, "https://query.wikidata.org/sparql?format=json&query=" + quote(sparql), headers=WD_UA)
+        dbg.append({"sparql": r.status_code if r is not None else None})
+        if r is not None and r.status_code == 200:
+            rows = r.json().get("results", {}).get("bindings", [])
+            if rows:
+                row = rows[0]
+                title = (row.get("ru") or row.get("en") or {}).get("value")
+                if title:
+                    return title
+            dbg.append({"sparql_rows": len(rows)})
+    except (ValueError, KeyError, TypeError, httpx.HTTPError) as e:
+        dbg.append({"sparql_error": type(e).__name__})
+    # запасной путь: поиск по утверждению
     try:
         r = _get_retry(client, "https://www.wikidata.org/w/api.php?action=query&list=search&format=json&srlimit=1&srsearch="
-                       + quote(f"haswbstatement:P2603={kp_id}"), headers=ua)
+                       + quote(f"haswbstatement:P2603={kp_id}"), headers=WD_UA)
+        dbg.append({"search": r.status_code if r is not None else None})
         if r is None or r.status_code != 200:
             return None
         hits = r.json().get("query", {}).get("search", [])
@@ -216,12 +238,13 @@ def _wikidata_title(client: httpx.Client, kp_id: str) -> str | None:
             return None
         qid = hits[0]["title"]
         r = _get_retry(client, f"https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&props=labels&languages=ru|en&ids={qid}",
-                       headers=ua)
+                       headers=WD_UA)
         if r is None or r.status_code != 200:
             return None
         labels = r.json().get("entities", {}).get(qid, {}).get("labels", {})
         return (labels.get("ru") or labels.get("en") or {}).get("value")
-    except (ValueError, KeyError, TypeError, httpx.HTTPError):
+    except (ValueError, KeyError, TypeError, httpx.HTTPError) as e:
+        dbg.append({"search_error": type(e).__name__})
         return None
 
 
@@ -273,9 +296,10 @@ def fetch_metadata(url: str, source: str) -> dict:
                 out["thumbnail_url"] = f"https://st.kp.yandex.net/images/film_big/{m.group(1)}.jpg"
                 out["tried"].append({"method": "kp_poster", "status": "fallback"})
             if not out["title"]:
+                dbg: list = []
                 with httpx.Client(timeout=TIMEOUT) as wd:
-                    out["title"] = _wikidata_title(wd, m.group(1))
-                out["tried"].append({"method": "wikidata", "found": bool(out["title"])})
+                    out["title"] = _wikidata_title(wd, m.group(1), dbg)
+                out["tried"].append({"method": "wikidata", "found": bool(out["title"]), "debug": dbg})
     got = [bool(out["title"]), bool(out["thumbnail_url"])]
     out["meta_state"] = "ok" if all(got) else "partial" if any(got) else "failed"
     return out
