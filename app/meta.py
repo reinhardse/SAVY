@@ -99,7 +99,11 @@ def _get(client: httpx.Client, url: str, **kw) -> httpx.Response | None:
                 body += chunk
                 if len(body) > MAX_BYTES:
                     break
-            resp = httpx.Response(r.status_code, headers=r.headers, content=body, request=r.request)
+            # Тело уже распаковано клиентом, поэтому заголовки кодирования убираем,
+            # иначе httpx попробует распаковать его второй раз (DecodingError).
+            headers = {k: v for k, v in r.headers.items()
+                       if k.lower() not in ("content-encoding", "content-length", "transfer-encoding")}
+            resp = httpx.Response(r.status_code, headers=headers, content=body, request=r.request)
             return resp
     return None
 
