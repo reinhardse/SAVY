@@ -228,6 +228,7 @@ def patch_item(item_id: int, body: ItemPatch, db: Session = Depends(get_db), _: 
     if "category" in fields:
         c = cat_by_slug(db, body.category)
         item.category_id = c.id if c else None
+        item.category = c  # связанный объект тоже, иначе ответ покажет старую категорию
         if c and item.status == "new":
             item.status = "planned"
     if "note" in fields:
