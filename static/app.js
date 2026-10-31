@@ -61,6 +61,7 @@ function titleOf(i) {
     return m ? `${m[1] === 'reel' ? 'Reel' : m[1] === 'tv' ? 'IGTV' : 'Публикация'} ${m[2]} · Instagram` : 'Публикация в Instagram';
   }
   if (i.source === 'youtube') return 'Видео на YouTube';
+  if (i.source === 'kinopoisk') return 'Фильм на Кинопоиске';
   if (i.source === 'litres') {
     // адрес вида /book/автор/название-ID/: берём название из адреса, без номера книги
     const parts = u.pathname.split('/').filter(Boolean);
@@ -358,7 +359,7 @@ async function openItem(id) {
 </div>
       <textarea class="desc-in auto" id="de" rows="1" placeholder="Описание">${esc(draft.description)}</textarea>
       ${it.meta_state === 'failed' ? '<p class="hint">Сайт не отдал название и картинку, поэтому они составлены из ссылки. Их можно поправить.</p>' : ''}
-      ${it.thumb ? '' : '<button class="linkbtn" id="rf">Обновить обложку</button>'}
+      ${it.thumb && it.title && it.meta_state === 'ok' ? '' : '<button class="linkbtn" id="rf">Обновить название и обложку</button>'}
       <div class="lbl">Категория</div>
       <div class="chips" id="catbox">${catChips}<span class="chip ${!draft.category ? 'on' : ''}" data-cat="">Без категории</span><span class="chip add" id="addcat">+ категория</span></div>
       <div class="lbl">Теги</div>

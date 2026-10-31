@@ -203,6 +203,28 @@ def _og(html: str, base: str) -> dict:
     }
 
 
+def _wikidata_title(client: httpx.Client, kp_id: str) -> str | None:
+    """Русское название фильма по номеру Кинопоиска (свойство P2603 в Wikidata): сам Кинопоиск роботам страницу не отдаёт."""
+    ua = {"User-Agent": "SAVE-personal-library/1.0 (link saver)"}
+    try:
+        r = _get_retry(client, "https://www.wikidata.org/w/api.php?action=query&list=search&format=json&srlimit=1&srsearch="
+                       + quote(f"haswbstatement:P2603={kp_id}"), headers=ua)
+        if r is None or r.status_code != 200:
+            return None
+        hits = r.json().get("query", {}).get("search", [])
+        if not hits:
+            return None
+        qid = hits[0]["title"]
+        r = _get_retry(client, f"https://www.wikidata.org/w/api.php?action=wbgetentities&format=json&props=labels&languages=ru|en&ids={qid}",
+                       headers=ua)
+        if r is None or r.status_code != 200:
+            return None
+        labels = r.json().get("entities", {}).get(qid, {}).get("labels", {})
+        return (labels.get("ru") or labels.get("en") or {}).get("value")
+    except (ValueError, KeyError, TypeError, httpx.HTTPError):
+        return None
+
+
 def fetch_metadata(url: str, source: str) -> dict:
     """Возвращает title/description/author/thumbnail_url + служебные поля tried и meta_state."""
     out = {"title": None, "description": None, "author": None, "thumbnail_url": None, "tried": []}
@@ -243,12 +265,17 @@ def fetch_metadata(url: str, source: str) -> dict:
                 out["tried"].append(info)
             except Exception as e:  # noqa: BLE001
                 out["tried"].append({"method": "open_graph", "error": type(e).__name__})
-    if source == "kinopoisk" and not out["thumbnail_url"]:
-        # постер фильма по его номеру: /film/301/ -> картинка с CDN Кинопоиска
+    if source == "kinopoisk":
         m = re.search(r"/(?:film|series)/(\d+)", url)
         if m:
-            out["thumbnail_url"] = f"https://st.kp.yandex.net/images/film_big/{m.group(1)}.jpg"
-            out["tried"].append({"method": "kp_poster", "status": "fallback"})
+            if not out["thumbnail_url"]:
+                # постер фильма по его номеру: /film/301/ -> картинка с CDN Кинопоиска
+                out["thumbnail_url"] = f"https://st.kp.yandex.net/images/film_big/{m.group(1)}.jpg"
+                out["tried"].append({"method": "kp_poster", "status": "fallback"})
+            if not out["title"]:
+                with httpx.Client(timeout=TIMEOUT) as wd:
+                    out["title"] = _wikidata_title(wd, m.group(1))
+                out["tried"].append({"method": "wikidata", "found": bool(out["title"])})
     got = [bool(out["title"]), bool(out["thumbnail_url"])]
     out["meta_state"] = "ok" if all(got) else "partial" if any(got) else "failed"
     return out
