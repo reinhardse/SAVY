@@ -30,6 +30,7 @@ const ICONS = {
   buy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 7h14l-1.2 12.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>',
 };
 const LOUPE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>';
+const BACK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/></svg>';
 const PEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>';
 // глаз: серый по умолчанию, пастельная зелёная галочка, когда материал проработан
 const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M7 12c1.5-2.5 3.2-3.8 5-3.8s3.5 1.3 5 3.8c-1.5 2.5-3.2 3.8-5 3.8S8.5 14.5 7 12z"/><circle cx="12" cy="12" r="1.7"/></svg>';
@@ -213,13 +214,15 @@ async function listView(title, params, active, withTags = false) {
   listParams = params;
   const wantSearch = openSearch; openSearch = false;
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">${esc(title)}</div>
-      <button class="iconbtn" id="sbtn" aria-label="Поиск">${LOUPE}</button></div>
+      <div class="tr-actions"><button class="iconbtn" id="bback" aria-label="Назад">${BACK}</button>
+      <button class="iconbtn" id="sbtn" aria-label="Поиск">${LOUPE}</button></div></div>
     ${params.category ? '<div class="catsub" id="csub"></div>' : ''}
     ${active === 'inbox' ? pasteHtml() : ''}
     <input class="search" id="q" placeholder="Поиск" style="display:${q || wantSearch ? 'block' : 'none'}" value="${esc(q)}">
     ${withTags ? '<div class="tags" id="tags"></div>' : ''}
     <div class="list" id="list"></div>${nav(active)}`;
   bindPaste();
+  $('#bback').onclick = () => { location.hash = '#/home'; };
   if (wantSearch) setTimeout(() => $('#q').focus(), 0);
   $('#sbtn').onclick = () => {
     const box = $('#q');
