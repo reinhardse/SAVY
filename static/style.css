@@ -211,3 +211,16 @@ img.thumb,img.cover{animation:fadeIn .3s ease both}
 .sheet-loading::after{content:'';display:block;width:22px;height:22px;margin:14px auto 0;border-radius:50%;border:2.5px solid var(--line);border-top-color:var(--accent);animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* === версия 8: окно загрузки и плавный переход в карточку === */
+.sheet{animation:none}
+.overlay{animation:ovIn .2s ease-out both}
+.sheet.swap > *{animation:cardIn .32s cubic-bezier(.2,.8,.2,1) both}
+.sheet.swap > *:nth-child(2){animation-delay:.03s}
+.sheet.swap > *:nth-child(3){animation-delay:.06s}
+.sheet.swap > *:nth-child(4){animation-delay:.09s}
+.sheet.swap > *:nth-child(n+5){animation-delay:.12s}
+@keyframes cardIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.sheet-loading{min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:var(--muted);font-size:15px}
+.sheet-loading::after{display:none}
+.spin{width:30px;height:30px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);animation:spin .8s linear infinite}

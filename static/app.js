@@ -108,7 +108,7 @@ function bindPaste() {
     const url = inp.value.trim();
     if (!url) return;
     inp.value = ''; inp.disabled = true; inp.placeholder = 'Добавляю…';
-    sheet('<div class="sheet-loading">Добавляю ссылку</div>');
+    sheet('<div class="sheet-loading"><div class="spin"></div><div>Добавляю ссылку</div></div>');
     try {
       const r = await api('/items', {method: 'POST', body: {url}});
       pollLeft = 6;
@@ -298,7 +298,10 @@ function sheet(html) {
     ov = $('#ov');
     ov.onclick = e => { if (e.target.id === 'ov') closeSheet(); };
   }
-  ov.querySelector('.sheet').innerHTML = html;
+  const box = ov.querySelector('.sheet');
+  box.innerHTML = html;
+  // содержимое плавно проявляется, окно и его фон не перерисовываются
+  box.classList.remove('swap'); void box.offsetWidth; box.classList.add('swap');
 }
 
 function autosize(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }

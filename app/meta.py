@@ -108,6 +108,43 @@ def _get(client: httpx.Client, url: str, **kw) -> httpx.Response | None:
     return None
 
 
+TITLE_TAIL = re.compile(r"\s*[|—–-]\s*(ЛитРес|Литрес|LitRes|Litres|Читать|Купить|Labirint|Лабиринт|Bookmate|Википедия).*$", re.I)
+
+
+def _ld_image(soup) -> str | None:
+    """Обложка из данных Schema.org (JSON-LD): книжные сайты часто отдают её так, даже без og:image."""
+    import json
+
+    def find(node):
+        if isinstance(node, dict):
+            img = node.get("image")
+            if isinstance(img, str):
+                return img
+            if isinstance(img, list) and img and isinstance(img[0], str):
+                return img[0]
+            if isinstance(img, dict) and isinstance(img.get("url"), str):
+                return img["url"]
+            for v in node.values():
+                r = find(v)
+                if r:
+                    return r
+        elif isinstance(node, list):
+            for v in node:
+                r = find(v)
+                if r:
+                    return r
+        return None
+
+    for tag in soup.find_all("script", attrs={"type": "application/ld+json"}):
+        try:
+            found = find(json.loads(tag.string or ""))
+        except (ValueError, TypeError):
+            continue
+        if found:
+            return found
+    return None
+
+
 def _og(html: str, base: str) -> dict:
     soup = BeautifulSoup(html, "html.parser")
 
@@ -119,7 +156,9 @@ def _og(html: str, base: str) -> dict:
         return None
 
     title = meta("og:title", "twitter:title") or (soup.title.string.strip() if soup.title and soup.title.string else None)
-    img = meta("og:image", "twitter:image")
+    if title:
+        title = TITLE_TAIL.sub("", title).strip() or title
+    img = meta("og:image", "twitter:image") or _ld_image(soup)
     return {
         "title": title,
         "description": meta("og:description", "description", "twitter:description"),
