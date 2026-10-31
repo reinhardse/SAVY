@@ -232,29 +232,29 @@ async function loadTags() {
   const cat = listParams.category;
   const doneOn = !!cat && listParams.status === 'done';
   const qs = new URLSearchParams();
-  if (cat) qs.set('category', cat);
-  if (doneOn) qs.set('status', 'done');
+  if (cat) { qs.set('category', cat); qs.set('all_status', '1'); }
   const [st, t] = await Promise.all([
     cat ? api('/categories/' + encodeURIComponent(cat) + '/stats') : Promise.resolve(null),
     api('/tags?' + qs),
   ]);
   if (st) { const sub = $('#csub'); if (sub) sub.textContent = `${st.count} ${plural(st.count)}`; }
-  const chips = [];
-  if (t.length) chips.push(`<span class="tagchip ${listParams.tag ? '' : 'on'}" data-tag="">Все</span>`);
-  chips.push(...t.map(x => `<span class="tagchip ${listParams.tag === x.name ? 'on' : ''}" data-tag="${esc(x.name)}">#${esc(x.name)}<i class="cnt">${x.count}</i></span>`));
-  if (cat) chips.push(`<span class="tagchip donechip ${doneOn ? 'on' : ''}" id="donechip" title="Прочитано">${doneOn ? EYE_ON : EYE}<i class="cnt">${st.done}</i></span>`);
+  // «Все», теги и глаз работают одинаково: выбран один, остальные всегда видны
+  const chips = [`<span class="tagchip ${!doneOn && !listParams.tag ? 'on' : ''}" data-all="1">Все</span>`];
+  chips.push(...t.map(x => `<span class="tagchip ${!doneOn && listParams.tag === x.name ? 'on' : ''}" data-tag="${esc(x.name)}">#${esc(x.name)}<i class="cnt">${x.count}</i></span>`));
+  if (cat) chips.push(`<span class="tagchip donechip ${doneOn ? 'on' : ''}" data-eye="1" title="Прочитано">${doneOn ? EYE_ON : EYE}<i class="cnt">${st.done}</i></span>`);
   el.innerHTML = chips.join('');
+  el.querySelectorAll('[data-all]').forEach(b => b.onclick = () => { delete listParams.tag; delete listParams.status; loadTags(); loadList(); });
   el.querySelectorAll('[data-tag]').forEach(b => b.onclick = () => {
     const name = b.dataset.tag;
-    if (!name || listParams.tag === name) delete listParams.tag; else listParams.tag = name;
+    if (!doneOn && listParams.tag === name) delete listParams.tag;
+    else { listParams.tag = name; delete listParams.status; }
     loadTags(); loadList();
   });
-  const dc = $('#donechip');
-  if (dc) dc.onclick = () => {
+  el.querySelectorAll('[data-eye]').forEach(b => b.onclick = () => {
     if (doneOn) delete listParams.status;
     else { listParams.status = 'done'; delete listParams.tag; }
     loadTags(); loadList();
-  };
+  });
 }
 
 async function loadList() {
@@ -263,7 +263,8 @@ async function loadList() {
   const items = await api('/items?' + p);
   const el = $('#list');
   if (!el) return;
-  paint(el, items.length ? items.map(row).join('') : `<div class="empty">${q ? 'Ничего не найдено' : 'Здесь пока пусто'}</div>`);
+  const empty = q ? 'Ничего не найдено' : listParams.status === 'done' ? 'Тут пусто' : 'Здесь пока пусто';
+  paint(el, items.length ? items.map(row).join('') : `<div class="empty">${empty}</div>`);
   schedulePoll(items, loadList);
 }
 

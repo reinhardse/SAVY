@@ -316,12 +316,15 @@ def add_category(body: CategoryIn, db: Session = Depends(get_db), _: int = Depen
 
 
 @app.get("/api/tags")
-def tags_list(category: str | None = None, status: str | None = None, db: Session = Depends(get_db),
-              _: int = Depends(require_auth)):
-    """Теги: все теги библиотеки или только теги материалов раздела (появляются и исчезают сами)."""
+def tags_list(category: str | None = None, status: str | None = None, all_status: bool = False,
+              db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    """Теги: все теги библиотеки или только теги материалов раздела (появляются и исчезают сами).
+    all_status=1 — теги со всех материалов раздела, включая прочитанные: строка тегов не меняется от глаза."""
     stmt = select(Item).where(Item.user_id == USER_ID)
     if status:
         stmt = stmt.where(Item.status == status)
+    elif all_status:
+        stmt = stmt.where(Item.status != "archived")
     else:
         stmt = stmt.where(Item.status.notin_(["archived", "done"]))
     if category:
