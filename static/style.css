@@ -211,6 +211,6 @@ img.thumb,img.cover{animation:fadeIn .3s ease both}
 .row:hover .thumb{transform:translateZ(0) scale(1.05)}
 
 /* описание в строке закладки: около 50 символов, дальше «…» — нажатие открывает карточку */
-.rdesc{color:var(--muted);font-size:14px;font-weight:300;line-height:1.4;margin-top:1px;word-break:break-word}
+.rdesc{color:var(--muted);font-size:14px;font-weight:400;line-height:1.4;margin-top:1px;word-break:break-word}
 .more-d{border:0;background:none;color:var(--ink);font-weight:700;font-size:14px;padding:0 0 0 2px;cursor:pointer;letter-spacing:.05em}
 .more-d:hover{text-decoration:underline}
