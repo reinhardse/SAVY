@@ -121,7 +121,7 @@ def process_item(item_id: int):
         if not item:
             return
         m = meta.fetch_metadata(item.url, item.source)
-        item.title = item.title or m["title"]
+        item.title = item.title or (m["title"] or "")[:100] or None
         item.description = m["description"] or item.description
         item.author = m["author"] or item.author
         item.meta_state = m["meta_state"]
@@ -225,7 +225,7 @@ def patch_item(item_id: int, body: ItemPatch, db: Session = Depends(get_db), _: 
     if "note" in fields:
         item.note = body.note
     if "title" in fields:
-        item.title = body.title
+        item.title = (body.title or "").strip()[:100] or None
     if "description" in fields:
         item.description = body.description
     if "is_favorite" in fields and body.is_favorite is not None:
@@ -295,13 +295,16 @@ def add_category(body: CategoryIn, db: Session = Depends(get_db), _: int = Depen
 
 
 @app.get("/api/tags")
-def tags_in_category(category: str, db: Session = Depends(get_db), _: int = Depends(require_auth)):
-    """Теги, которые есть у материалов этого раздела (появляются и исчезают сами)."""
-    c = cat_by_slug(db, category)
-    if not c:
-        return []
+def tags_list(category: str | None = None, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    """Теги: все теги библиотеки или только теги материалов раздела (появляются и исчезают сами)."""
+    stmt = select(Item).where(Item.user_id == USER_ID)
+    if category:
+        c = cat_by_slug(db, category)
+        if not c:
+            return []
+        stmt = stmt.where(Item.category_id == c.id)
     counts: dict[str, int] = {}
-    for it in db.scalars(select(Item).where(Item.user_id == USER_ID, Item.category_id == c.id)).unique():
+    for it in db.scalars(stmt).unique():
         for t in it.tags:
             counts[t.name] = counts.get(t.name, 0) + 1
     return [{"name": n, "count": k} for n, k in sorted(counts.items())]

@@ -100,3 +100,36 @@ a.btn{text-decoration:none;display:inline-block}
 .desc-in{width:100%;border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:15px;min-height:96px;outline:none;color:var(--ink2);background:#fff;resize:vertical}
 .desc-in:focus{border-color:var(--accent)}
 .sheet .cover-gen{font-size:20px}
+
+/* === версия 3: главная с тегами, лупа, карточка с кнопкой «Сохранить» === */
+.row .thumb{width:77px;height:77px;border-radius:17px}
+.more{flex:none;border:0;background:transparent;font-size:24px;line-height:1;color:var(--muted);padding:4px 4px 8px 10px;cursor:pointer;letter-spacing:1px}
+.titlerow{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:6px 2px 18px}
+.titlerow .brand{margin:0}
+.iconbtn{flex:none;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--ink2);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.iconbtn svg{width:20px;height:20px}
+.search{margin:0 0 14px}
+.home-tags{margin:0 0 18px}
+.tagchip{background:#fff}
+.tagchip.on{background:var(--ink)}
+/* теги в карточке выглядят как бейдж «Новое» */
+.tagbadge{display:inline-flex;align-items:center;gap:6px;background:var(--badge);color:var(--badge-ink);border-radius:99px;padding:6px 12px;font-size:14px;margin:0 6px 6px 0}
+.tagbadge.add{background:#fff;border:1px dashed var(--line);color:var(--muted);cursor:pointer}
+.tagbadge .x{cursor:pointer;opacity:.6}
+/* заголовок и описание растут по содержимому */
+textarea.auto{resize:none;overflow:hidden;display:block}
+.title-in.auto{font-size:22px;line-height:1.25;font-weight:700;border:0;border-bottom:0;padding:0;margin:0 0 6px;background:transparent;color:var(--ink);min-height:30px}
+.title-in.auto:focus{outline:none;border:0}
+.desc-in.auto{min-height:60px;border:1px solid var(--line);padding:12px 14px;line-height:1.45}
+.meta-line{color:var(--muted);font-size:14px;margin:0 0 12px}
+/* ряд кнопок: слева «Смотреть» и «Удалить», справа «Сохранить» */
+.btnrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:20px;flex-wrap:wrap}
+.btnrow .left{display:flex;gap:8px;flex-wrap:wrap}
+.savebtn{border:0;border-radius:12px;padding:12px 20px;font-weight:600;font-size:16px;cursor:pointer;font-family:inherit}
+.savebtn.dirty{background:var(--accent);color:#fff}
+.savebtn.saved{background:#eef0f4;color:var(--muted);cursor:default}
+.savebtn:disabled{cursor:default}
+.btnrow{flex-wrap:nowrap}
+.btnrow .left .btn{padding:11px 13px;font-size:15px}
+.btnrow .left{gap:6px}
+.savebtn{padding:11px 14px;font-size:15px;white-space:nowrap}

@@ -1,7 +1,7 @@
 const SRC = {instagram: 'Instagram', youtube: 'YouTube', telegram: 'Telegram', tiktok: 'TikTok', web: 'Сайт'};
 const TYPE = {video: 'Видео', article: 'Статья', book: 'Книга', place: 'Место', product: 'Товар', image: 'Изображение', note: 'Заметка', other: 'Материал'};
 const NAV = [['home', 'Главная', '⌂'], ['inbox', 'Входящие', '✉'], ['all', 'Все', '☰'], ['fav', 'Избранное', '★'], ['archive', 'Архив', '▤']];
-// стили для стандартных категорий
+// стили стандартных категорий
 const COL = {
   watch:  {bg: '#e9eafb', tc: '#3b3f9a', c1: '#6c7bff', c2: '#a3adff'},
   read:   {bg: '#e7f3ec', tc: '#2f6446', c1: '#3fa975', c2: '#8ad6ae'},
@@ -9,7 +9,7 @@ const COL = {
   places: {bg: '#ece7f7', tc: '#5a4680', c1: '#8b6fe0', c2: '#c4b3f5'},
   buy:    {bg: '#fbe7f1', tc: '#8a3462', c1: '#e8609c', c2: '#f7a9cc'},
 };
-// стили для новых категорий: выбираются по названию-коду, чтобы цвет не менялся
+// стили новых категорий: выбираются по коду, цвет не меняется
 const PAL = [
   {bg: '#fbeeee', tc: '#8a3b3b', c1: '#e46b6b', c2: '#f6b3b3'},
   {bg: '#e4f1fb', tc: '#2c5a7d', c1: '#4aa3dc', c2: '#a6d4f2'},
@@ -24,6 +24,7 @@ const ICONS = {
   places: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7-6.2-7-11.2A7 7 0 0 1 19 9.8C19 14.8 12 21 12 21z"/><circle cx="12" cy="10" r="2.6"/></svg>',
   buy: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 7h14l-1.2 12.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 7a3 3 0 0 1 6 0"/></svg>',
 };
+const LOUPE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>';
 
 let cats = [], q = '', pollLeft = 0, listParams = {}, searchTimer = null;
 
@@ -115,25 +116,25 @@ function row(i) {
   const wait = i.meta_state === 'pending' ? ' · собираю данные…' : '';
   const meta = [SRC[i.source], TYPE[i.content_type], cat && cat.name].filter(Boolean).join(' · ') + wait;
   const badge = i.status === 'new' ? '<span class="badge">Новое</span>' : '';
-  return `<div class="row" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m">${esc(meta)}</div></div>${badge}<button class="edit" data-id="${i.id}" aria-label="Изменить">✎</button></div>`;
+  return `<div class="row" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m">${esc(meta)}</div></div>${badge}<button class="more" data-id="${i.id}" aria-label="Открыть">⋯</button></div>`;
 }
 
 function bindRows() {
   document.querySelectorAll('.row').forEach(el => el.onclick = e => {
-    if (e.target.closest('.edit')) return;
+    if (e.target.closest('.more')) return;
     window.open(el.dataset.url, '_blank', 'noopener');
   });
-  document.querySelectorAll('.edit').forEach(b => b.onclick = e => { e.stopPropagation(); openItem(+b.dataset.id); });
+  document.querySelectorAll('.more').forEach(b => b.onclick = e => { e.stopPropagation(); openItem(+b.dataset.id); });
 }
 
-/* ---------- экраны ---------- */
+/* ---------- главная ---------- */
 async function home() {
-  const [me, items] = await Promise.all([api('/me'), api('/items?limit=6')]);
+  const [me, items, tags] = await Promise.all([api('/me'), api('/items?limit=15'), api('/tags')]);
   cats = me.categories;
   $('#app').innerHTML = `<div class="brand">SAVE</div>
-    <div class="hero"><div class="big">${me.total}</div><div class="sub">Материалов в библиотеке</div>
-      <span class="pill">${me.new} новых</span><span class="pill">${me.done} прочитано</span></div>
+    <div class="hero"><div class="big">${me.total}</div><div class="sub">Материалов в библиотеке</div></div>
     ${pasteHtml()}
+    ${tags.length ? `<div class="tags home-tags">${tags.map(t => `<span class="tagchip" data-alltag="${esc(t.name)}">#${esc(t.name)}</span>`).join('')}</div>` : ''}
     <div class="tiles">${me.categories.map(c => {
       const st = styleOf(c.slug);
       return `<button class="tile" style="--c:${st.bg};--tc:${st.tc}" data-slug="${esc(c.slug)}">
@@ -142,17 +143,24 @@ async function home() {
     <h2>Последние сохранения</h2>
     <div class="list">${items.length ? items.map(row).join('') : '<div class="empty">Пока пусто. Вставьте ссылку выше.</div>'}</div>${nav('home')}`;
   document.querySelectorAll('.tile').forEach(t => t.onclick = () => { location.hash = '#/cat/' + t.dataset.slug; });
+  document.querySelectorAll('[data-alltag]').forEach(t => t.onclick = () => { location.hash = '#/tag/' + encodeURIComponent(t.dataset.alltag); });
   bindPaste(); bindRows(); schedulePoll(items);
 }
 
+/* ---------- списки ---------- */
 async function listView(title, params, active) {
   listParams = params;
-  $('#app').innerHTML = `<div class="brand">${esc(title)}</div>${pasteHtml()}
+  $('#app').innerHTML = `<div class="titlerow"><div class="brand">${esc(title)}</div>
+      <button class="iconbtn" id="sbtn" aria-label="Поиск">${LOUPE}</button></div>
+    <input class="search" id="q" placeholder="Поиск" style="display:${q ? 'block' : 'none'}" value="${esc(q)}">
     ${params.category ? '<div class="tags" id="tags"></div>' : ''}
-    <input class="search" id="q" placeholder="Поиск" value="${esc(q)}">
     <div class="list" id="list"></div>${nav(active)}`;
+  $('#sbtn').onclick = () => {
+    const box = $('#q');
+    if (box.style.display === 'none') { box.style.display = 'block'; box.focus(); }
+    else { box.style.display = 'none'; if (q) { q = ''; box.value = ''; loadList(); } }
+  };
   $('#q').oninput = e => { q = e.target.value; clearTimeout(searchTimer); searchTimer = setTimeout(loadList, 250); };
-  bindPaste();
   if (params.category) await loadTags();
   pollLeft = 6;
   await loadList();
@@ -186,7 +194,8 @@ function schedulePoll(items, fn) {
 }
 
 async function route() {
-  const [view, arg] = (location.hash.slice(2) || 'home').split('/');
+  const [view, ...rest] = (location.hash.slice(2) || 'home').split('/');
+  const arg = decodeURIComponent(rest.join('/'));
   pollLeft = view === 'home' ? 6 : pollLeft;
   const map = {
     inbox: ['Входящие', {status: 'new'}], all: ['Все материалы', {}],
@@ -196,6 +205,7 @@ async function route() {
     const c = cats.find(x => x.slug === arg);
     return listView(c ? c.name : 'Категория', {category: arg}, 'all');
   }
+  if (view === 'tag') return listView('#' + arg, {tag: arg}, 'all');
   if (map[view]) return listView(map[view][0], map[view][1], view);
   return home();
 }
@@ -208,37 +218,66 @@ function sheet(html) {
   $('#ov').onclick = e => { if (e.target.id === 'ov') closeSheet(); };
 }
 
+function autosize(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
+
+// состояние, с которым карточка сравнивается: то, что сохранено на сервере
+function snapshot(it) {
+  return {title: titleOf(it), description: it.description || '', category: it.category || null, tags: [...it.tags].sort()};
+}
+
 async function openItem(id) {
   let it = await api('/items/' + id);
+  let base = snapshot(it);
+  let draft = JSON.parse(JSON.stringify(base));
+  const isDirty = () => JSON.stringify(draft) !== JSON.stringify(base);
+
+  const saveBtn = () => {
+    const b = $('#sv');
+    if (!b) return;
+    const d = isDirty();
+    b.className = 'savebtn ' + (d ? 'dirty' : 'saved');
+    b.textContent = d ? 'Сохранить' : 'Сохранено';
+    b.disabled = !d;
+  };
+
   const draw = () => {
-    const catChips = cats.map(c => `<span class="chip ${it.category === c.slug ? 'on' : ''}" data-cat="${esc(c.slug)}">${esc(c.name)}<i class="x" data-del="${esc(c.slug)}" title="Удалить категорию">×</i></span>`).join('');
-    const tagChips = it.tags.map(t => `<span class="tagchip on">#${esc(t)}<i class="x" data-rm="${esc(t)}">×</i></span>`).join('') + '<span class="tagchip add" id="addtag">+ тег</span>';
+    const catChips = cats.map(c => `<span class="chip ${draft.category === c.slug ? 'on' : ''}" data-cat="${esc(c.slug)}">${esc(c.name)}<i class="x" data-del="${esc(c.slug)}" title="Удалить категорию">×</i></span>`).join('');
+    const tagChips = draft.tags.map(t => `<span class="tagbadge">#${esc(t)}<i class="x" data-rm="${esc(t)}">×</i></span>`).join('') + '<span class="tagbadge add" id="addtag">+ тег</span>';
+    const meta = [SRC[it.source], TYPE[it.content_type], it.author].filter(Boolean).join(' · ');
     sheet(`${coverHtml(it, 'cover')}
-      <input class="title-in" id="ti" value="${esc(titleOf(it))}" placeholder="Название">
-      <textarea class="desc-in" id="de" placeholder="Описание">${esc(it.description || '')}</textarea>
+      <textarea class="title-in auto" id="ti" maxlength="100" placeholder="Название">${esc(draft.title)}</textarea>
+      <div class="meta-line">${esc(meta)}</div>
+      <textarea class="desc-in auto" id="de" placeholder="Описание">${esc(draft.description)}</textarea>
       ${it.meta_state === 'failed' ? '<p class="hint">Сайт не отдал название и картинку, поэтому они составлены из ссылки. Их можно поправить.</p>' : ''}
       <div class="lbl">Категория</div>
-      <div class="chips" id="catbox">${catChips}<span class="chip ${!it.category ? 'on' : ''}" data-cat="">Без категории</span><span class="chip add" id="addcat">+ категория</span></div>
+      <div class="chips" id="catbox">${catChips}<span class="chip ${!draft.category ? 'on' : ''}" data-cat="">Без категории</span><span class="chip add" id="addcat">+ категория</span></div>
       <div class="lbl">Теги</div>
       <div class="chips" id="tagsbox">${tagChips}</div>
-      <div class="btns">
-        <a class="btn pri" href="${esc(it.url)}" target="_blank" rel="noopener">Открыть оригинал</a>
-        <button class="btn bad" id="dl">Удалить</button></div>`);
+      <div class="btnrow">
+        <div class="left">
+          <a class="btn pri" href="${esc(it.url)}" target="_blank" rel="noopener">Смотреть</a>
+          <button class="btn bad" id="dl">Удалить</button></div>
+        <button class="savebtn" id="sv"></button>
+      </div>`);
+    document.querySelectorAll('textarea.auto').forEach(autosize);
+    saveBtn();
 
-    // название и описание сохраняются сами, когда поле теряет фокус
-    $('#ti').onchange = async e => { it = await api('/items/' + id, {method: 'PATCH', body: {title: e.target.value.trim() || null}}); };
-    $('#de').onchange = async e => { it = await api('/items/' + id, {method: 'PATCH', body: {description: e.target.value}}); };
+    // название и описание: правим в поле, сохраняем кнопкой «Сохранить»
+    $('#ti').oninput = e => { draft.title = e.target.value.slice(0, 100); autosize(e.target); saveBtn(); };
+    $('#de').oninput = e => { draft.description = e.target.value; autosize(e.target); saveBtn(); };
 
     // категория: нажатие выбирает, крестик удаляет категорию целиком
     document.querySelectorAll('#catbox [data-cat]').forEach(el => el.onclick = async e => {
       if (e.target.dataset.del) {
+        const slug = e.target.dataset.del;
         if (!confirm('Удалить категорию? Материалы останутся без категории.')) return;
-        await api('/categories/' + e.target.dataset.del, {method: 'DELETE'});
+        await api('/categories/' + slug, {method: 'DELETE'});
         cats = await api('/categories');
-        it = await api('/items/' + id);
+        if (draft.category === slug) draft.category = null;
+        if (base.category === slug) base.category = null;
         return draw();
       }
-      it = await api('/items/' + id, {method: 'PATCH', body: {category: el.dataset.cat || null}});
+      draft.category = el.dataset.cat || null;
       draw();
     });
 
@@ -252,33 +291,44 @@ async function openItem(id) {
         if (!name) return;
         const c = await api('/categories', {method: 'POST', body: {name}});
         cats = await api('/categories');
-        it = await api('/items/' + id, {method: 'PATCH', body: {category: c.slug}});
+        draft.category = c.slug;
         draw();
       };
       inp.onblur = () => { if (!inp.value.trim()) draw(); };
     };
 
-    // теги: добавляются плюсом, удаляются крестиком
+    // теги: плюсом добавляются, крестиком снимаются
     $('#addtag').onclick = () => {
       $('#addtag').outerHTML = '<input class="chip-in" id="newtag" placeholder="Тег">';
       const inp = $('#newtag'); inp.focus();
-      inp.onkeydown = async e => {
+      inp.onkeydown = e => {
         if (e.key === 'Escape') return draw();
         if (e.key !== 'Enter') return;
         const name = inp.value.trim().toLowerCase();
         if (!name) return;
-        const tags = [...new Set([...it.tags, name])];
-        it = await api('/items/' + id, {method: 'PATCH', body: {tags}});
+        draft.tags = [...new Set([...draft.tags, name])].sort();
         draw();
       };
       inp.onblur = () => { if (!inp.value.trim()) draw(); };
     };
-    document.querySelectorAll('[data-rm]').forEach(el => el.onclick = async e => {
+    document.querySelectorAll('[data-rm]').forEach(el => el.onclick = e => {
       e.stopPropagation();
-      const tags = it.tags.filter(t => t !== el.dataset.rm);
-      it = await api('/items/' + id, {method: 'PATCH', body: {tags}});
+      draft.tags = draft.tags.filter(t => t !== el.dataset.rm);
       draw();
     });
+
+    $('#sv').onclick = async () => {
+      if (!isDirty()) return;
+      it = await api('/items/' + id, {method: 'PATCH', body: {
+        title: draft.title.trim() || null,
+        description: draft.description,
+        category: draft.category,
+        tags: draft.tags,
+      }});
+      base = snapshot(it);
+      draft = JSON.parse(JSON.stringify(base));
+      draw();
+    };
 
     $('#dl').onclick = async () => {
       if (!confirm('Удалить материал?')) return;
