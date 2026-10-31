@@ -49,7 +49,6 @@ nav .in{display:flex;width:100%;max-width:720px}
 nav a{flex:1;text-align:center;padding:9px 0 11px;font-size:12px;color:var(--muted);text-decoration:none}
 nav a b{display:block;font-size:19px;font-weight:400;line-height:1.25}
 nav a.on{color:var(--ink);font-weight:600}
-.fab{position:fixed;right:18px;bottom:calc(84px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:30px;line-height:1;box-shadow:0 8px 22px rgba(91,108,255,.35);cursor:pointer;z-index:6}
 
 /* окна */
 .overlay{position:fixed;inset:0;background:rgba(15,18,30,.35);display:flex;align-items:flex-end;justify-content:center;z-index:20}
@@ -72,3 +71,32 @@ a.btn{text-decoration:none;display:inline-block}
 .login{max-width:340px;margin:18vh auto 0;display:flex;flex-direction:column;gap:12px}
 .err{color:#d4453b;font-size:14px;min-height:18px}
 .hint{color:var(--muted);font-size:13px}
+
+/* строка вставки ссылки */
+.paste{margin:14px 0 22px}
+.paste input{width:100%;border:1px solid var(--line);background:#fff;border-radius:14px;padding:14px 16px;font-size:16px;outline:none;color:var(--ink)}
+.paste input::placeholder{color:var(--muted)}
+.paste input:focus{border-color:var(--accent)}
+.search{margin-top:0}
+
+/* теги раздела */
+.tags{display:flex;gap:8px;overflow-x:auto;margin:0 0 12px;scrollbar-width:none}
+.tags::-webkit-scrollbar{display:none}
+.tagchip{flex:none;border:1px solid var(--line);background:#fff;border-radius:99px;padding:6px 12px;font-size:14px;color:var(--ink2);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.tagchip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.tagchip.add{border-style:dashed;color:var(--muted)}
+.x{font-style:normal;opacity:.55;font-size:16px;line-height:1;padding:0 2px}
+.chip .x{margin-left:4px}
+.chip.add{border-style:dashed;color:var(--muted)}
+.chip-in{border:1px solid var(--accent);border-radius:99px;padding:7px 14px;font-size:14px;outline:none;width:200px;background:#fff}
+
+/* карандаш у записи */
+.edit{flex:none;border:0;background:transparent;font-size:18px;color:var(--muted);padding:6px 2px 6px 6px;cursor:pointer}
+.row{cursor:pointer}
+
+/* поля карточки */
+.title-in{width:100%;border:0;border-bottom:1px solid var(--line);font-size:20px;font-weight:700;padding:6px 0;outline:none;background:transparent;color:var(--ink);margin-bottom:10px}
+.title-in:focus{border-bottom-color:var(--accent)}
+.desc-in{width:100%;border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:15px;min-height:96px;outline:none;color:var(--ink2);background:#fff;resize:vertical}
+.desc-in:focus{border-color:var(--accent)}
+.sheet .cover-gen{font-size:20px}

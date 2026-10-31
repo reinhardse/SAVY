@@ -165,6 +165,7 @@ class ItemPatch(BaseModel):
     category: str | None = None
     note: str | None = None
     title: str | None = None
+    description: str | None = None
     is_favorite: bool | None = None
     tags: list[str] | None = None
 
@@ -181,7 +182,7 @@ def add_item(body: ItemIn, tasks: BackgroundTasks, db: Session = Depends(get_db)
 
 @app.get("/api/items")
 def list_items(status: str | None = None, category: str | None = None, favorite: bool = False,
-               q: str | None = None, limit: int = 100, offset: int = 0,
+               q: str | None = None, tag: str | None = None, limit: int = 100, offset: int = 0,
                db: Session = Depends(get_db), _: int = Depends(require_auth)):
     stmt = select(Item).where(Item.user_id == USER_ID)
     if status:
@@ -193,6 +194,8 @@ def list_items(status: str | None = None, category: str | None = None, favorite:
         stmt = stmt.where(Item.category_id == (c.id if c else -1))
     if favorite:
         stmt = stmt.where(Item.is_favorite.is_(True))
+    if tag:
+        stmt = stmt.where(Item.tags.any(Tag.name == tag.strip().lower()))
     if q:
         like = f"%{q.strip()}%"
         stmt = stmt.where(or_(Item.title.ilike(like), Item.description.ilike(like), Item.note.ilike(like),
@@ -217,10 +220,14 @@ def patch_item(item_id: int, body: ItemPatch, db: Session = Depends(get_db), _: 
     if "category" in fields:
         c = cat_by_slug(db, body.category)
         item.category_id = c.id if c else None
+        if c and item.status == "new":
+            item.status = "planned"
     if "note" in fields:
         item.note = body.note
     if "title" in fields:
         item.title = body.title
+    if "description" in fields:
+        item.description = body.description
     if "is_favorite" in fields and body.is_favorite is not None:
         item.is_favorite = body.is_favorite
     if "tags" in fields and body.tags is not None:
@@ -285,6 +292,31 @@ def add_category(body: CategoryIn, db: Session = Depends(get_db), _: int = Depen
     db.add(c)
     db.commit()
     return cat_out(c)
+
+
+@app.get("/api/tags")
+def tags_in_category(category: str, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    """Теги, которые есть у материалов этого раздела (появляются и исчезают сами)."""
+    c = cat_by_slug(db, category)
+    if not c:
+        return []
+    counts: dict[str, int] = {}
+    for it in db.scalars(select(Item).where(Item.user_id == USER_ID, Item.category_id == c.id)).unique():
+        for t in it.tags:
+            counts[t.name] = counts.get(t.name, 0) + 1
+    return [{"name": n, "count": k} for n, k in sorted(counts.items())]
+
+
+@app.delete("/api/categories/{slug}")
+def delete_category(slug: str, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    c = cat_by_slug(db, slug)
+    if not c:
+        raise HTTPException(404, "Категория не найдена")
+    for it in db.scalars(select(Item).where(Item.user_id == USER_ID, Item.category_id == c.id)).unique():
+        it.category_id = None
+    db.delete(c)
+    db.commit()
+    return {"ok": True}
 
 
 @app.get("/api/export")
