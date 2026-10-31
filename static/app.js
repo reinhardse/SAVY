@@ -334,9 +334,10 @@ function snapshot(it) {
 
 async function openItem(id) {
   let it = await api('/items/' + id);
-  const allTagNames = (await api('/tags?all_status=1')).map(t => t.name);
+  let allTagNames = (await api('/tags?all_status=1')).map(t => t.name);
   let base = snapshot(it);
   let draft = JSON.parse(JSON.stringify(base));
+  const clone = o => JSON.parse(JSON.stringify(o));
   const isDirty = () => JSON.stringify(draft) !== JSON.stringify(base);
 
   const saveBtn = () => {
@@ -348,34 +349,120 @@ async function openItem(id) {
     b.disabled = !d;
   };
 
-  const draw = () => {
-    const catChips = cats.map(c => `<span class="chip ${draft.category === c.slug ? 'on' : ''}" data-cat="${esc(c.slug)}">${esc(c.name)}<i class="x" data-del="${esc(c.slug)}" title="Удалить категорию">×</i></span>`).join('');
-    // все теги библиотеки видны всегда: выбранные подсвечены, нажатие добавляет или снимает тег у материала
+  // категории: перерисовываются только свой блок, окно и прокрутка не трогаются
+  const renderCats = () => {
+    const box = $('#catbox');
+    if (!box) return;
+    box.innerHTML = cats.map(c => `<span class="chip ${draft.category === c.slug ? 'on' : ''}" data-cat="${esc(c.slug)}">${esc(c.name)}<i class="x" data-del="${esc(c.slug)}" title="Удалить категорию">×</i></span>`).join('')
+      + `<span class="chip ${!draft.category ? 'on' : ''}" data-cat="">Без категории</span><span class="chip add" id="addcat">+ категория</span>`;
+    box.querySelectorAll('[data-cat]').forEach(el => el.onclick = async e => {
+      if (e.target.dataset.del) {
+        const slug = e.target.dataset.del;
+        if (!confirm('Удалить категорию? Материалы останутся без категории.')) return;
+        await api('/categories/' + slug, {method: 'DELETE'});
+        cats = await api('/categories');
+        if (draft.category === slug) draft.category = null;
+        if (base.category === slug) base.category = null;
+      } else {
+        draft.category = el.dataset.cat || null;
+      }
+      renderCats(); renderTags(); saveBtn();
+    });
+    $('#addcat').onclick = () => {
+      $('#addcat').outerHTML = '<input class="chip-in" id="newcat" placeholder="Название категории">';
+      const inp = $('#newcat'); inp.focus();
+      inp.onkeydown = async e => {
+        if (e.key === 'Escape') { renderCats(); return; }
+        if (e.key !== 'Enter') return;
+        const name = inp.value.trim();
+        if (!name) return;
+        const c = await api('/categories', {method: 'POST', body: {name}});
+        cats = await api('/categories');
+        draft.category = c.slug;
+        renderCats(); renderTags(); saveBtn();
+      };
+      inp.onblur = () => { if (!inp.value.trim()) renderCats(); };
+    };
+  };
+
+  // теги: глаз, все теги библиотеки (выбранные подсвечены) и «+ тег»
+  const renderTags = () => {
+    const box = $('#tagsbox');
+    if (!box) return;
     const names = [...new Set([...allTagNames, ...draft.tags])].sort();
-    const eyeTag = eyeChip(draft.done, 'id="ceye"');
-    const tagChips = eyeTag + names.map(n => `<span class="tagbadge ${draft.tags.includes(n) ? '' : 'off'}" data-tt="${esc(n)}">#${esc(n)}</span>`).join('') + '<span class="tagbadge add" id="addtag">+ тег</span>';
+    box.innerHTML = eyeChip(draft.done, 'id="ceye"')
+      + names.map(n => `<span class="tagbadge ${draft.tags.includes(n) ? '' : 'off'}" data-tt="${esc(n)}">#${esc(n)}</span>`).join('')
+      + '<span class="tagbadge add" id="addtag">+ тег</span>';
+    $('#ceye').onclick = () => { draft.done = !draft.done; renderTags(); saveBtn(); };
+    box.querySelectorAll('[data-tt]').forEach(el => el.onclick = () => {
+      const n = el.dataset.tt;
+      draft.tags = draft.tags.includes(n) ? draft.tags.filter(t => t !== n) : [...draft.tags, n].sort();
+      renderTags(); saveBtn();
+    });
+    $('#addtag').onclick = () => {
+      $('#addtag').outerHTML = '<input class="chip-in" id="newtag" placeholder="Тег">';
+      const inp = $('#newtag'); inp.focus();
+      inp.onkeydown = e => {
+        if (e.key === 'Escape') { renderTags(); return; }
+        if (e.key !== 'Enter') return;
+        const name = inp.value.trim().toLowerCase();
+        if (!name) return;
+        if (!allTagNames.includes(name)) allTagNames.push(name);
+        draft.tags = [...new Set([...draft.tags, name])].sort();
+        renderTags(); saveBtn();
+      };
+      inp.onblur = () => { if (!inp.value.trim()) renderTags(); };
+    };
+  };
+
+  // окно собирается один раз; дальше меняются только блоки внутри него
+  const build = () => {
     const meta = [SRC[it.source], TYPE[it.content_type]].filter(Boolean).join(' · ');
+    const refreshBtn = it.thumb && it.title && it.meta_state === 'ok' ? '' : '<button class="linkbtn" id="rf">Обновить название и обложку</button>';
     sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">×</button>${coverHtml(it, 'cover')}
       <div class="sheet-body">
       <textarea class="title-in auto" id="ti" rows="1" maxlength="100" placeholder="Название">${esc(draft.title)}</textarea>
-      <div class="metarow"><div class="meta-line">${esc(meta)}</div>
-</div>
+      <div class="metarow"><div class="meta-line">${esc(meta)}</div></div>
       <textarea class="desc-in auto" id="de" rows="1" placeholder="Описание">${esc(draft.description)}</textarea>
       ${it.meta_state === 'failed' ? '<p class="hint">Сайт не отдал название и картинку, поэтому они составлены из ссылки. Их можно поправить.</p>' : ''}
-      ${it.thumb && it.title && it.meta_state === 'ok' ? '' : '<button class="linkbtn" id="rf">Обновить название и обложку</button>'}
+      ${refreshBtn}
       <div class="lbl">Категория</div>
-      <div class="chips" id="catbox">${catChips}<span class="chip ${!draft.category ? 'on' : ''}" data-cat="">Без категории</span><span class="chip add" id="addcat">+ категория</span></div>
+      <div class="chips" id="catbox"></div>
       <div class="lbl">Теги</div>
-      <div class="chips tagsbox" id="tagsbox">${tagChips}</div>
+      <div class="chips tagsbox" id="tagsbox"></div>
       <div class="btnrow">
         <div class="left">
           <a class="btn pri" href="${esc(it.url)}" target="_blank" rel="noopener">Смотреть</a>
           <button class="btn bad" id="dl">Удалить</button></div>
         <button class="savebtn" id="sv"></button>
       </div></div>`);
-    document.querySelectorAll('textarea.auto').forEach(autosize);
-    saveBtn();
+    $('#ov').querySelectorAll('textarea.auto').forEach(autosize);
+    renderCats(); renderTags(); saveBtn();
+
     $('#sx').onclick = closeSheet;
+    $('#ti').oninput = e => { draft.title = e.target.value.slice(0, 100); autosize(e.target); saveBtn(); };
+    $('#de').oninput = e => { draft.description = e.target.value; autosize(e.target); saveBtn(); };
+
+    $('#sv').onclick = async () => {
+      if (!isDirty()) return;
+      it = await api('/items/' + id, {method: 'PATCH', body: {
+        title: draft.title.trim() || null,
+        description: draft.description,
+        category: draft.category,
+        tags: draft.tags,
+        done: draft.done,
+      }});
+      base = snapshot(it);
+      draft = clone(base);
+      // на месте: окно и прокрутка остаются, выбранные теги и категория тоже
+      renderCats(); renderTags(); saveBtn();
+    };
+
+    $('#dl').onclick = async () => {
+      if (!confirm('Удалить материал?')) return;
+      await api('/items/' + id, {method: 'DELETE'});
+      closeSheet();
+    };
 
     // перезапрос данных у сайта: ждём, пока сервер соберёт название и обложку
     if ($('#rf')) $('#rf').onclick = async () => {
@@ -389,90 +476,14 @@ async function openItem(id) {
           f = await api('/items/' + id);
           if (f.meta_state !== 'pending') break;
         }
-        const untouched = JSON.stringify(draft) === JSON.stringify(base);
         it = f;
-        if (untouched) { base = snapshot(it); draft = JSON.parse(JSON.stringify(base)); }
+        if (JSON.stringify(draft) === JSON.stringify(base)) { base = snapshot(it); draft = clone(base); }
       } catch (e) { alert(e.message); }
-      if ($('#ov')) draw();
-    };
-
-    // название и описание: правим в поле, сохраняем кнопкой «Сохранить»
-    $('#ti').oninput = e => { draft.title = e.target.value.slice(0, 100); autosize(e.target); saveBtn(); };
-    $('#de').oninput = e => { draft.description = e.target.value; autosize(e.target); saveBtn(); };
-    if ($('#ceye')) $('#ceye').onclick = () => { draft.done = !draft.done; draw(); };
-
-    // категория: нажатие выбирает, крестик удаляет категорию целиком
-    document.querySelectorAll('#catbox [data-cat]').forEach(el => el.onclick = async e => {
-      if (e.target.dataset.del) {
-        const slug = e.target.dataset.del;
-        if (!confirm('Удалить категорию? Материалы останутся без категории.')) return;
-        await api('/categories/' + slug, {method: 'DELETE'});
-        cats = await api('/categories');
-        if (draft.category === slug) draft.category = null;
-        if (base.category === slug) base.category = null;
-        return draw();
-      }
-      draft.category = el.dataset.cat || null;
-      draw();
-    });
-
-    $('#addcat').onclick = () => {
-      $('#addcat').outerHTML = '<input class="chip-in" id="newcat" placeholder="Название категории">';
-      const inp = $('#newcat'); inp.focus();
-      inp.onkeydown = async e => {
-        if (e.key === 'Escape') return draw();
-        if (e.key !== 'Enter') return;
-        const name = inp.value.trim();
-        if (!name) return;
-        const c = await api('/categories', {method: 'POST', body: {name}});
-        cats = await api('/categories');
-        draft.category = c.slug;
-        draw();
-      };
-      inp.onblur = () => { if (!inp.value.trim()) draw(); };
-    };
-
-    // теги: плюсом добавляются, крестиком снимаются
-    $('#addtag').onclick = () => {
-      $('#addtag').outerHTML = '<input class="chip-in" id="newtag" placeholder="Тег">';
-      const inp = $('#newtag'); inp.focus();
-      inp.onkeydown = e => {
-        if (e.key === 'Escape') return draw();
-        if (e.key !== 'Enter') return;
-        const name = inp.value.trim().toLowerCase();
-        if (!name) return;
-        draft.tags = [...new Set([...draft.tags, name])].sort();
-        draw();
-      };
-      inp.onblur = () => { if (!inp.value.trim()) draw(); };
-    };
-    document.querySelectorAll('[data-tt]').forEach(el => el.onclick = () => {
-      const n = el.dataset.tt;
-      draft.tags = draft.tags.includes(n) ? draft.tags.filter(t => t !== n) : [...draft.tags, n].sort();
-      draw();
-    });
-
-    $('#sv').onclick = async () => {
-      if (!isDirty()) return;
-      it = await api('/items/' + id, {method: 'PATCH', body: {
-        title: draft.title.trim() || null,
-        description: draft.description,
-        category: draft.category,
-        tags: draft.tags,
-        done: draft.done,
-      }});
-      base = snapshot(it);
-      draft = JSON.parse(JSON.stringify(base));
-      draw();
-    };
-
-    $('#dl').onclick = async () => {
-      if (!confirm('Удалить материал?')) return;
-      await api('/items/' + id, {method: 'DELETE'});
-      closeSheet();
+      if ($('#ov')) build();
     };
   };
-  draw();
+
+  build();
 }
 
 /* ---------- старт ---------- */
