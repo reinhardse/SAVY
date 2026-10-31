@@ -11,7 +11,8 @@ UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.
       "(KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1")
 TRACKING = {"fbclid", "igsh", "igshid", "gclid", "yclid", "si", "feature", "ref", "ref_src", "mc_cid", "mc_eid"}
 MAX_BYTES = 1_500_000
-TIMEOUT = 8.0
+TIMEOUT = 15.0
+ATTEMPTS = 3  # сайты иногда отвечают медленно или с ошибкой; повторяем, прежде чем сдаться
 
 MAPS_HOSTS = ("maps.google.", "google.com/maps", "maps.app.goo.gl", "yandex.ru/maps", "yandex.com/maps", "2gis.", "maps.apple.com")
 SHOP_HOSTS = ("ozon.", "wildberries.", "market.yandex.", "aliexpress.", "amazon.", "ebay.", "lamoda.")
@@ -147,6 +148,23 @@ def _ld_image(soup) -> str | None:
     return None
 
 
+def _get_retry(client: httpx.Client, url: str, **kw) -> httpx.Response | None:
+    """Повторяет запрос при таймауте, обрыве и ответах 429/5xx (с паузой), но не при 403/404."""
+    import time
+    last = None
+    for attempt in range(ATTEMPTS):
+        try:
+            r = _get(client, url, **kw)
+            if r is not None and r.status_code not in (429, 500, 502, 503, 504):
+                return r
+            last = r
+        except httpx.TransportError as e:  # таймаут, обрыв соединения
+            last = e
+        if attempt < ATTEMPTS - 1:
+            time.sleep(1.5 * (attempt + 1))
+    return last if isinstance(last, httpx.Response) else None
+
+
 def _og(html: str, base: str) -> dict:
     soup = BeautifulSoup(html, "html.parser")
 
@@ -196,7 +214,7 @@ def fetch_metadata(url: str, source: str) -> dict:
                 out["tried"].append({"method": "meta_oembed", "error": type(e).__name__})
         if not (out["title"] and out["thumbnail_url"]):
             try:
-                r = _get(client, url)
+                r = _get_retry(client, url)
                 info = {"method": "open_graph", "status": r.status_code if r else None}
                 if r is not None and r.status_code == 200:
                     og = _og(r.text, url)
@@ -217,7 +235,7 @@ def fetch_metadata(url: str, source: str) -> dict:
 def download_thumb(url: str, dest) -> bool:
     try:
         with httpx.Client(timeout=TIMEOUT, headers={"User-Agent": UA}) as client:
-            r = _get(client, url)
+            r = _get_retry(client, url)
         if r is None or r.status_code != 200 or not r.headers.get("content-type", "").startswith("image/"):
             return False
         dest.write_bytes(r.content)
