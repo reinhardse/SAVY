@@ -200,6 +200,8 @@ def fetch_metadata(url: str, source: str) -> dict:
                 info = {"method": "open_graph", "status": r.status_code if r else None}
                 if r is not None and r.status_code == 200:
                     og = _og(r.text, url)
+                    if source == "litres" and og.get("title") and " — " in og["title"]:
+                        og["title"] = og["title"].split(" — ")[0].strip()  # «Название — Автор Издательство» -> «Название»
                     info["fields"] = [k for k, v in og.items() if v]
                     for k, v in og.items():
                         if v and not out.get(k):
