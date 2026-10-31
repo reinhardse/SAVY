@@ -35,6 +35,10 @@ const PEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-w
 const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M7 12c1.5-2.5 3.2-3.8 5-3.8s3.5 1.3 5 3.8c-1.5 2.5-3.2 3.8-5 3.8S8.5 14.5 7 12z"/><circle cx="12" cy="12" r="1.7"/></svg>';
 const EYE_ON = '<svg viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5" fill="#dcf2e5" stroke="#3fa975" stroke-width="1.8"/><path d="M7.5 12.5l3 3 6-6.5" stroke="#3fa975" stroke-width="2.2"/></svg>';
 
+const EYE_C = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const CHECK_C = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const eyeChip = (done, attrs) => `<span class="tagbadge eyechip ${done ? 'on' : ''}" ${attrs} title="Прочитано">${done ? CHECK_C : EYE_C}</span>`;
+
 let cats = [], q = '', pollLeft = 0, listParams = {}, searchTimer = null, openSearch = false;
 
 const $ = s => document.querySelector(s);
@@ -135,8 +139,9 @@ function row(i) {
   const wait = i.meta_state === 'pending' ? ' · собираю данные…' : '';
   const cat = cats.find(c => c.slug === i.category);
   const meta = [SRC[i.source], cat ? cat.name : 'Без категории'].join(' · ') + wait;
-  const tags = i.tags.length ? `<div class="tagline">${i.tags.map(t => `<span class="tagbadge">#${esc(t)}</span>`).join('')}</div>` : '';
-  return `<div class="row" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m"><span>${esc(meta)}</span><button class="rb pen" data-id="${i.id}" aria-label="Открыть карточку">${PEN}</button></div>${tags}</div>${i.category ? `<button class="rb eye ${i.done ? 'on' : ''}" data-done="${i.id}" aria-label="Прочитано">${i.done ? EYE_ON : EYE}</button>` : ''}<button class="rb del" data-id="${i.id}" aria-label="Удалить">×</button></div>`;
+  const eye = i.category ? eyeChip(i.done, `data-done="${i.id}"`) : '';
+  const tags = (eye || i.tags.length) ? `<div class="tagline">${eye}${i.tags.map(t => `<span class="tagbadge">#${esc(t)}</span>`).join('')}</div>` : '';
+  return `<div class="row" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m"><span>${esc(meta)}</span><button class="rb pen" data-id="${i.id}" aria-label="Открыть карточку">${PEN}</button></div>${tags}</div><button class="rb del" data-id="${i.id}" aria-label="Удалить">×</button></div>`;
 }
 
 // перерисовываем список только если что-то изменилось, иначе клик теряется между опросами
@@ -152,11 +157,11 @@ function paint(el, html) {
 function bindRows() {
   const app = $('#app');
   app.querySelectorAll('.row').forEach(el => el.onclick = e => {
-    if (e.target.closest('.rb')) return;
+    if (e.target.closest('.rb, .eyechip')) return;
     window.open(el.dataset.url, '_blank', 'noopener');
   });
   app.querySelectorAll('.rb.pen').forEach(b => b.onclick = e => { e.stopPropagation(); openItem(+b.dataset.id); });
-  app.querySelectorAll('.rb.eye').forEach(b => b.onclick = async e => {
+  app.querySelectorAll('.eyechip').forEach(b => b.onclick = async e => {
     e.stopPropagation();
     const on = !b.classList.contains('on');
     await api('/items/' + b.dataset.done, {method: 'PATCH', body: {done: on}});
@@ -340,15 +345,17 @@ async function openItem(id) {
     const catChips = cats.map(c => `<span class="chip ${draft.category === c.slug ? 'on' : ''}" data-cat="${esc(c.slug)}">${esc(c.name)}<i class="x" data-del="${esc(c.slug)}" title="Удалить категорию">×</i></span>`).join('');
     // все теги библиотеки видны всегда: выбранные подсвечены, нажатие добавляет или снимает тег у материала
     const names = [...new Set([...allTagNames, ...draft.tags])].sort();
-    const tagChips = names.map(n => `<span class="tagbadge ${draft.tags.includes(n) ? '' : 'off'}" data-tt="${esc(n)}">#${esc(n)}</span>`).join('') + '<span class="tagbadge add" id="addtag">+ тег</span>';
+    const eyeTag = draft.category ? eyeChip(draft.done, 'id="ceye"') : '';
+    const tagChips = eyeTag + names.map(n => `<span class="tagbadge ${draft.tags.includes(n) ? '' : 'off'}" data-tt="${esc(n)}">#${esc(n)}</span>`).join('') + '<span class="tagbadge add" id="addtag">+ тег</span>';
     const meta = [SRC[it.source], TYPE[it.content_type]].filter(Boolean).join(' · ');
     sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">×</button>${coverHtml(it, 'cover')}
       <div class="sheet-body">
       <textarea class="title-in auto" id="ti" rows="1" maxlength="100" placeholder="Название">${esc(draft.title)}</textarea>
       <div class="metarow"><div class="meta-line">${esc(meta)}</div>
-        ${draft.category ? `<button class="rb eye ${draft.done ? 'on' : ''}" id="ceye" aria-label="Прочитано">${draft.done ? EYE_ON : EYE}</button>` : ''}</div>
+</div>
       <textarea class="desc-in auto" id="de" rows="1" placeholder="Описание">${esc(draft.description)}</textarea>
       ${it.meta_state === 'failed' ? '<p class="hint">Сайт не отдал название и картинку, поэтому они составлены из ссылки. Их можно поправить.</p>' : ''}
+      ${it.thumb ? '' : '<button class="linkbtn" id="rf">Обновить обложку</button>'}
       <div class="lbl">Категория</div>
       <div class="chips" id="catbox">${catChips}<span class="chip ${!draft.category ? 'on' : ''}" data-cat="">Без категории</span><span class="chip add" id="addcat">+ категория</span></div>
       <div class="lbl">Теги</div>
@@ -362,6 +369,25 @@ async function openItem(id) {
     document.querySelectorAll('textarea.auto').forEach(autosize);
     saveBtn();
     $('#sx').onclick = closeSheet;
+
+    // перезапрос данных у сайта: ждём, пока сервер соберёт название и обложку
+    if ($('#rf')) $('#rf').onclick = async () => {
+      const b = $('#rf'); b.textContent = 'Загружаю…'; b.disabled = true;
+      try {
+        await api('/items/' + id + '/refresh', {method: 'POST'});
+        let f = it;
+        for (let n = 0; n < 15; n++) {
+          await new Promise(r => setTimeout(r, 2000));
+          if (!$('#ov')) return;
+          f = await api('/items/' + id);
+          if (f.meta_state !== 'pending') break;
+        }
+        const untouched = JSON.stringify(draft) === JSON.stringify(base);
+        it = f;
+        if (untouched) { base = snapshot(it); draft = JSON.parse(JSON.stringify(base)); }
+      } catch (e) { alert(e.message); }
+      if ($('#ov')) draw();
+    };
 
     // название и описание: правим в поле, сохраняем кнопкой «Сохранить»
     $('#ti').oninput = e => { draft.title = e.target.value.slice(0, 100); autosize(e.target); saveBtn(); };
