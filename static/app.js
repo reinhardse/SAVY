@@ -320,6 +320,7 @@ function snapshot(it) {
 
 async function openItem(id) {
   let it = await api('/items/' + id);
+  const allTagNames = (await api('/tags?all_status=1')).map(t => t.name);
   let base = snapshot(it);
   let draft = JSON.parse(JSON.stringify(base));
   const isDirty = () => JSON.stringify(draft) !== JSON.stringify(base);
@@ -335,7 +336,9 @@ async function openItem(id) {
 
   const draw = () => {
     const catChips = cats.map(c => `<span class="chip ${draft.category === c.slug ? 'on' : ''}" data-cat="${esc(c.slug)}">${esc(c.name)}<i class="x" data-del="${esc(c.slug)}" title="Удалить категорию">×</i></span>`).join('');
-    const tagChips = draft.tags.map(t => `<span class="tagbadge">#${esc(t)}<i class="x" data-rm="${esc(t)}">×</i></span>`).join('') + '<span class="tagbadge add" id="addtag">+ тег</span>';
+    // все теги библиотеки видны всегда: выбранные подсвечены, нажатие добавляет или снимает тег у материала
+    const names = [...new Set([...allTagNames, ...draft.tags])].sort();
+    const tagChips = names.map(n => `<span class="tagbadge ${draft.tags.includes(n) ? '' : 'off'}" data-tt="${esc(n)}">#${esc(n)}</span>`).join('') + '<span class="tagbadge add" id="addtag">+ тег</span>';
     const meta = [SRC[it.source], TYPE[it.content_type]].filter(Boolean).join(' · ');
     sheet(`${coverHtml(it, 'cover')}
       <textarea class="title-in auto" id="ti" maxlength="100" placeholder="Название">${esc(draft.title)}</textarea>
@@ -406,9 +409,9 @@ async function openItem(id) {
       };
       inp.onblur = () => { if (!inp.value.trim()) draw(); };
     };
-    document.querySelectorAll('[data-rm]').forEach(el => el.onclick = e => {
-      e.stopPropagation();
-      draft.tags = draft.tags.filter(t => t !== el.dataset.rm);
+    document.querySelectorAll('[data-tt]').forEach(el => el.onclick = () => {
+      const n = el.dataset.tt;
+      draft.tags = draft.tags.includes(n) ? draft.tags.filter(t => t !== n) : [...draft.tags, n].sort();
       draw();
     });
 
