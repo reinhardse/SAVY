@@ -124,9 +124,9 @@ function bindPaste() {
 function row(i) {
   const wait = i.meta_state === 'pending' ? ' · собираю данные…' : '';
   const cat = cats.find(c => c.slug === i.category);
-  const meta = [SRC[i.source], TYPE[i.content_type], cat && cat.name].filter(Boolean).join(' · ') + wait;
+  const meta = [SRC[i.source], cat ? cat.name : 'Без категории'].join(' · ') + wait;
   const tags = i.tags.length ? `<div class="tagline">${i.tags.map(t => `<span class="tagbadge">#${esc(t)}</span>`).join('')}</div>` : '';
-  return `<div class="row" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m"><span>${esc(meta)}</span><button class="rb pen" data-id="${i.id}" aria-label="Открыть карточку">${PEN}</button></div>${tags}</div><button class="rb eye ${i.done ? 'on' : ''}" data-done="${i.id}" aria-label="Прочитано">${i.done ? EYE_ON : EYE}</button><button class="rb del" data-id="${i.id}" aria-label="Удалить">×</button></div>`;
+  return `<div class="row" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m"><span>${esc(meta)}</span><button class="rb pen" data-id="${i.id}" aria-label="Открыть карточку">${PEN}</button></div>${tags}</div>${i.category ? `<button class="rb eye ${i.done ? 'on' : ''}" data-done="${i.id}" aria-label="Прочитано">${i.done ? EYE_ON : EYE}</button>` : ''}<button class="rb del" data-id="${i.id}" aria-label="Удалить">×</button></div>`;
 }
 
 // перерисовываем список только если что-то изменилось, иначе клик теряется между опросами
@@ -198,6 +198,7 @@ async function listView(title, params, active) {
   const wantSearch = openSearch; openSearch = false;
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">${esc(title)}</div>
       <button class="iconbtn" id="sbtn" aria-label="Поиск">${LOUPE}</button></div>
+    ${params.category ? '<div class="catsub" id="csub"></div>' : ''}
     <input class="search" id="q" placeholder="Поиск" style="display:${q || wantSearch ? 'block' : 'none'}" value="${esc(q)}">
     ${params.category ? '<div class="tags" id="tags"></div>' : ''}
     <div class="list" id="list"></div>${nav(active)}`;
@@ -213,20 +214,33 @@ async function listView(title, params, active) {
   await loadList();
 }
 
-// Теги раздела и значок ✓: им открываются прочитанные материалы раздела
+// Теги раздела с количеством и значок глаза с количеством прочитанного
+function plural(n) {
+  const a = n % 10, b = n % 100;
+  if (a === 1 && b !== 11) return 'материал';
+  if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return 'материала';
+  return 'материалов';
+}
+
 async function loadTags() {
   const el = $('#tags');
   if (!el) return;
   const doneOn = listParams.status === 'done';
-  const t = await api('/tags?category=' + encodeURIComponent(listParams.category) + (doneOn ? '&status=done' : ''));
-  el.innerHTML = t.map(x => `<span class="tagchip ${listParams.tag === x.name ? 'on' : ''}" data-tag="${esc(x.name)}">#${esc(x.name)}</span>`).join('')
-    + `<span class="tagchip donechip ${doneOn ? 'on' : ''}" id="donechip" title="Прочитано">${doneOn ? EYE_ON : EYE}</span>`;
+  const [st, t] = await Promise.all([
+    api('/categories/' + encodeURIComponent(listParams.category) + '/stats'),
+    doneOn ? Promise.resolve([]) : api('/tags?category=' + encodeURIComponent(listParams.category)),
+  ]);
+  const sub = $('#csub');
+  if (sub) sub.textContent = `${st.count} ${plural(st.count)}`;
+  el.innerHTML = t.map(x => `<span class="tagchip ${listParams.tag === x.name ? 'on' : ''}" data-tag="${esc(x.name)}">#${esc(x.name)}<i class="cnt">${x.count}</i></span>`).join('')
+    + `<span class="tagchip donechip ${doneOn ? 'on' : ''}" id="donechip" title="Прочитано">${doneOn ? EYE_ON : EYE}<i class="cnt">${st.done}</i></span>`;
   el.querySelectorAll('[data-tag]').forEach(b => b.onclick = () => {
     if (listParams.tag === b.dataset.tag) delete listParams.tag; else listParams.tag = b.dataset.tag;
     loadTags(); loadList();
   });
   $('#donechip').onclick = () => {
-    if (listParams.status === 'done') delete listParams.status; else listParams.status = 'done';
+    if (doneOn) delete listParams.status;
+    else { listParams.status = 'done'; delete listParams.tag; }
     loadTags(); loadList();
   };
 }
@@ -296,7 +310,7 @@ async function openItem(id) {
     sheet(`${coverHtml(it, 'cover')}
       <textarea class="title-in auto" id="ti" maxlength="100" placeholder="Название">${esc(draft.title)}</textarea>
       <div class="metarow"><div class="meta-line">${esc(meta)}</div>
-        <button class="rb eye ${draft.done ? 'on' : ''}" id="ceye" aria-label="Прочитано">${draft.done ? EYE_ON : EYE}</button></div>
+        ${draft.category ? `<button class="rb eye ${draft.done ? 'on' : ''}" id="ceye" aria-label="Прочитано">${draft.done ? EYE_ON : EYE}</button>` : ''}</div>
       <textarea class="desc-in auto" id="de" placeholder="Описание">${esc(draft.description)}</textarea>
       ${it.meta_state === 'failed' ? '<p class="hint">Сайт не отдал название и картинку, поэтому они составлены из ссылки. Их можно поправить.</p>' : ''}
       <div class="lbl">Категория</div>
@@ -315,7 +329,7 @@ async function openItem(id) {
     // название и описание: правим в поле, сохраняем кнопкой «Сохранить»
     $('#ti').oninput = e => { draft.title = e.target.value.slice(0, 100); autosize(e.target); saveBtn(); };
     $('#de').oninput = e => { draft.description = e.target.value; autosize(e.target); saveBtn(); };
-    $('#ceye').onclick = () => { draft.done = !draft.done; draw(); };
+    if ($('#ceye')) $('#ceye').onclick = () => { draft.done = !draft.done; draw(); };
 
     // категория: нажатие выбирает, крестик удаляет категорию целиком
     document.querySelectorAll('#catbox [data-cat]').forEach(el => el.onclick = async e => {

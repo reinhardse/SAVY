@@ -224,6 +224,8 @@ def patch_item(item_id: int, body: ItemPatch, db: Session = Depends(get_db), _: 
         item.category_id = c.id if c else None
         if c and item.status == "new":
             item.status = "planned"
+        if not c and item.status == "done":  # без категории прочитанное не потеряется: возвращаем во входящие
+            item.status = "new"
     if "note" in fields:
         item.note = body.note
     if "title" in fields:
@@ -285,6 +287,18 @@ def me(db: Session = Depends(get_db), _: int = Depends(require_auth)):
 @app.get("/api/categories")
 def categories(db: Session = Depends(get_db), _: int = Depends(require_auth)):
     return [cat_out(c) for c in db.scalars(select(Category).order_by(Category.sort))]
+
+
+@app.get("/api/categories/{slug}/stats")
+def category_stats(slug: str, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    """Сколько материалов в категории (непрочитанных) и сколько прочитано."""
+    c = cat_by_slug(db, slug)
+    if not c:
+        raise HTTPException(404, "Категория не найдена")
+    counts = dict(db.execute(select(Item.status, func.count()).where(
+        Item.user_id == USER_ID, Item.category_id == c.id).group_by(Item.status)).all())
+    count = sum(v for k, v in counts.items() if k not in ("done", "archived"))
+    return {"count": count, "done": counts.get("done", 0)}
 
 
 class CategoryIn(BaseModel):
