@@ -207,5 +207,5 @@ img.thumb,img.cover{animation:fadeIn .3s ease both}
 .titlerow .brand{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* при наведении на запись обложка мягко увеличивается; обложка выводится на видеокарту, поэтому без рывков */
-.thumb{transform:translateZ(0);backface-visibility:hidden;will-change:transform;transition:transform .5s cubic-bezier(.33,0,.2,1)}
+.thumb{transform:translateZ(0);backface-visibility:hidden;will-change:transform;transition:transform .22s ease-out}
 .row:hover .thumb{transform:translateZ(0) scale(1.05)}
