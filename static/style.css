@@ -209,3 +209,8 @@ img.thumb,img.cover{animation:fadeIn .3s ease both}
 /* при наведении на запись обложка мягко увеличивается; обложка выводится на видеокарту, поэтому без рывков */
 .thumb{transform:translateZ(0);backface-visibility:hidden;will-change:transform;transition:transform .22s ease-out}
 .row:hover .thumb{transform:translateZ(0) scale(1.05)}
+
+/* описание в строке закладки: около 50 символов, дальше «…» — нажатие открывает карточку */
+.rdesc{color:var(--ink2);font-size:14px;line-height:1.4;margin-top:6px;word-break:break-word}
+.more-d{border:0;background:none;color:var(--ink);font-weight:700;font-size:14px;padding:0 0 0 2px;cursor:pointer;letter-spacing:.05em}
+.more-d:hover{text-decoration:underline}

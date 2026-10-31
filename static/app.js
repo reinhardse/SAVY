@@ -142,7 +142,11 @@ function row(i) {
   const cat = cats.find(c => c.slug === i.category);
   const meta = [SRC[i.source], cat ? cat.name : 'Без категории'].join(' · ') + wait;
   const eye = eyeChip(i.done, `data-done="${i.id}"`);
-  const tags = `<div class="tagline">${eye}${i.tags.map(t => `<span class="tagbadge">#${esc(t)}</span>`).join('')}</div>`;
+  // описание: первые ~50 символов, дальше «…» — нажатие открывает карточку, чтобы дочитать
+  const d = (i.description || '').replace(/\s+/g, ' ').trim();
+  const short = d.length > 50 ? d.slice(0, 50).replace(/\s+\S*$/, '') : d;
+  const desc = d ? `<div class="rdesc">${esc(short)}${d.length > 50 ? `<button class="more-d" data-id="${i.id}" aria-label="Дочитать">…</button>` : ''}</div>` : '';
+  const tags = `${desc}<div class="tagline">${eye}${i.tags.map(t => `<span class="tagbadge">#${esc(t)}</span>`).join('')}</div>`;
   return `<div class="row" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m"><span>${esc(meta)}</span><button class="rb pen" data-id="${i.id}" aria-label="Открыть карточку">${PEN}</button></div>${tags}</div><button class="rb del" data-id="${i.id}" aria-label="Удалить">×</button></div>`;
 }
 
@@ -159,10 +163,10 @@ function paint(el, html) {
 function bindRows() {
   const app = $('#app');
   app.querySelectorAll('.row').forEach(el => el.onclick = e => {
-    if (e.target.closest('.rb, .eyechip')) return;
+    if (e.target.closest('.rb, .eyechip, .more-d')) return;
     window.open(el.dataset.url, '_blank', 'noopener');
   });
-  app.querySelectorAll('.rb.pen').forEach(b => b.onclick = e => { e.stopPropagation(); openItem(+b.dataset.id); });
+  app.querySelectorAll('.rb.pen, .more-d').forEach(b => b.onclick = e => { e.stopPropagation(); openItem(+b.dataset.id); });
   app.querySelectorAll('.eyechip').forEach(b => b.onclick = async e => {
     e.stopPropagation();
     const on = !b.classList.contains('on');
