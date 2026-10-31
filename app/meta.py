@@ -52,6 +52,8 @@ def detect_source(url_norm: str) -> str:
         return "telegram"
     if host.endswith("tiktok.com"):
         return "tiktok"
+    if host.endswith("litres.ru"):
+        return "litres"
     return "web"
 
 

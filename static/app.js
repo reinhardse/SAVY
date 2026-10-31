@@ -1,4 +1,4 @@
-const SRC = {instagram: 'Instagram', youtube: 'YouTube', telegram: 'Telegram', tiktok: 'TikTok', web: 'Сайт'};
+const SRC = {instagram: 'Instagram', youtube: 'YouTube', telegram: 'Telegram', tiktok: 'TikTok', litres: 'Литрес', web: 'Сайт'};
 const TYPE = {video: 'Видео', article: 'Статья', book: 'Книга', place: 'Место', product: 'Товар', image: 'Изображение', note: 'Заметка', other: 'Материал'};
 const SV = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
 const NAV = [
@@ -56,6 +56,13 @@ function titleOf(i) {
     return m ? `${m[1] === 'reel' ? 'Reel' : m[1] === 'tv' ? 'IGTV' : 'Публикация'} ${m[2]} · Instagram` : 'Публикация в Instagram';
   }
   if (i.source === 'youtube') return 'Видео на YouTube';
+  if (i.source === 'litres') {
+    // адрес вида /book/автор/название-ID/: берём название из адреса, без номера книги
+    const parts = u.pathname.split('/').filter(Boolean);
+    const slug = (parts[2] || parts[1] || '').replace(/-\d+$/, '').replace(/[-_]+/g, ' ').trim();
+    if (slug) return slug.charAt(0).toUpperCase() + slug.slice(1) + ' · Литрес';
+    return 'Книга на Литрес';
+  }
   const last = decodeURIComponent(u.pathname.split('/').filter(Boolean).pop() || '');
   const words = last.replace(/[-_]+/g, ' ').replace(/\.\w{2,5}$/, '').trim();
   return words ? `${words} · ${hostOf(i.url)}` : hostOf(i.url);
