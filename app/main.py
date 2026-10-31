@@ -177,6 +177,9 @@ def add_item(body: ItemIn, tasks: BackgroundTasks, db: Session = Depends(get_db)
     urls = meta.extract_urls(body.url) or ([body.url] if "." in body.url and " " not in body.url.strip() else [])
     if not urls:
         raise HTTPException(400, "В тексте нет ссылки")
+    hint = meta.service_link_hint(urls[0])
+    if hint:
+        raise HTTPException(400, hint)
     item, created = save_url(db, urls[0], body.note, body.category, tasks)
     return {"item": item, "created": created}
 

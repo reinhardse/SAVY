@@ -19,6 +19,18 @@ SHOP_HOSTS = ("ozon.", "wildberries.", "market.yandex.", "aliexpress.", "amazon.
 BOOK_HOSTS = ("litres.", "labirint.", "goodreads.", "bookmate.", "fantlab.")
 
 
+SERVICE_HOSTS = ("sso.kinopoisk.ru", "sso.passport.yandex.ru", "passport.yandex.ru")
+
+
+def service_link_hint(url: str) -> str | None:
+    """Служебные ссылки входа (Яндекс/Кинопоиск) не ведут на страницу: сохранять их бессмысленно."""
+    host = (urlsplit(url).hostname or "").lower()
+    if host in SERVICE_HOSTS:
+        return ("Это служебная ссылка входа, а не страница фильма. Откройте фильм на Кинопоиске и скопируйте адрес "
+                "из адресной строки — он выглядит как kinopoisk.ru/film/301/")
+    return None
+
+
 def extract_urls(text: str) -> list[str]:
     found = re.findall(r"https?://[^\s<>\"']+", text or "")
     return [u.rstrip(".,);]") for u in found]
