@@ -206,6 +206,6 @@ img.thumb,img.cover{animation:fadeIn .3s ease both}
 .tr-actions{display:flex;align-items:center;gap:10px;flex:none}
 .titlerow .brand{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* при наведении на запись обложка плавно увеличивается; соседние элементы не сдвигаются */
-.thumb{transition:transform .28s cubic-bezier(.2,.8,.2,1)}
-.row:hover .thumb{transform:scale(1.06)}
+/* при наведении на запись обложка мягко увеличивается; обложка выводится на видеокарту, поэтому без рывков */
+.thumb{transform:translateZ(0);backface-visibility:hidden;will-change:transform;transition:transform .5s cubic-bezier(.33,0,.2,1)}
+.row:hover .thumb{transform:translateZ(0) scale(1.05)}
