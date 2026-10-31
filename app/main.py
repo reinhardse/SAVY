@@ -115,14 +115,15 @@ def cat_by_slug(db: Session, slug: str | None) -> Category | None:
 
 
 # ---------- обработка метаданных (в фоне) ----------
-def process_item(item_id: int):
+def process_item(item_id: int, hint: str | None = None):
     with SessionLocal() as db:
         item = db.get(Item, item_id)
         if not item:
             return
         m = meta.fetch_metadata(item.url, item.source)
         # из сайта берём только заголовок (до 100 символов) и обложку; описание и автора не подтягиваем
-        item.title = item.title or (m["title"] or "")[:100] or None
+        # если сайт названия не отдал, берём название из текста «Поделиться» (если оно было вместе со ссылкой)
+        item.title = item.title or (m["title"] or "")[:100] or hint or None
         item.meta_state = m["meta_state"]
         item.meta_raw = {"tried": m["tried"]}
         if m["thumbnail_url"]:
@@ -132,7 +133,8 @@ def process_item(item_id: int):
         db.commit()
 
 
-def save_url(db: Session, url: str, note: str | None, category: str | None, tasks: BackgroundTasks) -> tuple[dict, bool]:
+def save_url(db: Session, url: str, note: str | None, category: str | None, tasks: BackgroundTasks,
+             hint: str | None = None) -> tuple[dict, bool]:
     norm = meta.normalize_url(url)
     exists = db.scalars(select(Item).where(Item.user_id == USER_ID, Item.url_norm == norm)).first()
     if exists:
@@ -149,7 +151,7 @@ def save_url(db: Session, url: str, note: str | None, category: str | None, task
     except IntegrityError:
         db.rollback()
         return item_out(db.scalars(select(Item).where(Item.user_id == USER_ID, Item.url_norm == norm)).first()), False
-    tasks.add_task(process_item, item.id)
+    tasks.add_task(process_item, item.id, hint)
     return item_out(item), True
 
 
@@ -180,7 +182,7 @@ def add_item(body: ItemIn, tasks: BackgroundTasks, db: Session = Depends(get_db)
     hint = meta.service_link_hint(urls[0])
     if hint:
         raise HTTPException(400, hint)
-    item, created = save_url(db, urls[0], body.note, body.category, tasks)
+    item, created = save_url(db, urls[0], body.note, body.category, tasks, meta.share_title(body.url))
     return {"item": item, "created": created}
 
 

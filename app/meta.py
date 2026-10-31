@@ -1,5 +1,6 @@
 """Разбор ссылок и сбор метаданных. Любой сбой не должен ломать сохранение: ссылка уже в базе."""
 import ipaddress
+import os
 import re
 import socket
 from urllib.parse import parse_qsl, quote, urlencode, urljoin, urlsplit, urlunsplit
@@ -248,6 +249,47 @@ def _wikidata_title(client: httpx.Client, kp_id: str, dbg: list | None = None) -
         return None
 
 
+def _kp_api(client: httpx.Client, kp_id: str, dbg: list) -> tuple[str | None, str | None]:
+    """Название и постер из API по бесплатному ключу: kinopoisk.dev (LIBRARY_KP_TOKEN) или kinopoiskapiunofficial.tech
+    (LIBRARY_KPU_TOKEN). Без ключа ничего не делает."""
+    token = os.environ.get("LIBRARY_KP_TOKEN")
+    if token:
+        try:
+            r = _get_retry(client, f"https://api.kinopoisk.dev/v1.4/movie/{kp_id}",
+                           headers={"X-API-KEY": token, "Accept": "application/json"})
+            dbg.append({"kinopoisk_dev": r.status_code if r is not None else None})
+            if r is not None and r.status_code == 200:
+                j = r.json()
+                poster = j.get("poster") or {}
+                title = j.get("name") or j.get("alternativeName") or j.get("enName")
+                if title:
+                    return title, poster.get("url") or poster.get("previewUrl")
+        except (ValueError, KeyError, TypeError, httpx.HTTPError) as e:
+            dbg.append({"kinopoisk_dev_error": type(e).__name__})
+    token = os.environ.get("LIBRARY_KPU_TOKEN")
+    if token:
+        try:
+            r = _get_retry(client, f"https://kinopoiskapiunofficial.tech/api/v2.2/films/{kp_id}",
+                           headers={"X-API-KEY": token, "Accept": "application/json"})
+            dbg.append({"kpu": r.status_code if r is not None else None})
+            if r is not None and r.status_code == 200:
+                j = r.json()
+                title = j.get("nameRu") or j.get("nameOriginal") or j.get("nameEn")
+                if title:
+                    return title, j.get("posterUrl") or j.get("posterUrlPreview")
+        except (ValueError, KeyError, TypeError, httpx.HTTPError) as e:
+            dbg.append({"kpu_error": type(e).__name__})
+    return None, None
+
+
+def share_title(text: str) -> str | None:
+    """Название из текста «Поделиться» (например, «Манчестер у моря (2016) https://...»): всё, что осталось без ссылок."""
+    t = re.sub(r"https?://\S+", " ", text or "")
+    t = re.sub(r"(?i)\s*[—–-]?\s*смотреть\s+онлайн.*$", "", t)
+    t = re.sub(r"\s+", " ", t).strip(" \t\n—–-:|•")
+    return t[:100] if 2 <= len(t) <= 200 else None
+
+
 def fetch_metadata(url: str, source: str) -> dict:
     """Возвращает title/description/author/thumbnail_url + служебные поля tried и meta_state."""
     out = {"title": None, "description": None, "author": None, "thumbnail_url": None, "tried": []}
@@ -291,15 +333,21 @@ def fetch_metadata(url: str, source: str) -> dict:
     if source == "kinopoisk":
         m = re.search(r"/(?:film|series)/(\d+)", url)
         if m:
-            if not out["thumbnail_url"]:
-                # постер фильма по его номеру: /film/301/ -> картинка с CDN Кинопоиска
-                out["thumbnail_url"] = f"https://st.kp.yandex.net/images/film_big/{m.group(1)}.jpg"
-                out["tried"].append({"method": "kp_poster", "status": "fallback"})
-            if not out["title"]:
-                dbg: list = []
-                with httpx.Client(timeout=TIMEOUT) as wd:
-                    out["title"] = _wikidata_title(wd, m.group(1), dbg)
-                out["tried"].append({"method": "wikidata", "found": bool(out["title"]), "debug": dbg})
+            kp_id = m.group(1)
+            dbg: list = []
+            with httpx.Client(timeout=TIMEOUT) as api:
+                t, poster = _kp_api(api, kp_id, dbg)
+                if t and not out["title"]:
+                    out["title"] = t
+                if poster and not out["thumbnail_url"]:
+                    out["thumbnail_url"] = poster
+                if not out["thumbnail_url"]:
+                    # постер по номеру: /film/301/ -> картинка с CDN Кинопоиска
+                    out["thumbnail_url"] = f"https://st.kp.yandex.net/images/film_big/{kp_id}.jpg"
+                    out["tried"].append({"method": "kp_poster", "status": "fallback"})
+                if not out["title"]:
+                    out["title"] = _wikidata_title(api, kp_id, dbg)
+            out["tried"].append({"method": "kinopoisk_title", "found": bool(out["title"]), "debug": dbg})
     got = [bool(out["title"]), bool(out["thumbnail_url"])]
     out["meta_state"] = "ok" if all(got) else "partial" if any(got) else "failed"
     return out
