@@ -205,3 +205,7 @@ img.thumb,img.cover{animation:fadeIn .3s ease both}
 /* стрелка «назад» слева от лупы; длинное название раздела не выталкивает кнопки */
 .tr-actions{display:flex;align-items:center;gap:10px;flex:none}
 .titlerow .brand{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* при наведении на запись обложка плавно увеличивается; соседние элементы не сдвигаются */
+.thumb{transition:transform .28s cubic-bezier(.2,.8,.2,1)}
+.row:hover .thumb{transform:scale(1.06)}
