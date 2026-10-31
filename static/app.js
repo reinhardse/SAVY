@@ -193,15 +193,17 @@ async function homeList() {
 }
 
 /* ---------- списки ---------- */
-async function listView(title, params, active) {
+async function listView(title, params, active, withTags = false) {
   listParams = params;
   const wantSearch = openSearch; openSearch = false;
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">${esc(title)}</div>
       <button class="iconbtn" id="sbtn" aria-label="Поиск">${LOUPE}</button></div>
     ${params.category ? '<div class="catsub" id="csub"></div>' : ''}
+    ${active === 'inbox' ? pasteHtml() : ''}
     <input class="search" id="q" placeholder="Поиск" style="display:${q || wantSearch ? 'block' : 'none'}" value="${esc(q)}">
-    ${params.category ? '<div class="tags" id="tags"></div>' : ''}
+    ${withTags ? '<div class="tags" id="tags"></div>' : ''}
     <div class="list" id="list"></div>${nav(active)}`;
+  bindPaste();
   if (wantSearch) setTimeout(() => $('#q').focus(), 0);
   $('#sbtn').onclick = () => {
     const box = $('#q');
@@ -209,7 +211,7 @@ async function listView(title, params, active) {
     else { box.style.display = 'none'; if (q) { q = ''; box.value = ''; loadList(); } }
   };
   $('#q').oninput = e => { q = e.target.value; clearTimeout(searchTimer); searchTimer = setTimeout(loadList, 250); };
-  if (params.category) await loadTags();
+  if (withTags) await loadTags();
   pollLeft = 6;
   await loadList();
 }
@@ -222,23 +224,33 @@ function plural(n) {
   return 'материалов';
 }
 
+// Теги: «Все» появляется, когда тег есть; выбранный тег чёрный и фильтрует список.
+// В прочитанном (глаз) теги те же, но только у прочитанных материалов
 async function loadTags() {
   const el = $('#tags');
   if (!el) return;
-  const doneOn = listParams.status === 'done';
+  const cat = listParams.category;
+  const doneOn = !!cat && listParams.status === 'done';
+  const qs = new URLSearchParams();
+  if (cat) qs.set('category', cat);
+  if (doneOn) qs.set('status', 'done');
   const [st, t] = await Promise.all([
-    api('/categories/' + encodeURIComponent(listParams.category) + '/stats'),
-    doneOn ? Promise.resolve([]) : api('/tags?category=' + encodeURIComponent(listParams.category)),
+    cat ? api('/categories/' + encodeURIComponent(cat) + '/stats') : Promise.resolve(null),
+    api('/tags?' + qs),
   ]);
-  const sub = $('#csub');
-  if (sub) sub.textContent = `${st.count} ${plural(st.count)}`;
-  el.innerHTML = t.map(x => `<span class="tagchip ${listParams.tag === x.name ? 'on' : ''}" data-tag="${esc(x.name)}">#${esc(x.name)}<i class="cnt">${x.count}</i></span>`).join('')
-    + `<span class="tagchip donechip ${doneOn ? 'on' : ''}" id="donechip" title="Прочитано">${doneOn ? EYE_ON : EYE}<i class="cnt">${st.done}</i></span>`;
+  if (st) { const sub = $('#csub'); if (sub) sub.textContent = `${st.count} ${plural(st.count)}`; }
+  const chips = [];
+  if (t.length) chips.push(`<span class="tagchip ${listParams.tag ? '' : 'on'}" data-tag="">Все</span>`);
+  chips.push(...t.map(x => `<span class="tagchip ${listParams.tag === x.name ? 'on' : ''}" data-tag="${esc(x.name)}">#${esc(x.name)}<i class="cnt">${x.count}</i></span>`));
+  if (cat) chips.push(`<span class="tagchip donechip ${doneOn ? 'on' : ''}" id="donechip" title="Прочитано">${doneOn ? EYE_ON : EYE}<i class="cnt">${st.done}</i></span>`);
+  el.innerHTML = chips.join('');
   el.querySelectorAll('[data-tag]').forEach(b => b.onclick = () => {
-    if (listParams.tag === b.dataset.tag) delete listParams.tag; else listParams.tag = b.dataset.tag;
+    const name = b.dataset.tag;
+    if (!name || listParams.tag === name) delete listParams.tag; else listParams.tag = name;
     loadTags(); loadList();
   });
-  $('#donechip').onclick = () => {
+  const dc = $('#donechip');
+  if (dc) dc.onclick = () => {
     if (doneOn) delete listParams.status;
     else { listParams.status = 'done'; delete listParams.tag; }
     loadTags(); loadList();
@@ -266,10 +278,10 @@ async function route() {
   const map = {inbox: ['Входящие', {inbox: 1}], all: ['Все материалы', {}]};
   if (view === 'cat') {
     const c = cats.find(x => x.slug === arg);
-    return listView(c ? c.name : 'Категория', {category: arg}, 'all');
+    return listView(c ? c.name : 'Категория', {category: arg}, 'all', true);
   }
   if (view === 'tag') return listView('#' + arg, {tag: arg}, 'all');
-  if (map[view]) return listView(map[view][0], map[view][1], view);
+  if (map[view]) return listView(map[view][0], map[view][1], view, view === 'all');
   return home();
 }
 
