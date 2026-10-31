@@ -1,6 +1,11 @@
 const SRC = {instagram: 'Instagram', youtube: 'YouTube', telegram: 'Telegram', tiktok: 'TikTok', web: 'Сайт'};
 const TYPE = {video: 'Видео', article: 'Статья', book: 'Книга', place: 'Место', product: 'Товар', image: 'Изображение', note: 'Заметка', other: 'Материал'};
-const NAV = [['home', 'Главная', '⌂'], ['inbox', 'Входящие', '✉'], ['all', 'Все', '☰']];
+const SV = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
+const NAV = [
+  ['home', 'Главная', `<svg ${SV}><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>`],
+  ['inbox', 'Входящие', `<svg ${SV}><path d="M3 13l2.5-7.5A2 2 0 0 1 7.4 4h9.2a2 2 0 0 1 1.9 1.5L21 13"/><path d="M3 13v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5h-5l-1.5 2.5h-5L8 13z"/></svg>`],
+  ['all', 'Все', `<svg ${SV}><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>`],
+];
 // стили стандартных категорий
 const COL = {
   watch:  {bg: '#e9eafb', tc: '#3b3f9a', c1: '#6c7bff', c2: '#a3adff'},
@@ -89,7 +94,7 @@ function showLogin() {
 
 /* ---------- каркас ---------- */
 function nav(active) {
-  return `<nav><div class="in">${NAV.map(([k, l, ic]) => `<a href="#/${k}" class="${k === active ? 'on' : ''}"><b>${ic}</b>${l}</a>`).join('')}</div></nav>`;
+  return `<nav><div class="in">${NAV.map(([k, l, ic]) => `<a href="#/${k}" class="${k === active ? 'on' : ''}"><b>${ic}</b><span>${l}</span></a>`).join('')}</div></nav>`;
 }
 
 function pasteHtml() {
@@ -118,7 +123,8 @@ function bindPaste() {
 // строка материала: обложка, название, источник и карандаш, теги под ними; справа глаз и крестик
 function row(i) {
   const wait = i.meta_state === 'pending' ? ' · собираю данные…' : '';
-  const meta = [SRC[i.source], TYPE[i.content_type]].filter(Boolean).join(' · ') + wait;
+  const cat = cats.find(c => c.slug === i.category);
+  const meta = [SRC[i.source], TYPE[i.content_type], cat && cat.name].filter(Boolean).join(' · ') + wait;
   const tags = i.tags.length ? `<div class="tagline">${i.tags.map(t => `<span class="tagbadge">#${esc(t)}</span>`).join('')}</div>` : '';
   return `<div class="row" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m"><span>${esc(meta)}</span><button class="rb pen" data-id="${i.id}" aria-label="Открыть карточку">${PEN}</button></div>${tags}</div><button class="rb eye ${i.done ? 'on' : ''}" data-done="${i.id}" aria-label="Прочитано">${i.done ? EYE_ON : EYE}</button><button class="rb del" data-id="${i.id}" aria-label="Удалить">×</button></div>`;
 }
@@ -243,7 +249,7 @@ async function route() {
   const [view, ...rest] = (location.hash.slice(2) || 'home').split('/');
   const arg = decodeURIComponent(rest.join('/'));
   pollLeft = view === 'home' ? 6 : pollLeft;
-  const map = {inbox: ['Входящие', {status: 'new'}], all: ['Все материалы', {}]};
+  const map = {inbox: ['Входящие', {inbox: 1}], all: ['Все материалы', {}]};
   if (view === 'cat') {
     const c = cats.find(x => x.slug === arg);
     return listView(c ? c.name : 'Категория', {category: arg}, 'all');
@@ -291,11 +297,12 @@ async function openItem(id) {
       <textarea class="title-in auto" id="ti" maxlength="100" placeholder="Название">${esc(draft.title)}</textarea>
       <div class="metarow"><div class="meta-line">${esc(meta)}</div>
         <button class="rb eye ${draft.done ? 'on' : ''}" id="ceye" aria-label="Прочитано">${draft.done ? EYE_ON : EYE}</button></div>
-      <div class="chips tagsbox" id="tagsbox">${tagChips}</div>
       <textarea class="desc-in auto" id="de" placeholder="Описание">${esc(draft.description)}</textarea>
       ${it.meta_state === 'failed' ? '<p class="hint">Сайт не отдал название и картинку, поэтому они составлены из ссылки. Их можно поправить.</p>' : ''}
       <div class="lbl">Категория</div>
       <div class="chips" id="catbox">${catChips}<span class="chip ${!draft.category ? 'on' : ''}" data-cat="">Без категории</span><span class="chip add" id="addcat">+ категория</span></div>
+      <div class="lbl">Теги</div>
+      <div class="chips tagsbox" id="tagsbox">${tagChips}</div>
       <div class="btnrow">
         <div class="left">
           <a class="btn pri" href="${esc(it.url)}" target="_blank" rel="noopener">Смотреть</a>

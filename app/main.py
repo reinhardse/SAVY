@@ -182,13 +182,15 @@ def add_item(body: ItemIn, tasks: BackgroundTasks, db: Session = Depends(get_db)
 
 @app.get("/api/items")
 def list_items(status: str | None = None, category: str | None = None, favorite: bool = False,
-               q: str | None = None, tag: str | None = None, limit: int = 100, offset: int = 0,
+               q: str | None = None, tag: str | None = None, inbox: bool = False, limit: int = 100, offset: int = 0,
                db: Session = Depends(get_db), _: int = Depends(require_auth)):
     stmt = select(Item).where(Item.user_id == USER_ID)
     if status:
         stmt = stmt.where(Item.status == status)
     else:  # прочитанные, как и архив, не попадают в обычные списки: их видно только внутри категории
         stmt = stmt.where(Item.status.notin_(["archived", "done"]))
+    if inbox:  # входящие: всё, что ещё не отнесено ни к одной категории
+        stmt = stmt.where(Item.category_id.is_(None))
     if category:
         c = cat_by_slug(db, category)
         stmt = stmt.where(Item.category_id == (c.id if c else -1))

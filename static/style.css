@@ -168,3 +168,22 @@ textarea.auto{resize:none;overflow:hidden;display:block}
 .sheet .title-in.auto{font-size:20px;margin-bottom:6px}
 .sheet .lbl{margin:12px 0 6px}
 .sheet .btnrow{margin-top:16px}
+
+/* === версия 5: боковое меню слева, теги под категориями, описание у заголовка === */
+nav{top:0;bottom:0;right:auto;width:92px;background:#fff;border-top:0;border-right:1px solid var(--line);display:block;padding:0;backdrop-filter:none}
+nav .in{display:flex;flex-direction:column;gap:6px;width:auto;max-width:none;padding:22px 8px;justify-content:flex-start}
+nav a{flex:none;display:flex;flex-direction:column;align-items:center;gap:6px;padding:11px 4px;border-radius:14px;font-size:12px;color:var(--muted);text-decoration:none;line-height:1.2}
+nav a b{display:flex;font-size:inherit;line-height:0}
+nav a b svg{width:22px;height:22px}
+nav a.on{color:var(--ink);font-weight:600;background:#f0f1f6}
+#app:has(> nav){padding-left:112px}
+@media (max-width:480px){
+  nav{width:72px}
+  nav .in{padding:16px 6px}
+  nav a{font-size:11px;padding:9px 2px}
+  #app:has(> nav){padding-left:84px;padding-right:12px}
+}
+.metarow{margin:0 0 4px}
+.sheet .title-in.auto{margin-bottom:2px}
+.desc-in.auto{min-height:44px;margin-top:6px}
+.sheet .lbl{margin:12px 0 6px}
