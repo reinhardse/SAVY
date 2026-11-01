@@ -437,3 +437,7 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .kbt .n{font-size:28px}
 .kbt .l{font-size:14.5px;font-weight:600;color:var(--ink)}
 .brow{border-bottom:1px solid #f0f0f3}
+
+/* карточка в колонке «Готово» — пастельно-зелёная, чуть темнее фона колонки; вне колонки снова белая */
+.kcol.kdone .kcard{background:#cdeedb;border-color:#b9e2c9}
+.kcol.kdone .kcard:hover{border-color:#a8d9bb;box-shadow:0 2px 8px rgba(47,100,70,.12)}
