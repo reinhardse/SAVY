@@ -142,9 +142,9 @@ function row(i) {
   const cat = cats.find(c => c.slug === i.category);
   const meta = [SRC[i.source], cat ? cat.name : 'Без категории'].join(' · ') + wait;
   const eye = eyeChip(i.done, `data-done="${i.id}"`);
-  // описание: первые ~130 символов, дальше «…» — нажатие открывает карточку, чтобы дочитать
+  // описание: первые 130 символов (для фильмов и книг — 200), дальше «…» — нажатие открывает карточку, чтобы дочитать
   const d = (i.description || '').replace(/\s+/g, ' ').trim();
-  const LIMIT = 130;
+  const LIMIT = ['kinopoisk', 'litres'].includes(i.source) ? 200 : 130;
   const short = d.length > LIMIT ? d.slice(0, LIMIT).replace(/\s+\S*$/, '') : d;
   const desc = d ? `<div class="rdesc">${esc(short)}${d.length > LIMIT ? `<button class="more-d" data-id="${i.id}" aria-label="Дочитать">…</button>` : ''}</div>` : '';
   const tags = `${desc}<div class="tagline">${eye}${i.tags.map(t => `<span class="tagbadge">#${esc(t)}</span>`).join('')}</div>`;
