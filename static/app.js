@@ -768,7 +768,7 @@ async function board(bid) {
   curBoard = bid;
   const b = await api('/boards/' + bid);
   const cols = b.columns.map(col => `<div class="kcol${/готов/i.test(col.name) ? ' kdone' : ''}" data-col="${col.id}">
-      <div class="kch"><span class="kcn" data-rencol="${col.id}" title="Нажмите, чтобы переименовать">${esc(col.name)}</span>
+      <div class="kch"><span class="kcname"><span class="kcn" data-rencol="${col.id}" title="Нажмите, чтобы переименовать">${esc(col.name)}</span><span class="kcnt">${col.cards.length}</span></span>
         <button class="rb del" data-delcol="${col.id}" aria-label="Удалить колонку">${XICON}</button></div>
       <div class="kcards">${col.cards.map(cardHtml).join('')}</div>
       <button class="kadd" data-addcard="${col.id}">+ Добавить карточку</button>

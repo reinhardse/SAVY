@@ -561,3 +561,7 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .hubmenu .hm-ic{width:48px;height:48px;border-radius:50%;background:#f4f4f6;display:flex;align-items:center;justify-content:center;flex:none}
 .hubmenu .hm-ic svg{width:24px;height:24px;display:block}
 .hubmenu .hm-lb{font-size:13px;line-height:1.25;width:100%;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* количество карточек в колонке рядом с названием */
+.kcname{display:flex;align-items:baseline;gap:6px;min-width:0}
+.kcnt{font-size:13px;font-weight:500;color:var(--muted);flex:none}
