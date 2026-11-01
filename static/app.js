@@ -581,6 +581,27 @@ function openKpKey(isSet) {
 /* ---------- кнопка «Хаб» и окно приложений ---------- */
 const GRID_ICON = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="18" cy="12" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="12" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>';
 
+// панель у кнопки хаба: три приложения и каждый проект (доска); закрывается кликом мимо или Esc
+let hubMenu = null;
+const closeHubMenu = () => { if (hubMenu) { hubMenu.remove(); hubMenu = null; } };
+const openHubMenu = async () => {
+  if (hubMenu) { closeHubMenu(); return; }
+  const btn = $('#hubbtn');
+  const boards = await api('/boards').catch(() => []);
+  if (hubMenu) return;
+  const app = (go, icon, label) => `<button class="hm-app" data-go="${go}"><span class="hm-ic">${icon}</span><span class="hm-lb">${esc(label)}</span></button>`;
+  const m = document.createElement('div');
+  m.className = 'hubmenu';
+  m.innerHTML = `<div class="hm-grid">${app('#/hub', GRID_ICON, 'Хаб')}${app('#/home', APP_ICON_SAVE, 'Сейв')}${app('#/kanban', KB_ICON, 'Доски')}</div>`
+    + (boards.length ? `<div class="hm-head">Проекты</div><div class="hm-grid">${boards.map(b => app('#/board/' + b.id, KB_ICON, b.name)).join('')}</div>` : '');
+  document.body.appendChild(m);
+  const r = btn.getBoundingClientRect();
+  m.style.top = (r.bottom + 8) + 'px';
+  m.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+  hubMenu = m;
+  m.querySelectorAll('[data-go]').forEach(t => t.onclick = () => { closeHubMenu(); location.hash = t.dataset.go; });
+};
+
 function ensureHubButton() {
   if ($('#hubbtn')) return;
   const b = document.createElement('button');
@@ -589,11 +610,10 @@ function ensureHubButton() {
   b.setAttribute('aria-label', 'Хаб');
   b.title = 'Хаб';
   b.innerHTML = GRID_ICON;
-  b.onclick = () => {
-    $('#sheet-root').innerHTML = '';
-    if (location.hash === '#/hub') route(); else location.hash = '#/hub';
-  };
+  b.onclick = e => { e.stopPropagation(); openHubMenu(); };
   document.body.appendChild(b);
+  document.addEventListener('mousedown', e => { if (hubMenu && !hubMenu.contains(e.target) && !b.contains(e.target)) closeHubMenu(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeHubMenu(); });
 }
 
 function setHubButton(show) {
@@ -620,8 +640,8 @@ function hub() {
   $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Приложения</div></div>
     <div class="tiles apps">
-      <button class="tile" style="--c:#fff0f3;--tc:#c1173f" data-go="#/home"><div class="ic">${APP_ICON_SAVE}</div><div class="tf"><div class="l2">Сейв</div><div class="l">Закладки</div></div></button>
       <button class="tile" style="--c:#e7f6ee;--tc:#2f6446" data-go="#/kanban"><div class="ic">${KB_ICON}</div><div class="tf"><div class="l2">Доски</div><div class="l">Доски и задачи</div></div></button>
+      <button class="tile" style="--c:#fff0f3;--tc:#c1173f" data-go="#/home"><div class="ic">${APP_ICON_SAVE}</div><div class="tf"><div class="l2">Сейв</div><div class="l">Закладки</div></div></button>
     </div>`;
   document.querySelectorAll('[data-go]').forEach(t => t.onclick = () => { location.hash = t.dataset.go; });
 }

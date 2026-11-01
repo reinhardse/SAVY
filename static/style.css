@@ -551,3 +551,13 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .card-sheet .kb-pl{display:flex;align-items:center;gap:8px;color:#787774;font-size:14px;line-height:24px;padding-top:5px}
 .card-sheet .kb-pl svg{width:16px;height:16px;flex:none;display:block}
 .card-sheet .kb-pv{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:30px;padding-top:2px}
+
+/* панель хаба у кнопки в углу: три приложения и проекты (доски) */
+.hubmenu{position:fixed;z-index:90;width:320px;max-height:80vh;overflow:auto;background:#fff;border:1px solid #e6e6ea;border-radius:20px;box-shadow:0 12px 32px rgba(0,0,0,.14);padding:12px}
+.hubmenu .hm-head{font-size:12px;font-weight:500;color:var(--muted);padding:12px 8px 6px}
+.hubmenu .hm-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+.hubmenu .hm-app{display:flex;flex-direction:column;align-items:center;gap:6px;border:0;background:transparent;border-radius:14px;padding:10px 4px;cursor:pointer;font:inherit;color:var(--ink);min-width:0}
+.hubmenu .hm-app:hover{background:#f4f4f6}
+.hubmenu .hm-ic{width:48px;height:48px;border-radius:50%;background:#f4f4f6;display:flex;align-items:center;justify-content:center;flex:none}
+.hubmenu .hm-ic svg{width:24px;height:24px;display:block}
+.hubmenu .hm-lb{font-size:13px;line-height:1.25;width:100%;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
