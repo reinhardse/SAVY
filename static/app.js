@@ -106,7 +106,7 @@ async function api(path, opt = {}) {
 /* ---------- вход ---------- */
 function showLogin() {
   $('#sheet-root').innerHTML = '';
-  $('#app').innerHTML = `<form class="login" id="lf"><div class="brand logo">ЗАКЛАДКИ</div>
+  $('#app').innerHTML = `<form class="login" id="lf"><div class="brand logo">SAVE</div>
     <input class="in-text" type="password" id="pw" placeholder="Пароль" autofocus>
     <div class="err" id="le"></div><button class="btn pri">Войти</button></form>`;
   $('#lf').onsubmit = async e => {
@@ -232,7 +232,7 @@ async function home() {
   // порядок: «Входящие», «Все», затем категории в порядке создания (новые — в конце)
   const tilesHtml = tile('#/inbox', INBOX_STYLE, INBOX_ICON, inbox.count, 'Входящие')
     + tile('#/all', ALL_STYLE, TILES_ICON, me.total, 'Все') + catTiles;
-  $('#app').innerHTML = `<div class="titlerow"><div class="brand logo">ЗАКЛАДКИ</div>
+  $('#app').innerHTML = `<div class="titlerow"><div class="brand logo">SAVE</div>
       <div class="tr-actions"><button class="iconbtn" id="hsbtn" aria-label="Поиск">${LOUPE}</button></div></div>
     ${pasteHtml()}
     ${tags.length ? `<div class="tags home-tags">${tags.map(t => `<span class="tagchip" data-alltag="${esc(t.name)}">#${esc(t.name)}</span>`).join('')}</div>` : ''}
