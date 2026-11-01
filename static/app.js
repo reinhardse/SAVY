@@ -605,7 +605,7 @@ function openHub() {
   sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">${XICON}</button>
     <div class="sheet-body hub-body">
       <div class="kp-title">Хаб</div>
-      <button class="hubrow" data-go="#/home"><span class="hubic">${APP_ICON_SAVE}</span><span class="hubtxt"><b>СЕЙВ</b><i>Закладки</i></span></button>
+      <button class="hubrow" data-go="#/home"><span class="hubic">${APP_ICON_SAVE}</span><span class="hubtxt"><b>Сейв</b><i>Закладки</i></span></button>
       <button class="hubrow" data-go="#/kanban"><span class="hubic">${KB_ICON}</span><span class="hubtxt"><b>Доски</b><i>Доски и задачи</i></span></button>
     </div>`, 'hub-sheet');
   $('#sx').onclick = closeSheet;
@@ -620,7 +620,7 @@ function hub() {
   $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Приложения</div></div>
     <div class="tiles apps">
-      <button class="tile" style="--c:#fff0f3;--tc:#c1173f" data-go="#/home"><div class="ic">${APP_ICON_SAVE}</div><div class="tf"><div class="l2">СЕЙВ</div><div class="l">Закладки</div></div></button>
+      <button class="tile" style="--c:#fff0f3;--tc:#c1173f" data-go="#/home"><div class="ic">${APP_ICON_SAVE}</div><div class="tf"><div class="l2">Сейв</div><div class="l">Закладки</div></div></button>
       <button class="tile" style="--c:#e7f6ee;--tc:#2f6446" data-go="#/kanban"><div class="ic">${KB_ICON}</div><div class="tf"><div class="l2">Доски</div><div class="l">Доски и задачи</div></div></button>
     </div>`;
   document.querySelectorAll('[data-go]').forEach(t => t.onclick = () => { location.hash = t.dataset.go; });
