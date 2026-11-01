@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from datetime import date as _date
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, Response
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from itsdangerous import BadSignature, TimestampSigner
 from pydantic import BaseModel
@@ -17,8 +17,8 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from . import meta
-from .db import BASE_DIR, DATA_DIR, STATUSES, Board, Card, Category, Item, KColumn, SessionLocal, Tag, init_db
+from . import gcal, meta
+from .db import BASE_DIR, DATA_DIR, STATUSES, Board, Card, Category, GCalToken, Item, KColumn, SessionLocal, Tag, init_db
 
 PASSWORD = os.environ.get("LIBRARY_PASSWORD")
 API_TOKEN = os.environ.get("LIBRARY_API_TOKEN")  # для бота и «Быстрых команд» iOS
@@ -634,12 +634,56 @@ def card_patch(kid: int, body: CardPatch, db: Session = Depends(get_db), _: int 
         allowed = set(_tags(_board(db, k.board_id).tags))
         k.tags = json.dumps([t for t in _clean_tags(body.tags) if t in allowed], ensure_ascii=False)
     db.commit()
+    if fields & {"title", "due_date", "due_time", "duration_min"}:
+        gcal.sync_card(db, k, _board(db, k.board_id).name, USER_ID)
+        db.commit()
     return card_out(k)
 
 
 @app.delete("/api/cards/{kid}")
 def card_delete(kid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
-    db.delete(_card(db, kid))
+    k = _card(db, kid)
+    if k.gcal_event_id:
+        gcal.delete_event(db, k.gcal_event_id, USER_ID)
+    db.delete(k)
+    db.commit()
+    return {"ok": True}
+
+
+@app.get("/api/gcal/status")
+def gcal_status(db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    return {"configured": gcal.configured(), "connected": gcal.connected(db, USER_ID)}
+
+
+@app.get("/api/gcal/connect")
+def gcal_connect(_: int = Depends(require_auth)):
+    if not gcal.configured():
+        raise HTTPException(400, "Google Календарь ещё не настроен на сервере")
+    return {"url": gcal.auth_url(signer.sign(b"gcal").decode())}
+
+
+@app.get("/api/gcal/callback")
+def gcal_callback(code: str = "", state: str = "", db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    try:
+        if signer.unsign(state, max_age=900) != b"gcal":
+            raise BadSignature("state")
+    except BadSignature:
+        raise HTTPException(400, "Вход устарел, нажмите «Подключить» ещё раз")
+    try:
+        rt = gcal.exchange_code(code)
+    except Exception as e:
+        raise HTTPException(400, str(e))
+    row = db.scalars(select(GCalToken).where(GCalToken.user_id == USER_ID)).first() or GCalToken(user_id=USER_ID)
+    row.refresh_token = rt
+    db.add(row)
+    db.commit()
+    return RedirectResponse("/#/hub")
+
+
+@app.post("/api/gcal/disconnect")
+def gcal_disconnect(db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    for row in db.scalars(select(GCalToken).where(GCalToken.user_id == USER_ID)).all():
+        db.delete(row)
     db.commit()
     return {"ok": True}
 

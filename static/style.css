@@ -589,3 +589,8 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .kb-cal-t select{flex:1;min-width:0}
 .kb-cal-t input[type=time]{width:112px}
 .kb-cal-t input:disabled,.kb-cal-t select:disabled{opacity:.45}
+
+/* пункт Google Календаря в панели хаба */
+.hubmenu .hm-foot{border-top:1px solid #ececf0;margin-top:8px;padding-top:6px}
+.hubmenu .hm-gc{display:block;width:100%;border:0;background:transparent;font:inherit;font-size:13px;color:var(--ink);text-align:left;padding:8px 10px;border-radius:8px;cursor:pointer}
+.hubmenu .hm-gc:hover{background:#f4f4f6}

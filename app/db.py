@@ -107,6 +107,14 @@ class KColumn(Base):
     cards = relationship("Card", back_populates="column", cascade="all, delete-orphan", order_by="Card.sort")
 
 
+class GCalToken(Base):
+    """Доступ к Google Календарю: долгосрочный refresh_token пользователя."""
+    __tablename__ = "gcal_tokens"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False, default=1, unique=True)
+    refresh_token = Column(Text, nullable=False)
+
+
 class Card(Base):
     __tablename__ = "cards"
     id = Column(Integer, primary_key=True)
@@ -118,6 +126,7 @@ class Card(Base):
     due_date = Column(String(10), nullable=True)  # дата YYYY-MM-DD
     due_time = Column(String(5), nullable=True)  # время начала HH:MM
     duration_min = Column(Integer, nullable=True)  # длительность, минут
+    gcal_event_id = Column(String(255), nullable=True)  # событие в Google Календаре
     sort = Column(Integer, default=0)
     created_at = Column(DateTime, default=now)
     column = relationship("KColumn", back_populates="cards")
@@ -146,6 +155,9 @@ def init_db():
     if "duration_min" not in [c["name"] for c in cols("cards")]:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE cards ADD COLUMN duration_min INTEGER"))
+    if "gcal_event_id" not in [c["name"] for c in cols("cards")]:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE cards ADD COLUMN gcal_event_id VARCHAR(255)"))
     with SessionLocal() as s:
         if not s.scalars(select(Category)).first():
             for slug, name, color, sort in DEFAULT_CATEGORIES:

@@ -588,18 +588,32 @@ const openHubMenu = async () => {
   if (hubMenu) { closeHubMenu(); return; }
   const btn = $('#hubbtn');
   const boards = await api('/boards').catch(() => []);
+  const gc = await api('/gcal/status').catch(() => ({configured: false, connected: false}));
   if (hubMenu) return;
   const app = (go, icon, label) => `<button class="hm-app" data-go="${go}"><span class="hm-ic">${icon}</span><span class="hm-lb">${esc(label)}</span></button>`;
   const m = document.createElement('div');
   m.className = 'hubmenu';
   m.innerHTML = `<div class="hm-grid">${app('#/hub', GRID_ICON, 'Хаб')}${app('#/home', APP_ICON_SAVE, 'Сейв')}${app('#/kanban', KB_ICON, 'Доски')}</div>`
     + (boards.length ? `<div class="hm-head">Проекты</div><div class="hm-grid">${boards.map(b => app('#/board/' + b.id, KB_ICON, b.name)).join('')}</div>` : '');
+  const gcTxt = !gc.configured ? 'Google Календарь · не настроен' : gc.connected ? 'Google Календарь · подключён, отключить' : 'Подключить Google Календарь';
+  m.innerHTML += `<div class="hm-foot"><button class="hm-gc" id="hmgc">${gcTxt}</button></div>`;
   document.body.appendChild(m);
   const r = btn.getBoundingClientRect();
   m.style.top = (r.bottom + 8) + 'px';
   m.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
   hubMenu = m;
   m.querySelectorAll('[data-go]').forEach(t => t.onclick = () => { closeHubMenu(); location.hash = t.dataset.go; });
+  m.querySelector('#hmgc').onclick = async () => {
+    if (!gc.configured) { alert('Google Календарь пока не настроен на сервере'); return; }
+    if (gc.connected) {
+      if (!confirm('Отключить Google Календарь? Уже созданные события останутся в календаре.')) return;
+      try { await api('/gcal/disconnect', {method: 'POST'}); } catch (e) { alert(e.message); return; }
+      closeHubMenu(); openHubMenu();
+      return;
+    }
+    try { const r = await api('/gcal/connect'); location.href = r.url; }
+    catch (e) { alert(e.message); }
+  };
 };
 
 function ensureHubButton() {
