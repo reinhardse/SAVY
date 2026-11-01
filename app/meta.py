@@ -249,7 +249,7 @@ def _wikidata_title(client: httpx.Client, kp_id: str, dbg: list | None = None) -
         return None
 
 
-def _kp_api(client: httpx.Client, kp_id: str, dbg: list) -> tuple[str | None, str | None]:
+def _kp_api(client: httpx.Client, kp_id: str, dbg: list) -> tuple[str | None, str | None, str | None]:
     """Название и постер из API по бесплатному ключу: kinopoisk.dev (LIBRARY_KP_TOKEN) или kinopoiskapiunofficial.tech
     (LIBRARY_KPU_TOKEN). Без ключа ничего не делает."""
     token = os.environ.get("LIBRARY_KP_TOKEN")
@@ -262,8 +262,9 @@ def _kp_api(client: httpx.Client, kp_id: str, dbg: list) -> tuple[str | None, st
                 j = r.json()
                 poster = j.get("poster") or {}
                 title = j.get("name") or j.get("alternativeName") or j.get("enName")
+                desc = j.get("description") or j.get("shortDescription")
                 if title:
-                    return title, poster.get("url") or poster.get("previewUrl")
+                    return title, poster.get("url") or poster.get("previewUrl"), desc
         except (ValueError, KeyError, TypeError, httpx.HTTPError) as e:
             dbg.append({"kinopoisk_dev_error": type(e).__name__})
     token = os.environ.get("LIBRARY_KPU_TOKEN")
@@ -276,10 +277,10 @@ def _kp_api(client: httpx.Client, kp_id: str, dbg: list) -> tuple[str | None, st
                 j = r.json()
                 title = j.get("nameRu") or j.get("nameOriginal") or j.get("nameEn")
                 if title:
-                    return title, j.get("posterUrl") or j.get("posterUrlPreview")
+                    return title, j.get("posterUrl") or j.get("posterUrlPreview"), j.get("description")
         except (ValueError, KeyError, TypeError, httpx.HTTPError) as e:
             dbg.append({"kpu_error": type(e).__name__})
-    return None, None
+    return None, None, None
 
 
 def share_title(text: str) -> str | None:
@@ -336,9 +337,11 @@ def fetch_metadata(url: str, source: str) -> dict:
             kp_id = m.group(1)
             dbg: list = []
             with httpx.Client(timeout=TIMEOUT) as api:
-                t, poster = _kp_api(api, kp_id, dbg)
+                t, poster, desc = _kp_api(api, kp_id, dbg)
                 if t and not out["title"]:
                     out["title"] = t
+                if desc and not out["description"]:
+                    out["description"] = desc.strip()
                 if poster and not out["thumbnail_url"]:
                     out["thumbnail_url"] = poster
                 if not out["thumbnail_url"]:

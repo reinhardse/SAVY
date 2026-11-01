@@ -422,7 +422,7 @@ async function openItem(id) {
   // окно собирается один раз; дальше меняются только блоки внутри него
   const build = () => {
     const meta = [SRC[it.source], TYPE[it.content_type]].filter(Boolean).join(' · ');
-    const refreshBtn = it.thumb && it.title && it.meta_state === 'ok' ? '' : '<button class="linkbtn" id="rf">Обновить название и обложку</button>';
+    const refreshBtn = it.thumb && it.title && it.meta_state === 'ok' && (it.source !== 'kinopoisk' || it.description) ? '' : '<button class="linkbtn" id="rf">Обновить данные</button>';
     sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">×</button>${coverHtml(it, 'cover')}
       <div class="sheet-body">
       <textarea class="title-in auto" id="ti" rows="1" maxlength="100" placeholder="Название">${esc(draft.title)}</textarea>
