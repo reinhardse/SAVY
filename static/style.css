@@ -335,3 +335,5 @@ textarea.kb-title:focus,textarea.kb-note:focus{border:0;box-shadow:none}
 .card-sheet .kb-note{font-size:18px;line-height:1.7;min-height:50vh}
 .card-sheet .kb-foot{margin-top:24px}
 @media (max-width:560px){.sheet.card-sheet{width:calc(100% - 16px);min-height:80vh}.card-sheet .kb-card{padding:60px 22px 22px}.card-sheet .kb-title{font-size:28px}.card-sheet .kb-note{font-size:16px}}
+/* крестик удаления доски стоит в строке доски, а не в углу страницы */
+.brow .rb.del{position:static;flex:none}
