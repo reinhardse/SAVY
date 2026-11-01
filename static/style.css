@@ -492,3 +492,17 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .kb-edit .kcheck.done .kct{color:#9a9aa3;text-decoration:line-through;opacity:.8}
 /* текст пункта занимает всю строку: каретка видна и в пустом пункте, и курсор-текст работает по всей строке */
 .kb-edit .kcheck .kct{display:block;flex:1;min-width:0;min-height:1.7em;cursor:text}
+/* окно карточки в стиле Notion: верхняя строка с серыми кнопками, меню «···» с удалением */
+.card-sheet .kb-card{padding:14px 48px 28px}
+.kb-top{display:flex;align-items:center;justify-content:space-between;min-height:32px;margin:0 -8px 14px}
+.kb-top .kb-saved{padding-left:8px}
+.kb-tools{display:flex;align-items:center;gap:2px;position:relative}
+.kb-ib{width:32px;height:32px;border:0;border-radius:6px;background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:background-color .15s,color .15s}
+.kb-ib:hover{background:#efefef;color:var(--ink)}
+.kb-ib svg{width:18px;height:18px;display:block}
+.kb-menu{position:absolute;right:0;top:36px;min-width:200px;background:#fff;border:1px solid #e6e6ea;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:6px;z-index:5}
+.kb-menu[hidden]{display:none}
+.kb-mi{display:block;width:100%;text-align:left;border:0;background:transparent;padding:8px 10px;border-radius:6px;font-size:14px;color:var(--ink);cursor:pointer}
+.kb-mi:hover{background:#f2f2f4}
+.kb-mi.bad{color:#d13b3b}
+@media (max-width:560px){.card-sheet .kb-card{padding:12px 22px 22px}}

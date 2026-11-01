@@ -1046,11 +1046,18 @@ function caretEnd(el) {
 async function openCard(kid) {
   const c = await api('/cards/' + kid);
   let timer = null, dirty = false;
-  sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">${XICON}</button>
-    <div class="sheet-body kb-card">
+  const DOTS = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';
+  sheet(`<div class="sheet-body kb-card">
+      <div class="kb-top">
+        <span class="kb-saved" id="kbs">Сохранено</span>
+        <div class="kb-tools">
+          <button class="kb-ib" id="kbmore" aria-label="Действия">${DOTS}</button>
+          <button class="kb-ib" id="sx" aria-label="Закрыть">${XICON}</button>
+          <div class="kb-menu" id="kbmenu" hidden><button class="kb-mi bad" id="kbdel">Удалить карточку</button></div>
+        </div>
+      </div>
       <textarea class="kb-title" id="kbt" rows="1" maxlength="200" placeholder="Заголовок">${esc(c.title)}</textarea>
       <div class="kb-note kb-edit" id="kbn" contenteditable="true" spellcheck="false">${renderNoteEdit(c.note)}</div>
-      <div class="kb-foot"><span class="kb-saved" id="kbs">Сохранено</span><button class="btn bad" id="kbdel">Удалить карточку</button></div>
     </div>`, 'card-sheet');
   const t = $('#kbt'), n = $('#kbn');
   const grow = el => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
@@ -1171,6 +1178,12 @@ async function openCard(kid) {
 
   beforeClose = flush;
   $('#sx').onclick = closeSheet;
+  const actMenu = $('#kbmenu');
+  $('#kbmore').onclick = e => { e.stopPropagation(); actMenu.hidden = !actMenu.hidden; };
+  document.addEventListener('click', function hideMenu(e) {
+    if (!$('#kbmenu')) { document.removeEventListener('click', hideMenu); return; }
+    if (!actMenu.contains(e.target)) actMenu.hidden = true;
+  });
   $('#kbdel').onclick = async () => {
     if (!confirm('Удалить карточку?')) return;
     beforeClose = null; clearTimeout(timer); dirty = false;
