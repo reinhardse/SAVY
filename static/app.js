@@ -114,6 +114,7 @@ async function api(path, opt = {}) {
 function showLogin() {
   setHubButton(false);
   $('#sheet-root').innerHTML = '';
+  $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
   $('#app').innerHTML = `<form class="login" id="lf"><div class="brand logo">SAVE</div>
     <input class="in-text" type="password" id="pw" placeholder="Пароль" autofocus>
     <div class="err" id="le"></div><button class="btn pri">Войти</button></form>`;
@@ -240,6 +241,7 @@ async function home() {
   // порядок: «Входящие», «Все», затем категории в порядке создания (новые — в конце)
   const tilesHtml = tile('#/inbox', INBOX_STYLE, INBOX_ICON, inbox.count, 'Входящие')
     + tile('#/all', ALL_STYLE, TILES_ICON, me.total, 'Все') + catTiles;
+  $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
   $('#app').innerHTML = `<div class="titlerow"><div class="brand logo" id="brandgo" style="cursor:pointer" title="Приложения">SAVE</div>
       <div class="tr-actions"><button class="iconbtn" id="hsbtn" aria-label="Поиск">${LOUPE}</button></div></div>
     ${pasteHtml()}
@@ -271,6 +273,7 @@ async function homeList() {
 async function listView(title, params, active, withTags = false) {
   listParams = params;
   const wantSearch = openSearch; openSearch = false;
+  $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">${esc(title)}</div>
       <div class="tr-actions">
       <button class="iconbtn" id="hbtn" aria-label="Главная">${HOME_ICON}</button>
@@ -358,8 +361,6 @@ async function route() {
   const [view, ...rest] = (location.hash.slice(2) || 'hub').split('/');
   const arg = decodeURIComponent(rest.join('/'));
   pollLeft = view === 'home' ? 6 : pollLeft;
-  // во всю ширину — только у своей доски; выставляется сразу, без ожидания загрузки (иначе доска дёргается)
-  $('#app').classList.toggle('kfull', view === 'board' && isFull(+arg));
   if (view === 'hub') return hub();
   if (view === 'kanban') return boards();
   if (view === 'board') return board(+arg);
@@ -616,6 +617,7 @@ function openHub() {
 
 /* ---------- хаб приложений ---------- */
 function hub() {
+  $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Приложения</div></div>
     <div class="tiles apps">
       <button class="tile" style="--c:#fff0f3;--tc:#c1173f" data-go="#/home"><div class="ic">${APP_ICON_SAVE}</div><div class="tf"><div class="l2">SAVE</div><div class="l">Закладки</div></div></button>
@@ -656,6 +658,7 @@ async function boards() {
     ? `<div class="tile kbt" data-open="${b.id}" style="--c:#f5f5f7;--tc:#222"><div class="ic">${KB_ICON}</div><div class="tf"><div class="n">${b.count}</div><div class="l">${esc(b.name)}</div></div><button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button><button class="bstatus kbst" data-stb="${b.id}" data-cur="${b.status || 'work'}" style="--sb:${BSTATUS[b.status || 'work'].bg};--st:${BSTATUS[b.status || 'work'].tc}">${BSTATUS[b.status || 'work'].label}</button></div>`
     : `<div class="brow" data-open="${b.id}"><div class="bname">${esc(b.name)}</div><button class="bstatus" data-stb="${b.id}" data-cur="${b.status || 'work'}" style="--sb:${BSTATUS[b.status || 'work'].bg};--st:${BSTATUS[b.status || 'work'].tc}">${BSTATUS[b.status || 'work'].label}</button><div class="bcount">${b.count}</div><button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button></div>`;
   // справа вверху: плюс (новая доска) и переключатель вида
+  $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Доски</div>
       <div class="tr-actions"><button class="iconbtn" id="addboard" aria-label="Новая доска" title="Новая доска">${PLUS_ICON}</button>
       <button class="iconbtn" id="kbview" aria-label="Вид досок" title="${tiles ? 'Строки' : 'Плитки'}">${tiles ? TILES_ICON : LIST_ICON}</button></div></div>
@@ -737,6 +740,7 @@ async function board(bid) {
       <div class="kcards">${col.cards.map(c => `<div class="kcard" data-card="${c.id}"><div class="kct${c.title ? '' : ' ph'}">${esc(c.title || 'Без названия')}</div></div>`).join('')}</div>
       <button class="kadd" data-addcard="${col.id}">+ Добавить карточку</button>
     </div>`).join('');
+  $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
   $('#app').innerHTML = `<div class="titlerow"><div class="kbtitle" id="kbname" title="Нажмите, чтобы переименовать">${esc(b.name)}</div>
       <div class="tr-actions"><button class="iconbtn" id="kball" aria-label="Все доски" title="Все доски">${HOME_ICON}</button>
       <button class="iconbtn" id="kfull" aria-label="Во всю ширину" title="${isFull(bid) ? 'Вернуть' : 'Во всю ширину'}">${isFull(bid) ? RESTORE_ICON : FULL_ICON}</button></div></div>
