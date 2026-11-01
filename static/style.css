@@ -657,3 +657,12 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 #app .cal-col.today .kcnt{background:#2f2f33;color:#fff;border-radius:999px;padding:1px 8px}
 #app .cal-col.drop{outline:2px dashed #c9c9d1;outline-offset:4px}
 #app .cal-card{cursor:pointer}
+
+/* шапка календаря: круглые кнопки, выравнивание по центру круглой кнопки хаба */
+#app .cal-head{align-items:center}
+#app .cal-tools{height:44px;gap:8px;align-items:center}
+#app .cal-seg{height:36px;align-items:center;padding:3px}
+#app .cal-seg button{height:30px;padding:0 12px;display:inline-flex;align-items:center}
+#app .cal-nav{width:36px;height:36px;border-radius:50%;padding:0;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line2);background:#fff;color:var(--ink);box-shadow:var(--sh-sm)}
+#app .cal-nav svg{width:18px;height:18px;display:block}
+#app .cal-today,#app .cal-filter{height:36px;padding:0 16px;display:inline-flex;align-items:center;border-radius:999px;border:1px solid var(--line2);background:#fff;box-shadow:var(--sh-sm)}

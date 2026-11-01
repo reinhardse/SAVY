@@ -655,6 +655,7 @@ function hub() {
   $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Приложения</div></div>
     <div class="tiles apps">
+      <button class="tile" style="--c:#eef3ff;--tc:#2f4bb0" data-go="#/calendar"><div class="ic">${CAL_SVG}</div><div class="tf"><div class="l2">Календарь</div><div class="l">Все задачи по дням</div></div></button>
       <button class="tile" style="--c:#e7f6ee;--tc:#2f6446" data-go="#/kanban"><div class="ic">${KB_ICON}</div><div class="tf"><div class="l2">Доски</div><div class="l">Доски и задачи</div></div></button>
       <button class="tile" style="--c:#fff0f3;--tc:#c1173f" data-go="#/home"><div class="ic">${APP_ICON_SAVE}</div><div class="tf"><div class="l2">Сейв</div><div class="l">Закладки</div></div></button>
     </div>`;
@@ -1563,9 +1564,9 @@ function paintCal() {
   $('#app').innerHTML = `<div class="titlerow cal-head"><div class="brand">Календарь</div>
       <div class="cal-tools">
         <div class="cal-seg"><button data-m="7" class="${calMode === 7 ? 'on' : ''}">7</button><button data-m="31" class="${calMode === 31 ? 'on' : ''}">31</button></div>
-        <button class="cal-nav" id="calprev" aria-label="Назад">‹</button>
+        <button class="cal-nav" id="calprev" aria-label="Назад"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
         <button class="cal-today" id="caltoday">Сегодня</button>
-        <button class="cal-nav" id="calnext" aria-label="Вперёд">›</button>
+        <button class="cal-nav" id="calnext" aria-label="Вперёд"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
         <button class="cal-filter" id="calfilter">Доски</button>
       </div></div>
     <div class="cal-range">${range}</div>
