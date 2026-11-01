@@ -1059,7 +1059,7 @@ function caretEnd(el) {
 async function openCard(kid) {
   const c = await api('/cards/' + kid);
   const bd = await api('/boards/' + c.board_id);
-  let boardTags = bd.tags || [], cardTags = c.tags || [];
+  let boardTags = bd.tags || [], cardTags = c.tags || [], cols = bd.columns || [], curCol = c.column_id;
   let timer = null, dirty = false;
   const DOTS = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';
   sheet(`<div class="sheet-body kb-card">
@@ -1073,6 +1073,7 @@ async function openCard(kid) {
       </div>
       <div class="kb-body"><div class="kb-title" id="kbt" contenteditable="true" spellcheck="false" data-ph="Заголовок">${linkify((c.title || '').replace(/\s+/g, ' '))}</div>
       <div class="kb-tags" id="kbtags"></div>
+      <div class="kb-tags" id="kbcols"></div>
       <hr class="kb-hr">
       <div class="kb-note kb-edit" id="kbn" contenteditable="true" spellcheck="false">${renderNoteEdit(c.note)}</div></div>
     </div>`, 'card-sheet');
@@ -1132,6 +1133,23 @@ async function openCard(kid) {
   t.addEventListener('paste', e => { e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').replace(/\s*\n\s*/g, ' ')); });
   t.addEventListener('click', e => { const a = e.target.closest('a'); if (a) { e.preventDefault(); window.open(a.href, '_blank', 'noopener'); } });
   t.addEventListener('blur', () => { t.innerHTML = linkify(titleText()); });
+
+  // колонки доски: текущая — чёрным; «Готово» всегда зелёная; клик переносит карточку
+  const renderCols = () => {
+    const box = $('#kbcols');
+    box.innerHTML = cols.map(col => {
+      const done = /готов/i.test(col.name);
+      return `<button class="kb-col${done ? ' done' : ''}${col.id === curCol ? ' on' : ''}" data-col="${col.id}">${esc(col.name)}</button>`;
+    }).join('');
+    box.querySelectorAll('[data-col]').forEach(b => b.onclick = async () => {
+      const id = +b.dataset.col;
+      if (id === curCol) return;
+      curCol = id; renderCols();
+      try { await api('/cards/' + kid, {method: 'PATCH', body: {column_id: id}}); }
+      catch (e) { alert(e.message); }
+    });
+  };
+  renderCols();
 
   // «/» — меню блоков как в Notion: открывается сразу, фильтруется вводом, выбирается стрелками и Enter
   const SL_ICON = {

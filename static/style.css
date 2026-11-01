@@ -516,6 +516,13 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .kb-tag.add{border-style:dashed;background:transparent;color:var(--muted)}
 .kb-tag-in{border:1px solid #e3e3e8;border-radius:999px;padding:3px 10px;font:inherit;font-size:13px;outline:none;width:150px}
 .kb-hr{border:0;border-top:1px solid #ececf0;margin:0 0 24px}
+#kbtags{margin-bottom:12px}
+.kb-col{border:1px solid #e3e3e8;background:#f2f2f4;border-radius:999px;padding:3px 10px;font:inherit;font-size:13px;color:#6b6b74;cursor:pointer;transition:background-color .15s,color .15s}
+.kb-col:hover{background:#e9e9ee}
+.kb-col.on{background:#2f2f33;border-color:#2f2f33;color:#fff}
+.kb-col.done{background:#dff3e8;border-color:#bfe5cf;color:#2f6446}
+.kb-col.done:hover{background:#cdeedb}
+.kb-col.done.on{background:#3fa975;border-color:#3fa975;color:#fff}
 .kc-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
 .kc-tag{font-size:11px;line-height:1.5;padding:1px 7px;border-radius:999px;background:#f0f0f3;color:#555}
 /* текст заметки: 16px, межстрочный 24px, начертание 400 */
