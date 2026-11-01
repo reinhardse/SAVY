@@ -125,8 +125,8 @@ def process_item(item_id: int, hint: str | None = None):
         # из сайта берём только заголовок (до 100 символов) и обложку; описание и автора не подтягиваем
         # если сайт названия не отдал, берём название из текста «Поделиться» (если оно было вместе со ссылкой)
         item.title = item.title or (m["title"] or "")[:100] or hint or None
-        # описание добавляем сами только для Кинопоиска и только если оно пустое: дальше его правит пользователь
-        if item.source == "kinopoisk" and not item.description and m.get("description"):
+        # описание добавляем сами только для Кинопоиска и Литрес и только если оно пустое: дальше его правит пользователь
+        if item.source in ("kinopoisk", "litres") and not item.description and m.get("description"):
             item.description = m["description"][:2000]
         item.meta_state = m["meta_state"]
         item.meta_raw = {"tried": m["tried"]}
