@@ -582,7 +582,10 @@ function ensureHubButton() {
   b.setAttribute('aria-label', 'Хаб');
   b.title = 'Хаб';
   b.innerHTML = GRID_ICON;
-  b.onclick = openHub;
+  b.onclick = () => {
+    $('#sheet-root').innerHTML = '';
+    if (location.hash === '#/hub') route(); else location.hash = '#/hub';
+  };
   document.body.appendChild(b);
 }
 
