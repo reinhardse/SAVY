@@ -437,6 +437,8 @@ class CardPatch(BaseModel):
     column_id: int | None = None
     tags: list[str] | None = None
     due_date: str | None = None
+    due_time: str | None = None
+    duration_min: int | None = None
 
 
 def _board(db: Session, bid: int) -> Board:
@@ -481,7 +483,7 @@ def _clean_tags(items) -> list[str]:
 
 def card_out(c: Card) -> dict:
     return {"id": c.id, "title": c.title or "", "note": c.note or "", "column_id": c.column_id,
-            "board_id": c.board_id, "tags": _tags(c.tags), "due_date": c.due_date}
+            "board_id": c.board_id, "tags": _tags(c.tags), "due_date": c.due_date, "due_time": c.due_time, "duration_min": c.duration_min}
 
 
 def board_out(b: Board) -> dict:
@@ -606,11 +608,28 @@ def card_patch(kid: int, body: CardPatch, db: Session = Depends(get_db), _: int 
     if "due_date" in fields:
         if body.due_date is None:
             k.due_date = None
+            k.due_time = None
+            k.duration_min = None
         else:
             try:
                 k.due_date = _date.fromisoformat(body.due_date).isoformat()
             except ValueError:
                 raise HTTPException(400, "Неверная дата")
+    if "due_time" in fields:
+        if body.due_time is None or body.due_time == "":
+            k.due_time = None
+            k.duration_min = None
+        elif re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", body.due_time):
+            k.due_time = body.due_time
+        else:
+            raise HTTPException(400, "Неверное время")
+    if "duration_min" in fields:
+        if body.duration_min is None or body.duration_min <= 0 or k.due_time is None:
+            k.duration_min = None
+        elif body.duration_min <= 1440:
+            k.duration_min = body.duration_min
+        else:
+            raise HTTPException(400, "Слишком длинная задача")
     if "tags" in fields and body.tags is not None:
         allowed = set(_tags(_board(db, k.board_id).tags))
         k.tags = json.dumps([t for t in _clean_tags(body.tags) if t in allowed], ensure_ascii=False)

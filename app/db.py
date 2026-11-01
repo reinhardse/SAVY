@@ -116,6 +116,8 @@ class Card(Base):
     note = Column(Text, default="")
     tags = Column(Text, default="[]")  # теги карточки — из списка её доски, JSON-массив строк
     due_date = Column(String(10), nullable=True)  # дата YYYY-MM-DD
+    due_time = Column(String(5), nullable=True)  # время начала HH:MM
+    duration_min = Column(Integer, nullable=True)  # длительность, минут
     sort = Column(Integer, default=0)
     created_at = Column(DateTime, default=now)
     column = relationship("KColumn", back_populates="cards")
@@ -138,6 +140,12 @@ def init_db():
     if "due_date" not in [c["name"] for c in cols("cards")]:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE cards ADD COLUMN due_date VARCHAR(10)"))
+    if "due_time" not in [c["name"] for c in cols("cards")]:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE cards ADD COLUMN due_time VARCHAR(5)"))
+    if "duration_min" not in [c["name"] for c in cols("cards")]:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE cards ADD COLUMN duration_min INTEGER"))
     with SessionLocal() as s:
         if not s.scalars(select(Category)).first():
             for slug, name, color, sort in DEFAULT_CATEGORIES:

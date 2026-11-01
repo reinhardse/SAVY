@@ -1194,21 +1194,48 @@ async function openCard(kid) {
   const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
   const WD_RU = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
   const keyOf = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  let dueDate = c.due_date || null, cal = null, calOff = null;
+  let dueDate = c.due_date || null, dueTime = c.due_time || null, dueDur = c.duration_min || null, cal = null, calOff = null, calPaint = null;
+  const DUR = [[15, '15 мин'], [30, '30 мин'], [45, '45 мин'], [60, '1 ч'], [90, '1 ч 30 мин'], [120, '2 ч'], [180, '3 ч'], [240, '4 ч']];
   const closeCal = () => {
+    calPaint = null;
     if (cal) { cal.remove(); cal = null; }
     if (calOff) { document.removeEventListener('mousedown', calOff); calOff = null; }
   };
   const renderDate = () => {
-    const txt = dueDate ? (() => { const [y, m, d] = dueDate.split('-').map(Number); return `${d} ${MONTHS_GEN[m - 1]} ${y}`; })() : 'Добавить дату';
+    let txt = 'Добавить дату';
+    if (dueDate) {
+      const [y, m, d] = dueDate.split('-').map(Number);
+      txt = `${d} ${MONTHS_GEN[m - 1]} ${y}`;
+      if (dueTime) {
+        const [h, mi] = dueTime.split(':').map(Number);
+        txt += ', ' + dueTime;
+        if (dueDur) { const e = h * 60 + mi + dueDur; txt += '–' + String(Math.floor(e / 60) % 24).padStart(2, '0') + ':' + String(e % 60).padStart(2, '0'); }
+      }
+    }
     $('#kbdate').innerHTML = `<button class="kb-dv${dueDate ? ' on' : ''}" id="kbdv">${txt}</button>`;
     $('#kbdv').onclick = e => { e.stopPropagation(); openCal(); };
   };
   const setDate = async val => {
     dueDate = val;
+    if (!val) { dueTime = null; dueDur = null; }
     renderDate();
-    closeCal();
+    if (calPaint) calPaint();
     try { await api('/cards/' + kid, {method: 'PATCH', body: {due_date: val}}); }
+    catch (e) { alert(e.message); }
+  };
+  const setTime = async val => {
+    dueTime = val;
+    if (!val) dueDur = null;
+    renderDate();
+    if (calPaint) calPaint();
+    try { await api('/cards/' + kid, {method: 'PATCH', body: {due_time: val}}); }
+    catch (e) { alert(e.message); }
+  };
+  const setDur = async val => {
+    dueDur = val;
+    renderDate();
+    if (calPaint) calPaint();
+    try { await api('/cards/' + kid, {method: 'PATCH', body: {duration_min: val}}); }
     catch (e) { alert(e.message); }
   };
   const openCal = () => {
@@ -1228,14 +1255,21 @@ async function openCard(kid) {
         const key = `${y}-${String(mo + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
         cells += `<button class="kb-cd${key === dueDate ? ' sel' : ''}${key === tkey ? ' today' : ''}" data-k="${key}">${d}</button>`;
       }
+      const dis = dueDate ? '' : ' disabled';
       cal.innerHTML = `<div class="kb-cal-h"><button class="kb-ib" data-nav="-1" aria-label="Назад">‹</button><span>${MONTHS_RU[mo]} ${y}</span><button class="kb-ib" data-nav="1" aria-label="Вперёд">›</button></div>`
         + `<div class="kb-cal-w">${WD_RU.map(w => `<span>${w}</span>`).join('')}</div>`
         + `<div class="kb-cal-g">${cells}</div>`
+        + `<div class="kb-cal-t"><span class="kb-cal-tl">Время</span><input type="time" id="kbtime" value="${dueTime || ''}"${dis}>`
+        + `<select id="kbdur"${dueDate && dueTime ? '' : ' disabled'}><option value="">Длительность</option>${DUR.map(([v, l]) => `<option value="${v}"${dueDur === v ? ' selected' : ''}>${l}</option>`).join('')}</select></div>`
         + `<div class="kb-cal-f"><button class="kb-mi" data-clear="1">Очистить дату</button></div>`;
+      const tIn = cal.querySelector('#kbtime'), dSel = cal.querySelector('#kbdur');
+      tIn.onchange = () => setTime(tIn.value || null);
+      dSel.onchange = () => setDur(dSel.value ? +dSel.value : null);
       cal.querySelectorAll('[data-nav]').forEach(b => b.onclick = e => { e.stopPropagation(); view = new Date(y, mo + +b.dataset.nav, 1); paint(); });
       cal.querySelectorAll('[data-k]').forEach(b => b.onclick = e => { e.stopPropagation(); setDate(b.dataset.k); });
       cal.querySelector('[data-clear]').onclick = e => { e.stopPropagation(); setDate(null); };
     };
+    calPaint = paint;
     document.body.appendChild(cal);
     const r = $('#kbdv').getBoundingClientRect();
     cal.style.left = Math.max(8, r.left) + 'px';
