@@ -1293,16 +1293,16 @@ async function openCard(kid) {
         + `<div class="kb-cal-f"><button class="kb-mi" data-clear="1">Очистить дату</button></div>`;
       const tIn = cal.querySelector('#kbtime'), dSel = cal.querySelector('#kbdur');
       tIn.onkeydown = e => { if (e.key === 'Enter') tIn.blur(); };
+      // двоеточие ставится само, пока печатаете: «1630» превращается в «16:30»
+      tIn.oninput = () => { const d = tIn.value.replace(/\D/g, '').slice(0, 4); tIn.value = d.length > 2 ? d.slice(0, 2) + ':' + d.slice(2) : d; };
       tIn.onchange = () => {
         // можно ввести «16», «1630» или «16:30»: двоеточие и проверку делаем сами
-        const raw = tIn.value.trim();
-        if (!raw) { setTime(null); return; }
-        const digits = raw.replace(/\D/g, '');
+        const digits = tIn.value.replace(/\D/g, '');
+        if (!digits) { setTime(null); return; }
         let h, m;
-        if (/^\d{1,2}$/.test(raw)) { h = +raw; m = 0; }
-        else if (/^\d{1,2}:\d{1,2}$/.test(raw)) { [h, m] = raw.split(':').map(Number); }
-        else if (/^\d{3,4}$/.test(raw)) { h = +digits.slice(0, -2); m = +digits.slice(-2); }
-        if (h === undefined || h > 23 || m > 59) { tIn.value = dueTime || ''; return; }
+        if (digits.length <= 2) { h = +digits; m = 0; }
+        else { h = +digits.slice(0, -2); m = +digits.slice(-2); }
+        if (h > 23 || m > 59) { tIn.value = dueTime || ''; return; }
         const val = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
         tIn.value = val;
         setTime(val);
