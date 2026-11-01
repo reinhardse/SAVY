@@ -325,8 +325,8 @@ textarea.kb-title:focus,textarea.kb-note:focus{border:0;box-shadow:none}
 .addwide{width:100%;height:52px;border:0;border-radius:16px;background:#f2f2f4;color:var(--ink);font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;margin:0 0 14px;transition:background-color .15s}
 .addwide:hover{background:#e9e9ec}
 .addwide svg{width:18px;height:18px}
-/* крестик окна — справа вверху, по центру круга */
-.sheet-x{left:auto;right:16px;top:16px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;padding:0}
+/* крестик окна — слева вверху, как в SAVE; значок ровно по центру круга */
+.sheet-x{left:14px;right:auto;top:14px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;padding:0}
 .sheet-x svg{width:14px;height:14px;display:block}
 /* окно карточки — большое, как страница Notion */
 .sheet.card-sheet{max-width:880px;width:calc(100% - 32px);max-height:92vh;min-height:72vh;border-radius:26px}
