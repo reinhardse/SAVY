@@ -358,7 +358,8 @@ async function route() {
   const [view, ...rest] = (location.hash.slice(2) || 'hub').split('/');
   const arg = decodeURIComponent(rest.join('/'));
   pollLeft = view === 'home' ? 6 : pollLeft;
-  $('#app').classList.remove('kfull'); // во всю ширину — только у своей доски, включается внутри неё
+  // во всю ширину — только у своей доски; выставляется сразу, без ожидания загрузки (иначе доска дёргается)
+  $('#app').classList.toggle('kfull', view === 'board' && isFull(+arg));
   if (view === 'hub') return hub();
   if (view === 'kanban') return boards();
   if (view === 'board') return board(+arg);
