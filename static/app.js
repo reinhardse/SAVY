@@ -1064,10 +1064,10 @@ async function openCard(kid) {
           <div class="kb-menu" id="kbmenu" hidden><button class="kb-mi bad" id="kbdel">Удалить карточку</button></div>
         </div>
       </div>
-      <div class="kb-title" id="kbt" contenteditable="true" spellcheck="false" data-ph="Заголовок">${linkify((c.title || '').replace(/\s+/g, ' '))}</div>
+      <div class="kb-body"><div class="kb-title" id="kbt" contenteditable="true" spellcheck="false" data-ph="Заголовок">${linkify((c.title || '').replace(/\s+/g, ' '))}</div>
       <div class="kb-tags" id="kbtags"></div>
       <hr class="kb-hr">
-      <div class="kb-note kb-edit" id="kbn" contenteditable="true" spellcheck="false">${renderNoteEdit(c.note)}</div>
+      <div class="kb-note kb-edit" id="kbn" contenteditable="true" spellcheck="false">${renderNoteEdit(c.note)}</div></div>
     </div>`, 'card-sheet');
   const t = $('#kbt'), n = $('#kbn');
   // теги: список доски, отмеченные — у карточки

@@ -493,9 +493,9 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 /* текст пункта занимает всю строку: каретка видна и в пустом пункте, и курсор-текст работает по всей строке */
 .kb-edit .kcheck .kct{display:block;flex:1;min-width:0;min-height:1.7em;cursor:text}
 /* окно карточки в стиле Notion: верхняя строка с серыми кнопками, меню «···» с удалением */
-.card-sheet .kb-card{padding:0 48px 28px}
+.card-sheet .kb-card{padding:0}
 .kb-top{display:flex;align-items:center;justify-content:space-between;min-height:32px;margin:0 -8px 14px}
-.card-sheet .kb-top{position:sticky;top:0;z-index:4;background:#fff;padding:14px 8px 0;margin:0 -8px 14px}
+.card-sheet .kb-top{position:sticky;top:0;z-index:4;background:#fff;padding:14px 14px 0 40px;margin:0}
 .kb-top .kb-saved{padding-left:8px}
 .kb-tools{display:flex;align-items:center;gap:2px;position:relative}
 .kb-ib{width:32px;height:32px;border:0;border-radius:6px;background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:background-color .15s,color .15s}
@@ -506,7 +506,7 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .kb-mi{display:block;width:100%;text-align:left;border:0;background:transparent;padding:8px 10px;border-radius:6px;font-size:14px;color:var(--ink);cursor:pointer}
 .kb-mi:hover{background:#f2f2f4}
 .kb-mi.bad{color:#d13b3b}
-@media (max-width:560px){.card-sheet .kb-card{padding:0 22px 22px}}
+@media (max-width:560px){.card-sheet .kb-top{padding:12px 12px 0 22px}.card-sheet .kb-body{padding:16px 22px 22px}}
 /* теги карточки в окне и на доске; превью заметки на карточке доски */
 .kb-tags{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 14px;min-height:4px}
 .kb-tag{border:1px solid #e3e3e8;background:#fff;border-radius:999px;padding:3px 10px;font:inherit;font-size:13px;color:var(--ink);cursor:pointer;transition:background-color .15s}
@@ -518,10 +518,15 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .kc-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
 .kc-tag{font-size:11px;line-height:1.5;padding:1px 7px;border-radius:999px;background:#f0f0f3;color:#555}
 /* текст заметки: 16px, межстрочный 24px, начертание 400 */
-.card-sheet .kb-note,.card-sheet .kb-note .kline,.card-sheet .kb-note .kh,.card-sheet .kb-note .kct,.card-sheet .kb-note .kbul{font-size:15px;line-height:24px;font-weight:400}
+.card-sheet .kb-note,.card-sheet .kb-note .kline,.card-sheet .kb-note .kh,.card-sheet .kb-note .kct,.card-sheet .kb-note .kbul{font-size:14px;line-height:24px;font-weight:400}
 /* заголовок — редактируемый блок с кликабельными ссылками; без полосы прокрутки в окне карточки */
 .card-sheet .kb-title{white-space:pre-wrap;word-break:break-word;outline:none;cursor:text;min-height:1.2em}
 .card-sheet .kb-title:empty::before{content:attr(data-ph);color:#b5b5bd;pointer-events:none}
 .card-sheet .kb-title a{color:inherit;text-decoration:underline}
 .card-sheet{scrollbar-width:none}
 .card-sheet::-webkit-scrollbar{display:none}
+
+/* окно карточки: меньше скругление; содержимое по центру с воздухом по всем сторонам; кнопки в правом верхнем углу */
+.sheet.card-sheet{border-radius:14px}
+.card-sheet .kb-body{max-width:720px;margin:0 auto;padding:28px 40px 48px;box-sizing:border-box}
+.card-sheet .kb-title{font-size:32px;line-height:1.2;margin-bottom:16px}
