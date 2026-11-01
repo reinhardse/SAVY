@@ -667,3 +667,6 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 #app .cal-nav svg{width:18px;height:18px;display:block}
 #app .cal-today,#app .cal-filter{height:36px;padding:0 16px;display:inline-flex;align-items:center;border-radius:999px;border:1px solid var(--line2);background:#fff;box-shadow:var(--sh-sm)}
 #app .cal-nav-grp{display:flex;align-items:center;gap:4px}
+
+/* неделя: ровно четыре дня в ряд, пятый целиком на следующем экране (зазоры 12px, три между колонками) */
+#app .cal-strip .kcol.cal-col{flex:0 0 calc((100% - 36px) / 4);width:calc((100% - 36px) / 4);min-width:0;max-width:none}
