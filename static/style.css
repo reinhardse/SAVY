@@ -377,3 +377,13 @@ textarea.kb-title:focus,textarea.kb-note:focus{border:0;box-shadow:none}
 }
 
 @media (max-width:560px){#app.kfull .titlerow{padding-right:48px}}
+
+/* доски: без полосы прокрутки под колонками (прокрутка тачпадом и пальцем остаётся); перенос карточек */
+.kcols{scrollbar-width:none;-ms-overflow-style:none}
+.kcols::-webkit-scrollbar{display:none;height:0}
+.kcards{min-height:40px}
+.kcard{touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+.kcard:active{cursor:grabbing}
+.kph{background:#e7e7eb;border-radius:14px;border:1px dashed #cfcfd6;transition:height .18s ease}
+.kghost{position:fixed;left:0;top:0;z-index:60;pointer-events:none;margin:0;box-shadow:0 18px 40px rgba(0,0,0,.25);opacity:.97;transition:none}
+body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!important}

@@ -44,7 +44,8 @@ const KB_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
 const PLUS_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
 const FULL_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4"/></svg>';
 const RESTORE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>';
-let boardFull = (() => { try { return localStorage.getItem('kb_full') === '1'; } catch { return false; } })();
+const isFull = bid => { try { return localStorage.getItem('kb_full_' + bid) === '1'; } catch { return false; } };
+const setFull = (bid, v) => { try { localStorage.setItem('kb_full_' + bid, v ? '1' : '0'); } catch {} };
 const PEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>';
 // глаз: серый по умолчанию, пастельная зелёная галочка, когда материал проработан
 const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M7 12c1.5-2.5 3.2-3.8 5-3.8s3.5 1.3 5 3.8c-1.5 2.5-3.2 3.8-5 3.8S8.5 14.5 7 12z"/><circle cx="12" cy="12" r="1.7"/></svg>';
@@ -357,10 +358,9 @@ async function route() {
   const [view, ...rest] = (location.hash.slice(2) || 'hub').split('/');
   const arg = decodeURIComponent(rest.join('/'));
   pollLeft = view === 'home' ? 6 : pollLeft;
+  $('#app').classList.remove('kfull'); // во всю ширину — только у своей доски, включается внутри неё
   if (view === 'hub') return hub();
   if (view === 'kanban') return boards();
-  // «во всю ширину» запоминается и остаётся на всех экранах досок
-  $('#app').classList.toggle('kfull', boardFull && (view === 'board' || view === 'kanban'));
   if (view === 'board') return board(+arg);
   const map = {inbox: ['Входящие', {inbox: 1}], all: ['Все материалы', {}]};
   if (view === 'cat') {
@@ -701,7 +701,9 @@ function inlineEdit(el, value, onSave, onCancel, placeholder = '') {
 }
 
 /* ---------- канбан: одна доска ---------- */
+let curBoard = null;
 async function board(bid) {
+  curBoard = bid;
   const b = await api('/boards/' + bid);
   const cols = b.columns.map(col => `<div class="kcol" data-col="${col.id}">
       <div class="kch"><span class="kcn" data-rencol="${col.id}" title="Нажмите, чтобы переименовать">${esc(col.name)}</span>
@@ -711,16 +713,17 @@ async function board(bid) {
     </div>`).join('');
   $('#app').innerHTML = `<div class="titlerow"><div class="kbtitle" id="kbname" title="Нажмите, чтобы переименовать">${esc(b.name)}</div>
       <div class="tr-actions"><button class="iconbtn" id="kball" aria-label="Все доски" title="Все доски">${HOME_ICON}</button>
-      <button class="iconbtn" id="kfull" aria-label="Во всю ширину" title="${boardFull ? 'Вернуть' : 'Во всю ширину'}">${boardFull ? RESTORE_ICON : FULL_ICON}</button></div></div>
+      <button class="iconbtn" id="kfull" aria-label="Во всю ширину" title="${isFull(bid) ? 'Вернуть' : 'Во всю ширину'}">${isFull(bid) ? RESTORE_ICON : FULL_ICON}</button></div></div>
     <div class="kcols">${cols}<div class="kcol kaddcol"><button class="kadd" id="addcol">+ Колонка</button></div></div>`;
   $('#kball').onclick = () => { location.hash = '#/kanban'; };
+  $('#app').classList.toggle('kfull', isFull(bid));
   $('#kfull').onclick = () => {
-    boardFull = !boardFull;
-    try { localStorage.setItem('kb_full', boardFull ? '1' : '0'); } catch {}
-    $('#app').classList.toggle('kfull', boardFull);
-    $('#kfull').innerHTML = boardFull ? RESTORE_ICON : FULL_ICON;
-    $('#kfull').title = boardFull ? 'Вернуть' : 'Во всю ширину';
-    $('#kfull').setAttribute('aria-label', boardFull ? 'Вернуть' : 'Во всю ширину');
+    const v = !isFull(bid);
+    setFull(bid, v);
+    $('#app').classList.toggle('kfull', v);
+    $('#kfull').innerHTML = v ? RESTORE_ICON : FULL_ICON;
+    $('#kfull').title = v ? 'Вернуть' : 'Во всю ширину';
+    $('#kfull').setAttribute('aria-label', v ? 'Вернуть' : 'Во всю ширину');
   };
   $('#kbname').onclick = () => inlineEdit($('#kbname'), b.name,
     async v => { await api('/boards/' + bid, {method: 'PATCH', body: {name: v}}); board(bid); },
@@ -739,7 +742,114 @@ async function board(bid) {
   document.querySelectorAll('[data-addcard]').forEach(x => x.onclick = () => inlineEdit(x, '',
     async v => { await api('/columns/' + x.dataset.addcard + '/cards', {method: 'POST', body: {title: v}}); board(bid); },
     () => board(bid), 'Заголовок карточки'));
-  document.querySelectorAll('[data-card]').forEach(el => el.onclick = () => openCard(+el.dataset.card));
+  document.querySelectorAll('[data-card]').forEach(el => el.onclick = () => { if (!suppressClick) openCard(+el.dataset.card); });
+  bindDrag();
+}
+
+/* ---------- перенос карточек между колонками ---------- */
+let suppressClick = false, drag = null;
+
+function bindDrag() {
+  document.querySelectorAll('.kcard').forEach(el => el.onpointerdown = e => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    drag = {el, x0: e.clientX, y0: e.clientY, started: false, ph: null, ghost: null, sx: 0, sy: 0, cx: 0, cy: 0, tx: 0, ty: 0, raf: 0};
+    window.addEventListener('pointermove', onDragMove);
+    window.addEventListener('pointerup', onDragUp);
+    window.addEventListener('pointercancel', onDragUp);
+  });
+}
+
+function onDragMove(e) {
+  if (!drag) return;
+  if (!drag.started) {
+    if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 6) return;
+    startDrag(e);
+  }
+  e.preventDefault();
+  drag.tx = e.clientX - drag.sx;
+  drag.ty = e.clientY - drag.sy;
+  // край экрана — прокрутка досок и страницы
+  const kc = document.querySelector('.kcols');
+  if (kc) {
+    const r = kc.getBoundingClientRect();
+    if (e.clientX > r.right - 70) kc.scrollLeft += 14;
+    if (e.clientX < r.left + 70) kc.scrollLeft -= 14;
+  }
+  if (e.clientY < 90) window.scrollBy(0, -12);
+  if (e.clientY > window.innerHeight - 90) window.scrollBy(0, 12);
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  const col = under && under.closest('.kcol[data-col]');
+  if (col) placeInColumn(col, e.clientY);
+}
+
+function startDrag(e) {
+  const r = drag.el.getBoundingClientRect();
+  drag.started = true;
+  drag.sx = e.clientX - r.left;
+  drag.sy = e.clientY - r.top;
+  drag.cx = r.left; drag.cy = r.top;
+  const ph = document.createElement('div');
+  ph.className = 'kph';
+  ph.style.height = r.height + 'px';
+  drag.el.replaceWith(ph);
+  drag.ph = ph;
+  const g = drag.el.cloneNode(true);
+  g.classList.add('kghost');
+  g.style.width = r.width + 'px';
+  document.body.appendChild(g);
+  drag.ghost = g;
+  document.body.classList.add('kdragging');
+  const follow = () => {
+    if (!drag || !drag.ghost) return;
+    drag.cx += (drag.tx - drag.cx) * 0.35;   // мягкое следование за пальцем
+    drag.cy += (drag.ty - drag.cy) * 0.35;
+    drag.ghost.style.transform = `translate(${drag.cx}px, ${drag.cy}px) rotate(2deg)`;
+    drag.raf = requestAnimationFrame(follow);
+  };
+  drag.tx = drag.cx; drag.ty = drag.cy;
+  follow();
+}
+
+// место карточки: между карточками колонки, по их середине
+function placeInColumn(col, y) {
+  const box = col.querySelector('.kcards');
+  if (!box) return;
+  const cards = [...box.querySelectorAll('.kcard')];
+  let before = null;
+  for (const c of cards) {
+    const r = c.getBoundingClientRect();
+    if (y < r.top + r.height / 2) { before = c; break; }
+  }
+  if (before) {
+    if (drag.ph.nextElementSibling !== before) box.insertBefore(drag.ph, before);
+  } else if (box.lastElementChild !== drag.ph) {
+    box.appendChild(drag.ph);
+  }
+}
+
+async function onDragUp() {
+  window.removeEventListener('pointermove', onDragMove);
+  window.removeEventListener('pointerup', onDragUp);
+  window.removeEventListener('pointercancel', onDragUp);
+  const d = drag;
+  drag = null;
+  if (!d || !d.started) return;
+  cancelAnimationFrame(d.raf);
+  suppressClick = true;
+  setTimeout(() => { suppressClick = false; }, 300);
+  d.ghost.remove();
+  document.body.classList.remove('kdragging');
+  d.ph.replaceWith(d.el);
+  const columns = [...document.querySelectorAll('.kcol[data-col]')].map(c => ({
+    id: +c.dataset.col,
+    cards: [...c.querySelectorAll('.kcard')].map(k => +k.dataset.card),
+  }));
+  try {
+    await api('/boards/' + curBoard + '/order', {method: 'POST', body: {columns}});
+  } catch (err) {
+    alert(err.message);
+    board(curBoard);
+  }
 }
 
 // окно карточки: заголовок и текст (простой текст, ссылки не превращаются в кнопки)

@@ -574,6 +574,34 @@ def card_delete(kid: int, db: Session = Depends(get_db), _: int = Depends(requir
     return {"ok": True}
 
 
+class ColOrder(BaseModel):
+    id: int
+    cards: list[int]
+
+
+class BoardOrder(BaseModel):
+    columns: list[ColOrder]
+
+
+@app.post("/api/boards/{bid}/order")
+def board_order(bid: int, body: BoardOrder, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    """Сохраняет порядок карточек на доске: в какой колонке и в каком порядке каждая карточка."""
+    b = _board(db, bid)
+    cols = {c.id: c for c in b.columns}
+    for co in body.columns:
+        col = cols.get(co.id)
+        if not col:
+            raise HTTPException(400, "Колонка не из этой доски")
+        for idx, kid in enumerate(co.cards):
+            k = db.get(Card, kid)
+            if not k or k.board_id != bid:
+                raise HTTPException(400, "Карточка не из этой доски")
+            k.column_id = col.id
+            k.sort = idx
+    db.commit()
+    return {"ok": True}
+
+
 # ---------- сайт ----------
 app.mount("/thumbs", StaticFiles(directory=DATA_DIR / "thumbs"), name="thumbs")
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
