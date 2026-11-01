@@ -419,3 +419,21 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 @media (min-width:980px){.blist.tgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 /* статус доски в плитке — в правом нижнем углу */
 .kbt .bstatus.kbst{position:absolute;right:12px;bottom:12px;padding:5px 11px;font-size:13px}
+
+/* === доски: спокойный дизайн — белые карточки с тонкой рамкой, светлые колонки; «Готово» остаётся зелёной === */
+.kcol{background:#f6f6f8;border:1px solid #ececf0;border-radius:16px;box-shadow:none}
+.kcol.kdone{background:#e4f4ea;border-color:#cfe9da}
+.kch{padding:2px 2px 0}
+.kcn{font-size:14px;font-weight:600;color:var(--ink2)}
+.kcol.kdone .kcn{color:#2f6446}
+.kcard{background:#fff;border:1px solid #ececf0;border-radius:12px;box-shadow:none;padding:11px 13px}
+.kcard:hover{border-color:#d9d9e0;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.kct{font-size:14.5px;font-weight:500;line-height:1.35;color:var(--ink)}
+.kct.ph{color:var(--muted);font-weight:400}
+.kadd{font-size:13.5px;color:var(--muted)}
+.kbt{background:#fff;border:1px solid #ececf0;box-shadow:none;border-radius:16px}
+.kbt:hover{border-color:#d9d9e0;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+.kbt .ic{background:#f3f3f6;color:var(--ink)}
+.kbt .n{font-size:28px}
+.kbt .l{font-size:14.5px;font-weight:600;color:var(--ink)}
+.brow{border-bottom:1px solid #f0f0f3}
