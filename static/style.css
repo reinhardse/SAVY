@@ -87,7 +87,8 @@ h2{font-size:22px;font-weight:700;letter-spacing:-.02em;margin:0 2px 0}
 .rb.pen{width:24px;height:24px}
 .rb.pen svg{width:14px;height:14px}
 .rb.pen:hover{background:#f2f2f2;color:var(--ink)}
-.rb.del{position:absolute;top:12px;right:0;width:30px;height:30px;font-size:22px}
+.rb.del{position:absolute;top:12px;right:0;width:30px;height:30px}
+.rb.del svg{width:13px;height:13px}
 .rb.del:hover{background:#f2f2f2;color:var(--ink)}
 
 /* поиск и пустые состояния */
@@ -232,7 +233,8 @@ img.thumb,img.cover{animation:fadeIn .3s ease both}
 .list.grid .row .m{font-size:13px;margin-top:2px}
 .list.grid .rdesc{font-size:13px;line-height:1.35}
 .list.grid .tagline{margin-top:10px}
-.list.grid .rb.del{top:8px;right:8px;width:28px;height:28px;font-size:20px;background:rgba(255,255,255,.94);box-shadow:0 1px 6px rgba(0,0,0,.28)}
+.list.grid .rb.del{top:8px;right:8px;width:26px;height:26px;background:rgba(255,255,255,.94);box-shadow:0 1px 5px rgba(0,0,0,.25)}
+.list.grid .rb.del svg{width:11px;height:11px}
 .list.grid .empty{grid-column:1/-1}
 
 /* на широком экране плитки идут по четыре в ряд */
