@@ -39,6 +39,9 @@ const INBOX_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 const FOLDER_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
 const INBOX_STYLE = {bg: '#e7edff', tc: '#2f4bb0'};
 const ALL_STYLE = {bg: '#efeff2', tc: '#222'};
+const APP_ICON_SAVE = '<svg viewBox="0 0 24 24" fill="#ff385c"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1z"/></svg>';
+const KB_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="10" rx="1.5"/><rect x="17" y="4" width="4" height="13" rx="1.5"/></svg>';
+const PLUS_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
 const PEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>';
 // глаз: серый по умолчанию, пастельная зелёная галочка, когда материал проработан
 const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M7 12c1.5-2.5 3.2-3.8 5-3.8s3.5 1.3 5 3.8c-1.5 2.5-3.2 3.8-5 3.8S8.5 14.5 7 12z"/><circle cx="12" cy="12" r="1.7"/></svg>';
@@ -232,7 +235,7 @@ async function home() {
   // порядок: «Входящие», «Все», затем категории в порядке создания (новые — в конце)
   const tilesHtml = tile('#/inbox', INBOX_STYLE, INBOX_ICON, inbox.count, 'Входящие')
     + tile('#/all', ALL_STYLE, TILES_ICON, me.total, 'Все') + catTiles;
-  $('#app').innerHTML = `<div class="titlerow"><div class="brand logo">SAVE</div>
+  $('#app').innerHTML = `<div class="titlerow"><div class="brand logo" id="brandgo" style="cursor:pointer" title="Приложения">SAVE</div>
       <div class="tr-actions"><button class="iconbtn" id="hsbtn" aria-label="Поиск">${LOUPE}</button></div></div>
     ${pasteHtml()}
     ${tags.length ? `<div class="tags home-tags">${tags.map(t => `<span class="tagchip" data-alltag="${esc(t.name)}">#${esc(t.name)}</span>`).join('')}</div>` : ''}
@@ -243,6 +246,7 @@ async function home() {
   document.querySelectorAll('[data-go]').forEach(t => t.onclick = () => { location.hash = t.dataset.go; });
   document.querySelectorAll('[data-alltag]').forEach(t => t.onclick = () => { location.hash = '#/tag/' + encodeURIComponent(t.dataset.alltag); });
   $('#kpset').onclick = () => openKpKey(conf.kp_token_set);
+  $('#brandgo').onclick = () => { location.hash = '#/hub'; };
   $('#vbtn').onclick = toggleView;
   $('#hsbtn').onclick = () => { openSearch = true; if (location.hash === '#/all') route(); else location.hash = '#/all'; };
   bindPaste(); bindRows(); $('#list').dataset.h = listHtml;
@@ -346,9 +350,12 @@ function schedulePoll(items, fn) {
 }
 
 async function route() {
-  const [view, ...rest] = (location.hash.slice(2) || 'home').split('/');
+  const [view, ...rest] = (location.hash.slice(2) || 'hub').split('/');
   const arg = decodeURIComponent(rest.join('/'));
   pollLeft = view === 'home' ? 6 : pollLeft;
+  if (view === 'hub') return hub();
+  if (view === 'kanban') return boards();
+  if (view === 'board') return board(+arg);
   const map = {inbox: ['Входящие', {inbox: 1}], all: ['Все материалы', {}]};
   if (view === 'cat') {
     const c = cats.find(x => x.slug === arg);
@@ -360,9 +367,14 @@ async function route() {
 }
 
 /* ---------- карточка материала: окно по центру ---------- */
-function closeSheet() { $('#sheet-root').innerHTML = ''; route(); }
+let beforeClose = null; // сохранение перед закрытием окна (текст карточки)
+async function closeSheet() {
+  if (beforeClose) { const f = beforeClose; beforeClose = null; await f(); }
+  $('#sheet-root').innerHTML = ''; route();
+}
 
 function sheet(html) {
+  beforeClose = null;
   let ov = $('#ov');
   if (!ov) {
     $('#sheet-root').innerHTML = `<div class="overlay" id="ov"><div class="sheet"></div></div>`;
@@ -554,6 +566,154 @@ function openKpKey(isSet) {
     const b = $('#kpsave'); b.disabled = true; b.textContent = 'Сохраняю…';
     try { await api('/settings/kp-token', {method: 'POST', body: {token}}); closeSheet(); }
     catch (e) { $('#kperr').textContent = e.message; b.disabled = false; b.textContent = 'Сохранить'; }
+  };
+}
+
+/* ---------- хаб приложений ---------- */
+function hub() {
+  $('#app').innerHTML = `<div class="titlerow"><div class="brand">Приложения</div></div>
+    <div class="tiles apps">
+      <button class="tile" style="--c:#fff0f3;--tc:#c1173f" data-go="#/home"><div class="ic">${APP_ICON_SAVE}</div><div class="tf"><div class="l2">SAVE</div><div class="l">Закладки</div></div></button>
+      <button class="tile" style="--c:#e7f6ee;--tc:#2f6446" data-go="#/kanban"><div class="ic">${KB_ICON}</div><div class="tf"><div class="l2">Канбан</div><div class="l">Доски и задачи</div></div></button>
+    </div>`;
+  document.querySelectorAll('[data-go]').forEach(t => t.onclick = () => { location.hash = t.dataset.go; });
+}
+
+/* ---------- канбан: список досок ---------- */
+async function boards() {
+  const list = await api('/boards');
+  $('#app').innerHTML = `<div class="titlerow"><div class="brand">Доски</div>
+      <div class="tr-actions"><button class="iconbtn" id="khome" aria-label="Приложения">${HOME_ICON}</button>
+      <button class="iconbtn sqbtn" id="addboard" aria-label="Новая доска">${PLUS_ICON}</button></div></div>
+    <div class="blist">${list.length ? list.map(b => `<div class="brow" data-open="${b.id}"><div class="bname">${esc(b.name)}</div><div class="bcount">${b.count}</div><button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button></div>`).join('') : '<div class="empty">Пока нет досок. Нажмите + справа вверху.</div>'}</div>`;
+  $('#khome').onclick = () => { location.hash = '#/hub'; };
+  $('#addboard').onclick = newBoard;
+  document.querySelectorAll('[data-open]').forEach(r => r.onclick = e => {
+    if (e.target.closest('[data-delb]')) return;
+    location.hash = '#/board/' + r.dataset.open;
+  });
+  document.querySelectorAll('[data-delb]').forEach(b => b.onclick = async e => {
+    e.stopPropagation();
+    if (!confirm('Удалить доску вместе со всеми колонками и карточками?')) return;
+    await api('/boards/' + b.dataset.delb, {method: 'DELETE'});
+    boards();
+  });
+}
+
+function newBoard() {
+  sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">×</button>
+    <div class="sheet-body kp-body">
+      <div class="kp-title">Новая доска</div>
+      <input class="in-text" id="bname" placeholder="Название доски" maxlength="120">
+      <div class="btnrow"><div class="left"></div><button class="savebtn dirty" id="bsave">Создать</button></div>
+    </div>`);
+  $('#sx').onclick = closeSheet;
+  $('#bname').focus();
+  const go = async () => {
+    const v = $('#bname').value.trim();
+    if (!v) return;
+    const b = await api('/boards', {method: 'POST', body: {name: v}});
+    $('#sheet-root').innerHTML = '';
+    location.hash = '#/board/' + b.id;
+  };
+  $('#bsave').onclick = go;
+  $('#bname').onkeydown = e => { if (e.key === 'Enter') go(); };
+}
+
+// поле для ввода прямо на месте элемента: Enter сохраняет, Esc или пустое поле отменяет
+function inlineEdit(el, value, onSave, onCancel, placeholder = '') {
+  const inp = document.createElement('input');
+  inp.className = 'kin';
+  inp.value = value;
+  inp.placeholder = placeholder;
+  inp.maxLength = 200;
+  el.replaceWith(inp);
+  inp.focus();
+  inp.select();
+  let done = false;
+  const finish = async save => {
+    if (done) return;
+    done = true;
+    const v = inp.value.trim();
+    if (save && v && v !== value) await onSave(v); else onCancel();
+  };
+  inp.onkeydown = e => {
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    else if (e.key === 'Escape') finish(false);
+  };
+  inp.onblur = () => finish(true);
+}
+
+/* ---------- канбан: одна доска ---------- */
+async function board(bid) {
+  const b = await api('/boards/' + bid);
+  const cols = b.columns.map(col => `<div class="kcol" data-col="${col.id}">
+      <div class="kch"><span class="kcn" data-rencol="${col.id}" title="Нажмите, чтобы переименовать">${esc(col.name)}</span>
+        <button class="rb del" data-delcol="${col.id}" aria-label="Удалить колонку">${XICON}</button></div>
+      <div class="kcards">${col.cards.map(c => `<div class="kcard" data-card="${c.id}"><div class="kct${c.title ? '' : ' ph'}">${esc(c.title || 'Без названия')}</div></div>`).join('')}</div>
+      <button class="kadd" data-addcard="${col.id}">+ Добавить карточку</button>
+    </div>`).join('');
+  $('#app').innerHTML = `<div class="titlerow"><div class="kbtitle" id="kbname" title="Нажмите, чтобы переименовать">${esc(b.name)}</div>
+      <div class="tr-actions"><button class="iconbtn" id="khome" aria-label="Приложения">${HOME_ICON}</button></div></div>
+    <div class="kup"><a href="#/kanban">← Все доски</a></div>
+    <div class="kcols">${cols}<div class="kcol kaddcol"><button class="kadd" id="addcol">+ Колонка</button></div></div>`;
+  $('#khome').onclick = () => { location.hash = '#/hub'; };
+  $('#kbname').onclick = () => inlineEdit($('#kbname'), b.name,
+    async v => { await api('/boards/' + bid, {method: 'PATCH', body: {name: v}}); board(bid); },
+    () => board(bid), 'Название доски');
+  $('#addcol').onclick = () => inlineEdit($('#addcol'), '',
+    async v => { await api('/boards/' + bid + '/columns', {method: 'POST', body: {name: v}}); board(bid); },
+    () => board(bid), 'Название колонки');
+  document.querySelectorAll('[data-rencol]').forEach(s => s.onclick = () => inlineEdit(s, s.textContent,
+    async v => { await api('/columns/' + s.dataset.rencol, {method: 'PATCH', body: {name: v}}); board(bid); },
+    () => board(bid)));
+  document.querySelectorAll('[data-delcol]').forEach(x => x.onclick = async () => {
+    if (!confirm('Удалить колонку вместе с карточками?')) return;
+    await api('/columns/' + x.dataset.delcol, {method: 'DELETE'});
+    board(bid);
+  });
+  document.querySelectorAll('[data-addcard]').forEach(x => x.onclick = () => inlineEdit(x, '',
+    async v => { await api('/columns/' + x.dataset.addcard + '/cards', {method: 'POST', body: {title: v}}); board(bid); },
+    () => board(bid), 'Заголовок карточки'));
+  document.querySelectorAll('[data-card]').forEach(el => el.onclick = () => openCard(+el.dataset.card));
+}
+
+// окно карточки: заголовок и текст (простой текст, ссылки не превращаются в кнопки)
+async function openCard(kid) {
+  const c = await api('/cards/' + kid);
+  let timer = null, dirty = false;
+  sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">×</button>
+    <div class="sheet-body kb-card">
+      <textarea class="kb-title" id="kbt" rows="1" maxlength="200" placeholder="Заголовок">${esc(c.title)}</textarea>
+      <textarea class="kb-note" id="kbn" placeholder="Текст заметки">${esc(c.note)}</textarea>
+      <div class="kb-foot"><span class="kb-saved" id="kbs">Сохранено</span><button class="btn bad" id="kbdel">Удалить карточку</button></div>
+    </div>`);
+  const t = $('#kbt'), n = $('#kbn');
+  const grow = el => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
+  grow(t); grow(n);
+  const flush = async () => {
+    clearTimeout(timer); timer = null;
+    if (!dirty) return;
+    dirty = false;
+    try {
+      await api('/cards/' + kid, {method: 'PATCH', body: {title: t.value.slice(0, 200), note: n.value}});
+      const s = $('#kbs'); if (s) s.textContent = 'Сохранено';
+    } catch (e) { alert(e.message); }
+  };
+  const queue = () => {
+    dirty = true;
+    const s = $('#kbs'); if (s) s.textContent = 'Сохраняю…';
+    clearTimeout(timer); timer = setTimeout(flush, 500);
+  };
+  t.oninput = () => { grow(t); queue(); };
+  n.oninput = () => { grow(n); queue(); };
+  beforeClose = flush;
+  $('#sx').onclick = closeSheet;
+  $('#kbdel').onclick = async () => {
+    if (!confirm('Удалить карточку?')) return;
+    beforeClose = null; clearTimeout(timer); dirty = false;
+    await api('/cards/' + kid, {method: 'DELETE'});
+    closeSheet();
   };
 }
 

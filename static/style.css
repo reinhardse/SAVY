@@ -272,3 +272,37 @@ img.thumb,img.cover{animation:fadeIn .3s ease both}
 .sechead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 2px 8px}
 .sechead h2{font-size:26px;line-height:1.2;font-weight:800;letter-spacing:-.02em;margin:0}
 @media (max-width:560px){.sechead h2{font-size:24px}}
+
+/* === канбан и хаб приложений === */
+.tiles.apps{grid-template-columns:repeat(2,minmax(0,1fr))}
+.tile .l2{font-size:22px;font-weight:800;letter-spacing:-.01em;color:var(--tc)}
+.iconbtn.sqbtn{border-radius:14px}
+.brow{display:flex;align-items:center;gap:12px;padding:18px 4px;border-bottom:1px solid var(--line);cursor:pointer}
+.brow:hover{background:#fafafa}
+.brow .bname{flex:1;min-width:0;font-size:18px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brow .bcount{color:var(--muted);font-size:14px}
+.kbtitle{font-size:26px;font-weight:800;letter-spacing:-.02em;cursor:text;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kup{margin:-6px 2px 14px}
+.kup a{color:var(--muted);font-size:14px;text-decoration:none}
+.kup a:hover{text-decoration:underline}
+.kcols{display:flex;gap:14px;overflow-x:auto;padding:4px 2px 16px;align-items:flex-start}
+.kcol{flex:0 0 260px;background:#f5f5f7;border-radius:18px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.kcol.kaddcol{background:transparent;border:1px dashed var(--line2);flex:0 0 200px;justify-content:center}
+.kch{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:34px}
+.kcn{font-weight:700;font-size:15px;cursor:text;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:4px 2px}
+.kcards{display:flex;flex-direction:column;gap:8px}
+.kcard{background:#fff;border-radius:14px;padding:12px 14px;box-shadow:var(--sh-sm);cursor:pointer;transition:box-shadow .15s}
+.kcard:hover{box-shadow:var(--sh-md)}
+.kct{font-size:15px;line-height:1.35;word-break:break-word}
+.kct.ph{color:var(--muted);font-style:italic}
+.kadd{border:0;background:transparent;color:var(--muted);font-size:14px;padding:8px 6px;border-radius:10px;cursor:pointer;text-align:left;width:100%}
+.kadd:hover{background:#ebebeb;color:var(--ink)}
+.kin{width:100%;border:1px solid var(--ink);border-radius:12px;padding:9px 12px;font-size:15px;outline:none;background:#fff;font-family:inherit}
+.kb-card{padding-top:56px}
+.kb-title{width:100%;border:0;padding:0;margin:0 0 12px;background:transparent;font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.2;resize:none;overflow:hidden;outline:none}
+.kb-note{width:100%;border:0;padding:0;background:transparent;min-height:180px;font-size:16px;line-height:1.55;color:var(--ink2);resize:none;outline:none}
+textarea.kb-title:focus,textarea.kb-note:focus{border:0;box-shadow:none}
+.kb-foot{display:flex;align-items:center;justify-content:space-between;margin-top:14px;gap:10px}
+.kb-saved{color:var(--muted);font-size:13px}
+/* кнопка удаления колонки стоит в заголовке колонки, а не в углу страницы */
+.kch .rb.del{position:static;flex:none;width:28px;height:28px}

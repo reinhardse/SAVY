@@ -17,7 +17,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from . import meta
-from .db import BASE_DIR, DATA_DIR, STATUSES, Category, Item, SessionLocal, Tag, init_db
+from .db import BASE_DIR, DATA_DIR, STATUSES, Board, Card, Category, Item, KColumn, SessionLocal, Tag, init_db
 
 PASSWORD = os.environ.get("LIBRARY_PASSWORD")
 API_TOKEN = os.environ.get("LIBRARY_API_TOKEN")  # для бота и «Быстрых команд» iOS
@@ -415,6 +415,163 @@ def export(format: str = "json", db: Session = Depends(get_db), _: int = Depends
                         headers={"Content-Disposition": "attachment; filename=my-library.csv"})
     return Response(json.dumps(items, ensure_ascii=False, indent=2), media_type="application/json",
                     headers={"Content-Disposition": "attachment; filename=my-library.json"})
+
+
+# ---------- канбан: доски, колонки, карточки ----------
+class BoardIn(BaseModel):
+    name: str
+
+
+class NameIn(BaseModel):
+    name: str
+
+
+class CardIn(BaseModel):
+    title: str = ""
+
+
+class CardPatch(BaseModel):
+    title: str | None = None
+    note: str | None = None
+    column_id: int | None = None
+
+
+def _board(db: Session, bid: int) -> Board:
+    b = db.scalars(select(Board).where(Board.id == bid, Board.user_id == USER_ID)).first()
+    if not b:
+        raise HTTPException(404, "Доска не найдена")
+    return b
+
+
+def _column(db: Session, cid: int) -> KColumn:
+    c = db.scalars(select(KColumn).join(Board, KColumn.board_id == Board.id)
+                   .where(KColumn.id == cid, Board.user_id == USER_ID)).first()
+    if not c:
+        raise HTTPException(404, "Колонка не найдена")
+    return c
+
+
+def _card(db: Session, kid: int) -> Card:
+    c = db.scalars(select(Card).join(Board, Card.board_id == Board.id)
+                   .where(Card.id == kid, Board.user_id == USER_ID)).first()
+    if not c:
+        raise HTTPException(404, "Карточка не найдена")
+    return c
+
+
+def card_out(c: Card) -> dict:
+    return {"id": c.id, "title": c.title or "", "note": c.note or "", "column_id": c.column_id}
+
+
+def board_out(b: Board) -> dict:
+    return {"id": b.id, "name": b.name, "columns": [
+        {"id": col.id, "name": col.name, "cards": [card_out(k) for k in col.cards]} for col in b.columns]}
+
+
+@app.get("/api/boards")
+def boards_list(db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    out = []
+    for b in db.scalars(select(Board).where(Board.user_id == USER_ID).order_by(Board.id)).all():
+        n = db.scalar(select(func.count()).select_from(Card).where(Card.board_id == b.id))
+        out.append({"id": b.id, "name": b.name, "count": n})
+    return out
+
+
+@app.post("/api/boards")
+def board_create(body: BoardIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    b = Board(user_id=USER_ID, name=(body.name.strip()[:120] or "Доска"))
+    b.columns = [KColumn(name=n, sort=i) for i, n in enumerate(["К выполнению", "В работе", "Готово"])]
+    db.add(b)
+    db.commit()
+    return {"id": b.id, "name": b.name}
+
+
+@app.get("/api/boards/{bid}")
+def board_read(bid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    return board_out(_board(db, bid))
+
+
+@app.patch("/api/boards/{bid}")
+def board_rename(bid: int, body: NameIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    b = _board(db, bid)
+    name = body.name.strip()[:120]
+    if name:
+        b.name = name
+    db.commit()
+    return {"id": b.id, "name": b.name}
+
+
+@app.delete("/api/boards/{bid}")
+def board_delete(bid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    db.delete(_board(db, bid))
+    db.commit()
+    return {"ok": True}
+
+
+@app.post("/api/boards/{bid}/columns")
+def column_create(bid: int, body: NameIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    _board(db, bid)
+    nxt = db.scalar(select(func.coalesce(func.max(KColumn.sort), -1)).where(KColumn.board_id == bid)) + 1
+    c = KColumn(board_id=bid, name=(body.name.strip()[:80] or "Колонка"), sort=nxt)
+    db.add(c)
+    db.commit()
+    return {"id": c.id, "name": c.name}
+
+
+@app.patch("/api/columns/{cid}")
+def column_rename(cid: int, body: NameIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    c = _column(db, cid)
+    name = body.name.strip()[:80]
+    if name:
+        c.name = name
+    db.commit()
+    return {"id": c.id, "name": c.name}
+
+
+@app.delete("/api/columns/{cid}")
+def column_delete(cid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    db.delete(_column(db, cid))
+    db.commit()
+    return {"ok": True}
+
+
+@app.post("/api/columns/{cid}/cards")
+def card_create(cid: int, body: CardIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    c = _column(db, cid)
+    nxt = db.scalar(select(func.coalesce(func.max(Card.sort), -1)).where(Card.column_id == cid)) + 1
+    k = Card(board_id=c.board_id, column_id=cid, title=body.title.strip()[:200], note="", sort=nxt)
+    db.add(k)
+    db.commit()
+    return card_out(k)
+
+
+@app.get("/api/cards/{kid}")
+def card_read(kid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    return card_out(_card(db, kid))
+
+
+@app.patch("/api/cards/{kid}")
+def card_patch(kid: int, body: CardPatch, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    k = _card(db, kid)
+    fields = body.model_fields_set
+    if "title" in fields and body.title is not None:
+        k.title = body.title[:200]
+    if "note" in fields and body.note is not None:
+        k.note = body.note
+    if "column_id" in fields and body.column_id is not None:
+        c = _column(db, body.column_id)
+        if c.board_id != k.board_id:
+            raise HTTPException(400, "Колонка из другой доски")
+        k.column_id = c.id
+    db.commit()
+    return card_out(k)
+
+
+@app.delete("/api/cards/{kid}")
+def card_delete(kid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    db.delete(_card(db, kid))
+    db.commit()
+    return {"ok": True}
 
 
 # ---------- сайт ----------

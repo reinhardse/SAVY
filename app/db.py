@@ -86,6 +86,37 @@ class Item(Base):
     __table_args__ = (UniqueConstraint("user_id", "url_norm"),)
 
 
+class Board(Base):
+    __tablename__ = "boards"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, nullable=False, default=1, index=True)
+    name = Column(String(120), nullable=False)
+    created_at = Column(DateTime, default=now)
+    columns = relationship("KColumn", back_populates="board", cascade="all, delete-orphan", order_by="KColumn.sort")
+
+
+class KColumn(Base):
+    __tablename__ = "kcolumns"
+    id = Column(Integer, primary_key=True)
+    board_id = Column(Integer, ForeignKey("boards.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(80), nullable=False)
+    sort = Column(Integer, default=0)
+    board = relationship("Board", back_populates="columns")
+    cards = relationship("Card", back_populates="column", cascade="all, delete-orphan", order_by="Card.sort")
+
+
+class Card(Base):
+    __tablename__ = "cards"
+    id = Column(Integer, primary_key=True)
+    board_id = Column(Integer, ForeignKey("boards.id", ondelete="CASCADE"), nullable=False, index=True)
+    column_id = Column(Integer, ForeignKey("kcolumns.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String(200), default="")
+    note = Column(Text, default="")
+    sort = Column(Integer, default=0)
+    created_at = Column(DateTime, default=now)
+    column = relationship("KColumn", back_populates="cards")
+
+
 def init_db():
     Base.metadata.create_all(engine)
     with SessionLocal() as s:
