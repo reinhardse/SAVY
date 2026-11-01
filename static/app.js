@@ -619,11 +619,27 @@ function hub() {
 }
 
 /* ---------- канбан: список досок ---------- */
+// вид досок: строки или плитки; выбор запоминается отдельно от закладок
+let boardView = (() => { try { return localStorage.getItem('kb_view') === 'tiles' ? 'tiles' : 'list'; } catch { return 'list'; } })();
+
 async function boards() {
   const list = await api('/boards');
-  $('#app').innerHTML = `<div class="titlerow"><div class="brand">Доски</div></div>
-    <button class="addwide" id="addboard">${PLUS_ICON}<span>Новая доска</span></button>
-    <div class="blist">${list.length ? list.map(b => `<div class="brow" data-open="${b.id}"><div class="bname">${esc(b.name)}</div><div class="bcount">${b.count}</div><button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button></div>`).join('') : '<div class="empty">Пока нет досок. Нажмите + справа вверху.</div>'}</div>`;
+  const tiles = boardView === 'tiles';
+  const item = b => tiles
+    ? `<div class="tile kbt" data-open="${b.id}" style="--c:#f5f5f7;--tc:#222"><div class="ic">${KB_ICON}</div><div class="tf"><div class="n">${b.count}</div><div class="l">${esc(b.name)}</div></div><button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button></div>`
+    : `<div class="brow" data-open="${b.id}"><div class="bname">${esc(b.name)}</div><div class="bcount">${b.count}</div><button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button></div>`;
+  // «Добавить доску» всегда последним элементом
+  const add = tiles
+    ? `<button class="tile kbt addt" id="addboard"><div class="ic">${PLUS_ICON}</div><div class="tf"><div class="l">Добавить доску</div></div></button>`
+    : `<button class="brow addrow" id="addboard"><span class="addic">${PLUS_ICON}</span><span class="bname">Добавить доску</span></button>`;
+  $('#app').innerHTML = `<div class="titlerow"><div class="brand">Доски</div>
+      <div class="tr-actions"><button class="iconbtn" id="kbview" aria-label="Вид досок" title="${tiles ? 'Строки' : 'Плитки'}">${tiles ? TILES_ICON : LIST_ICON}</button></div></div>
+    <div class="${tiles ? 'blist tgrid' : 'blist'}">${list.map(item).join('')}${add}</div>`;
+  $('#kbview').onclick = () => {
+    boardView = boardView === 'tiles' ? 'list' : 'tiles';
+    try { localStorage.setItem('kb_view', boardView); } catch {}
+    boards();
+  };
   $('#addboard').onclick = newBoard;
   document.querySelectorAll('[data-open]').forEach(r => r.onclick = e => {
     if (e.target.closest('[data-delb]')) return;

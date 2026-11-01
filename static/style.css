@@ -337,3 +337,17 @@ textarea.kb-title:focus,textarea.kb-note:focus{border:0;box-shadow:none}
 @media (max-width:560px){.sheet.card-sheet{width:calc(100% - 16px);min-height:80vh}.card-sheet .kb-card{padding:60px 22px 22px}.card-sheet .kb-title{font-size:28px}.card-sheet .kb-note{font-size:16px}}
 /* крестик удаления доски стоит в строке доски, а не в углу страницы */
 .brow .rb.del{position:static;flex:none}
+
+/* доски: плитки и строки; «Добавить доску» всегда последним */
+.blist.tgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;padding-top:6px}
+@media (min-width:700px){.blist.tgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:980px){.blist.tgrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.kbt{position:relative;cursor:pointer}
+.kbt .rb.del{position:absolute;top:10px;right:10px;width:28px;height:28px;background:rgba(255,255,255,.8);box-shadow:none}
+.tile.addt{background:transparent;border:1px dashed var(--line2);box-shadow:none;color:var(--ink)}
+.tile.addt .ic{background:#f2f2f4;color:var(--ink)}
+.tile.addt .l{color:var(--ink)}
+.brow.addrow{width:100%;border:0;background:transparent;text-align:left;font-family:inherit;color:var(--ink)}
+.brow.addrow .bname{font-weight:600}
+.addic{width:36px;height:36px;border-radius:50%;background:#f2f2f4;display:flex;align-items:center;justify-content:center;flex:none}
+.addic svg{width:16px;height:16px}
