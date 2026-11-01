@@ -731,9 +731,16 @@ function inlineEdit(el, value, onSave, onCancel, placeholder = '') {
 
 /* ---------- канбан: одна доска ---------- */
 let curBoard = null;
+// цвет тега: пастельный, из названия (одинаковый при каждом показе, у каждого тега свой, не серый)
+const tagColor = name => {
+  let h = 0;
+  for (const ch of String(name)) h = (h * 31 + ch.codePointAt(0)) % 360;
+  return {bg: `hsl(${h} 85% 91%)`, tc: `hsl(${h} 50% 26%)`, bd: `hsl(${h} 70% 78%)`};
+};
+
 // карточка доски: заголовок и теги
 const cardHtml = c => {
-  const tags = (c.tags || []).map(t => `<span class="kc-tag">${esc(t)}</span>`).join('');
+  const tags = (c.tags || []).map(t => { const k = tagColor(t); return `<span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(t)}</span>`; }).join('');
   return `<div class="kcard" data-card="${c.id}"><div class="kct${c.title ? '' : ' ph'}">${esc(c.title || 'Без названия')}</div>${tags ? `<div class="kc-tags">${tags}</div>` : ''}</div>`;
 };
 
@@ -1073,7 +1080,7 @@ async function openCard(kid) {
   // теги: список доски, отмеченные — у карточки
   const renderTags = () => {
     const box = $('#kbtags');
-    box.innerHTML = boardTags.map(x => `<button class="kb-tag${cardTags.includes(x) ? ' on' : ''}" data-tag="${esc(x)}">${esc(x)}</button>`).join('')
+    box.innerHTML = boardTags.map(x => { const k = tagColor(x); return `<button class="kb-tag${cardTags.includes(x) ? ' on' : ''}" style="--tb:${k.bg};--tt:${k.tc};--tbd:${k.bd}" data-tag="${esc(x)}">${esc(x)}</button>`; }).join('')
       + '<button class="kb-tag add" id="kbaddtag">+ тег</button>';
     box.querySelectorAll('[data-tag]').forEach(b => b.onclick = async () => {
       const name = b.dataset.tag;
