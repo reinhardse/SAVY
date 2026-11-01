@@ -1072,8 +1072,10 @@ async function openCard(kid) {
         </div>
       </div>
       <div class="kb-body"><div class="kb-title" id="kbt" contenteditable="true" spellcheck="false" data-ph="Заголовок">${linkify((c.title || '').replace(/\s+/g, ' '))}</div>
-      <div class="kb-tags" id="kbtags"></div>
-      <div class="kb-tags" id="kbcols"></div>
+      <div class="kb-props">
+        <div class="kb-prop"><div class="kb-pl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9-9-9z"/><circle cx="8" cy="8" r="1.4"/></svg><span>Теги</span></div><div class="kb-pv" id="kbtags"></div></div>
+        <div class="kb-prop"><div class="kb-pl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg><span>Статус</span></div><div class="kb-pv" id="kbcols"></div></div>
+      </div>
       <hr class="kb-hr">
       <div class="kb-note kb-edit" id="kbn" contenteditable="true" spellcheck="false">${renderNoteEdit(c.note)}</div></div>
     </div>`, 'card-sheet');
