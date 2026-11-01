@@ -5,7 +5,7 @@
   --sh-sm:0 1px 2px rgba(0,0,0,.05),0 2px 10px rgba(0,0,0,.06);
   --sh-md:0 6px 20px rgba(0,0,0,.12);
   --sh-lg:0 16px 48px rgba(0,0,0,.22);
-  --rail:92px;--thumb:108px;
+  --rail:92px;--thumb:120px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;letter-spacing:-.005em;-webkit-font-smoothing:antialiased}
@@ -174,7 +174,7 @@ img.thumb,img.cover{animation:fadeIn .3s ease both}
 
 /* телефон: узкое меню, одна колонка */
 @media (max-width:560px){
-  :root{--rail:64px;--thumb:104px}
+  :root{--rail:64px;--thumb:114px}
   #app{padding:16px 14px calc(50px + env(safe-area-inset-bottom))}
   #app:has(> nav){padding-left:calc(var(--rail) + 14px)}
   nav .in{padding:16px 6px}
