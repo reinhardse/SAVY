@@ -772,10 +772,26 @@ const tagColor = name => {
   return {bg: `hsl(${h} 85% 91%)`, tc: `hsl(${h} 50% 26%)`, bd: `hsl(${h} 70% 78%)`};
 };
 
-// карточка доски: заголовок и теги
+// дата и время карточки для доски: «13 ноя · 14:00–15:30»
+const SHORT_MON = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+const cardDateText = c => {
+  if (!c.due_date) return '';
+  const [, m, d] = c.due_date.split('-').map(Number);
+  let t = `${d} ${SHORT_MON[m - 1]}`;
+  if (c.due_time) {
+    t += ' · ' + c.due_time;
+    if (c.duration_min) { const [h, mi] = c.due_time.split(':').map(Number); const e = h * 60 + mi + c.duration_min; t += '–' + String(Math.floor(e / 60) % 24).padStart(2, '0') + ':' + String(e % 60).padStart(2, '0'); }
+  }
+  return t;
+};
+
+// карточка доски: заголовок, дата и теги
 const cardHtml = c => {
+  const dt = cardDateText(c);
+  const dateChip = dt ? `<span class="kc-tag kc-date">${esc(dt)}</span>` : '';
   const tags = (c.tags || []).map(t => { const k = tagColor(t); return `<span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(t)}</span>`; }).join('');
-  return `<div class="kcard" data-card="${c.id}"><div class="kct${c.title ? '' : ' ph'}">${esc(c.title || 'Без названия')}</div>${tags ? `<div class="kc-tags">${tags}</div>` : ''}</div>`;
+  const row = dateChip + tags;
+  return `<div class="kcard" data-card="${c.id}"><div class="kct${c.title ? '' : ' ph'}">${esc(c.title || 'Без названия')}</div>${row ? `<div class="kc-tags">${row}</div>` : ''}</div>`;
 };
 
 async function board(bid) {
@@ -1241,14 +1257,13 @@ async function openCard(kid) {
     dueTime = val;
     if (!val) dueDur = null;
     renderDate();
-    if (calPaint) calPaint();
+    if (cal) { const d = cal.querySelector('#kbdur'); if (d) d.disabled = !(dueDate && dueTime); }
     try { await api('/cards/' + kid, {method: 'PATCH', body: {due_time: val}}); }
     catch (e) { alert(e.message); }
   };
   const setDur = async val => {
     dueDur = val;
     renderDate();
-    if (calPaint) calPaint();
     try { await api('/cards/' + kid, {method: 'PATCH', body: {duration_min: val}}); }
     catch (e) { alert(e.message); }
   };
@@ -1277,6 +1292,7 @@ async function openCard(kid) {
         + `<select id="kbdur"${dueDate && dueTime ? '' : ' disabled'}><option value="">Длительность</option>${DUR.map(([v, l]) => `<option value="${v}"${dueDur === v ? ' selected' : ''}>${l}</option>`).join('')}</select></div>`
         + `<div class="kb-cal-f"><button class="kb-mi" data-clear="1">Очистить дату</button></div>`;
       const tIn = cal.querySelector('#kbtime'), dSel = cal.querySelector('#kbdur');
+      tIn.onkeydown = e => { if (e.key === 'Enter') tIn.blur(); };
       tIn.onchange = () => {
         // можно ввести «16», «1630» или «16:30»: двоеточие и проверку делаем сами
         const raw = tIn.value.trim();
