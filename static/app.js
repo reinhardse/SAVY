@@ -31,6 +31,8 @@ const ICONS = {
 };
 const LOUPE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>';
 const BACK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M11 6l-6 6 6 6"/></svg>';
+const LIST_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>';
+const TILES_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.8"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.8"/></svg>';
 const PEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>';
 // глаз: серый по умолчанию, пастельная зелёная галочка, когда материал проработан
 const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M7 12c1.5-2.5 3.2-3.8 5-3.8s3.5 1.3 5 3.8c-1.5 2.5-3.2 3.8-5 3.8S8.5 14.5 7 12z"/><circle cx="12" cy="12" r="1.7"/></svg>';
@@ -41,6 +43,9 @@ const CHECK_C = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stro
 const eyeChip = (done, attrs) => `<span class="tagbadge eyechip ${done ? 'on' : ''}" ${attrs} title="Прочитано">${done ? CHECK_C : EYE_C}</span>`;
 
 let cats = [], q = '', pollLeft = 0, listParams = {}, searchTimer = null, openSearch = false;
+// вид списка: строки или плитки; выбор запоминается в браузере
+let viewMode = (() => { try { return localStorage.getItem('save_view') === 'tiles' ? 'tiles' : 'list'; } catch { return 'list'; } })();
+let lastItems = [], lastEmpty = '';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
@@ -144,7 +149,7 @@ function row(i) {
   const eye = eyeChip(i.done, `data-done="${i.id}"`);
   // описание: первые 130 символов (для фильмов и книг — 200), дальше «…» — нажатие открывает карточку, чтобы дочитать
   const d = (i.description || '').replace(/\s+/g, ' ').trim();
-  const LIMIT = ['kinopoisk', 'litres'].includes(i.source) ? 200 : 130;
+  const LIMIT = viewMode === 'tiles' ? 60 : ['kinopoisk', 'litres'].includes(i.source) ? 200 : 130;
   const short = d.length > LIMIT ? d.slice(0, LIMIT).replace(/\s+\S*$/, '') : d;
   const desc = d ? `<div class="rdesc">${esc(short)}${d.length > LIMIT ? `<button class="more-d" data-id="${i.id}" aria-label="Дочитать">…</button>` : ''}</div>` : '';
   const tags = `${desc}<div class="tagline">${eye}${i.tags.map(t => `<span class="tagbadge">#${esc(t)}</span>`).join('')}</div>`;
@@ -158,6 +163,26 @@ function paint(el, html) {
   el.innerHTML = html;
   el.dataset.h = html;
   bindRows();
+}
+
+const viewIcon = () => viewMode === 'tiles' ? LIST_ICON : TILES_ICON;
+const viewBtn = () => `<button class="iconbtn" id="vbtn" aria-label="Вид списка" title="${viewMode === 'tiles' ? 'Строки' : 'Плитки'}">${viewIcon()}</button>`;
+
+function paintList(el, items, empty) {
+  lastItems = items; lastEmpty = empty;
+  el.classList.toggle('grid', viewMode === 'tiles');
+  paint(el, items.length ? items.map(row).join('') : empty);
+}
+
+function toggleView() {
+  viewMode = viewMode === 'tiles' ? 'list' : 'tiles';
+  try { localStorage.setItem('save_view', viewMode); } catch {}
+  const b = $('#vbtn');
+  if (b) { b.innerHTML = viewIcon(); b.title = viewMode === 'tiles' ? 'Строки' : 'Плитки'; }
+  const el = $('#list');
+  if (!el) return;
+  delete el.dataset.h;
+  paintList(el, lastItems, lastEmpty);
 }
 
 // только внутри страницы: кнопки открытой карточки обслуживает своя логика
@@ -186,9 +211,11 @@ function bindRows() {
 async function home() {
   const [me, items, tags, conf] = await Promise.all([api('/me'), api('/items?limit=15'), api('/tags'), api('/settings')]);
   cats = me.categories;
-  const listHtml = items.length ? items.map(row).join('') : '<div class="empty">Пока пусто. Вставьте ссылку выше.</div>';
+  const homeEmpty = '<div class="empty">Пока пусто. Вставьте ссылку выше.</div>';
+  lastItems = items; lastEmpty = homeEmpty;
+  const listHtml = items.length ? items.map(row).join('') : homeEmpty;
   $('#app').innerHTML = `<div class="titlerow"><div class="brand logo">SAVE</div>
-      <button class="iconbtn" id="hsbtn" aria-label="Поиск">${LOUPE}</button></div>
+      <div class="tr-actions">${viewBtn()}<button class="iconbtn" id="hsbtn" aria-label="Поиск">${LOUPE}</button></div></div>
     <div class="hero"><div class="big">${me.total}</div><div class="sub">Материалов в библиотеке</div></div>
     ${pasteHtml()}
     ${tags.length ? `<div class="tags home-tags">${tags.map(t => `<span class="tagchip" data-alltag="${esc(t.name)}">#${esc(t.name)}</span>`).join('')}</div>` : ''}
@@ -198,11 +225,12 @@ async function home() {
         <div class="ic">${ICONS[c.slug] || ''}</div><div class="n">${c.count}</div><div class="l">${esc(c.name)}</div></button>`;
     }).join('')}</div>
     <h2>Последние сохранения</h2>
-    <div class="list" id="list">${listHtml}</div>
+    <div class="list${viewMode === 'tiles' ? ' grid' : ''}" id="list">${listHtml}</div>
     <div class="home-foot"><button class="linkbtn" id="kpset">${conf.kp_token_set ? 'Ключ Кинопоиска добавлен ✓ · изменить' : 'Добавить ключ Кинопоиска'}</button></div>${nav('home')}`;
   document.querySelectorAll('.tile').forEach(t => t.onclick = () => { location.hash = '#/cat/' + t.dataset.slug; });
   document.querySelectorAll('[data-alltag]').forEach(t => t.onclick = () => { location.hash = '#/tag/' + encodeURIComponent(t.dataset.alltag); });
   $('#kpset').onclick = () => openKpKey(conf.kp_token_set);
+  $('#vbtn').onclick = toggleView;
   $('#hsbtn').onclick = () => { openSearch = true; if (location.hash === '#/all') route(); else location.hash = '#/all'; };
   bindPaste(); bindRows(); $('#list').dataset.h = listHtml;
   schedulePoll(items, homeList);
@@ -213,7 +241,7 @@ async function homeList() {
   const items = await api('/items?limit=15');
   const el = $('#list');
   if (!el) return;
-  paint(el, items.length ? items.map(row).join('') : '<div class="empty">Пока пусто. Вставьте ссылку выше.</div>');
+  paintList(el, items, '<div class="empty">Пока пусто. Вставьте ссылку выше.</div>');
   schedulePoll(items, homeList);
 }
 
@@ -223,13 +251,14 @@ async function listView(title, params, active, withTags = false) {
   const wantSearch = openSearch; openSearch = false;
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">${esc(title)}</div>
       <div class="tr-actions"><button class="iconbtn" id="bback" aria-label="Назад">${BACK}</button>
-      <button class="iconbtn" id="sbtn" aria-label="Поиск">${LOUPE}</button></div></div>
+      ${viewBtn()}<button class="iconbtn" id="sbtn" aria-label="Поиск">${LOUPE}</button></div></div>
     ${params.category || params.inbox ? '<div class="catsub" id="csub"></div>' : ''}
     ${active === 'inbox' ? pasteHtml() : ''}
     <input class="search" id="q" placeholder="Поиск" style="display:${q || wantSearch ? 'block' : 'none'}" value="${esc(q)}">
     ${withTags ? '<div class="tags" id="tags"></div>' : ''}
-    <div class="list" id="list"></div>${nav(active)}`;
+    <div class="list${viewMode === 'tiles' ? ' grid' : ''}" id="list"></div>${nav(active)}`;
   bindPaste();
+  $('#vbtn').onclick = toggleView;
   $('#bback').onclick = () => { location.hash = '#/home'; };
   if (wantSearch) setTimeout(() => $('#q').focus(), 0);
   $('#sbtn').onclick = () => {
@@ -294,7 +323,7 @@ async function loadList() {
   const el = $('#list');
   if (!el) return;
   const empty = q ? 'Ничего не найдено' : listParams.status === 'done' ? 'Тут пусто' : 'Здесь пока пусто';
-  paint(el, items.length ? items.map(row).join('') : `<div class="empty">${empty}</div>`);
+  paintList(el, items, `<div class="empty">${empty}</div>`);
   schedulePoll(items, loadList);
 }
 

@@ -185,9 +185,9 @@ img.thumb,img.cover{animation:fadeIn .3s ease both}
   .sheet-body{padding:16px 18px 20px}
   .btnrow{gap:6px}
   .hero .big{font-size:40px}
-  .titlerow .brand{font-size:22px}
-  .tr-actions{gap:8px}
-  .iconbtn{width:40px;height:40px}
+  .titlerow .brand{font-size:20px}
+  .tr-actions{gap:6px}
+  .iconbtn{width:38px;height:38px}
 }
 
 /* глаз «прочитано» — тег: серый, а после отметки пастельно-зелёный с галочкой; высота как у остальных тегов */
@@ -220,3 +220,17 @@ img.thumb,img.cover{animation:fadeIn .3s ease both}
 .kp-body{padding-top:62px}
 .kp-title{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:8px}
 .kp-note{color:var(--muted);font-size:14px;line-height:1.45;margin:0 0 14px}
+
+/* плитки: два столбца на телефоне, три на компьютере; обложка сверху, под ней название, подпись, короткое описание и теги */
+.list.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 14px;padding-top:6px}
+@media (min-width:700px){.list.grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:28px 18px}}
+.list.grid .row{flex-direction:column;align-items:stretch;gap:10px;padding:0;border-bottom:0}
+.list.grid .thumb{width:100%;height:auto;aspect-ratio:4/5;border-radius:16px}
+.list.grid .row:hover .thumb{transform:translateZ(0)}
+.list.grid .mid{padding:0}
+.list.grid .row .t{padding-right:0;font-size:15px;-webkit-line-clamp:2}
+.list.grid .row .m{font-size:13px;margin-top:2px}
+.list.grid .rdesc{font-size:13px;line-height:1.35}
+.list.grid .tagline{margin-top:10px}
+.list.grid .rb.del{top:8px;right:8px;width:28px;height:28px;font-size:20px;background:rgba(255,255,255,.94);box-shadow:0 1px 6px rgba(0,0,0,.28)}
+.list.grid .empty{grid-column:1/-1}
