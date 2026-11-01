@@ -358,4 +358,22 @@ textarea.kb-title:focus,textarea.kb-note:focus{border:0;box-shadow:none}
 #app.kfull .kcols{padding-bottom:20px}
 #app.kfull .kcol{flex:1 1 0;min-width:260px}
 #app.kfull .kcol.kaddcol{flex:0 0 200px}
-@media (max-width:999px){#app.kfull .titlerow{padding-right:0}}
+
+/* одна линия справа вверху: домик, расширение и «Хаб» с одинаковым расстоянием 10 px */
+:root{--hdr-top:26px}
+.tr-actions{gap:10px}
+.hubbtn{top:var(--hdr-top)}
+#app.kfull .titlerow{padding-right:52px}
+@media (max-width:999px){
+  .hubbtn{top:var(--hdr-top);right:18px;bottom:auto}
+  #app .titlerow{padding-right:42px}
+}
+@media (max-width:560px){
+  :root{--hdr-top:20px}
+  .hubbtn{right:14px}
+  #app .titlerow{padding-right:44px}
+  .iconbtn{width:44px;height:44px}
+  .tr-actions{gap:10px}
+}
+
+@media (max-width:560px){#app.kfull .titlerow{padding-right:48px}}

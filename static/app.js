@@ -359,7 +359,8 @@ async function route() {
   pollLeft = view === 'home' ? 6 : pollLeft;
   if (view === 'hub') return hub();
   if (view === 'kanban') return boards();
-  $('#app').classList.toggle('kfull', view === 'board' && boardFull);
+  // «во всю ширину» запоминается и остаётся на всех экранах досок
+  $('#app').classList.toggle('kfull', boardFull && (view === 'board' || view === 'kanban'));
   if (view === 'board') return board(+arg);
   const map = {inbox: ['Входящие', {inbox: 1}], all: ['Все материалы', {}]};
   if (view === 'cat') {
