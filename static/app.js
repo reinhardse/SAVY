@@ -236,8 +236,8 @@ async function home() {
   const homeEmpty = '<div class="empty">Пока пусто. Вставьте ссылку выше.</div>';
   lastItems = items; lastEmpty = homeEmpty;
   const listHtml = items.length ? items.map(row).join('') : homeEmpty;
-  const tile = (go, st, icon, count, label) => `<button class="tile" style="--c:${st.bg};--tc:${st.tc}" data-go="${go}"><div class="ic">${icon}</div><div class="tf"><div class="n">${count}</div><div class="l">${esc(label)}</div></div></button>`;
-  const catTiles = me.categories.map(c => tile('#/cat/' + c.slug, styleOf(c.slug), ICONS[c.slug] || FOLDER_ICON, c.count, c.name)).join('');
+  const tile = (go, st, icon, count, label, cls = '') => `<button class="tile${cls}" style="--c:${st.bg};--tc:${st.tc}" data-go="${go}"><div class="ic">${icon}</div><div class="tf"><div class="n">${count}</div><div class="l">${esc(label)}</div></div></button>`;
+  const catTiles = me.categories.map(c => tile('#/cat/' + c.slug, styleOf(c.slug), ICONS[c.slug] || FOLDER_ICON, c.count, c.name, ' cat')).join('');
   // порядок: «Входящие», «Все», затем категории в порядке создания (новые — в конце)
   const tilesHtml = tile('#/inbox', INBOX_STYLE, INBOX_ICON, inbox.count, 'Входящие')
     + tile('#/all', ALL_STYLE, TILES_ICON, me.total, 'Все') + catTiles;
