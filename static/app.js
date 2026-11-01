@@ -1273,11 +1273,24 @@ async function openCard(kid) {
       cal.innerHTML = `<div class="kb-cal-h"><button class="kb-ib" data-nav="-1" aria-label="Назад">‹</button><span>${MONTHS_RU[mo]} ${y}</span><button class="kb-ib" data-nav="1" aria-label="Вперёд">›</button></div>`
         + `<div class="kb-cal-w">${WD_RU.map(w => `<span>${w}</span>`).join('')}</div>`
         + `<div class="kb-cal-g">${cells}</div>`
-        + `<div class="kb-cal-t"><span class="kb-cal-tl">Время</span><input type="time" lang="ru-RU" id="kbtime" value="${dueTime || ''}"${dis}>`
+        + `<div class="kb-cal-t"><span class="kb-cal-tl">Время</span><input type="text" id="kbtime" inputmode="numeric" maxlength="5" placeholder="ЧЧ:ММ" value="${dueTime || ''}"${dis}>`
         + `<select id="kbdur"${dueDate && dueTime ? '' : ' disabled'}><option value="">Длительность</option>${DUR.map(([v, l]) => `<option value="${v}"${dueDur === v ? ' selected' : ''}>${l}</option>`).join('')}</select></div>`
         + `<div class="kb-cal-f"><button class="kb-mi" data-clear="1">Очистить дату</button></div>`;
       const tIn = cal.querySelector('#kbtime'), dSel = cal.querySelector('#kbdur');
-      tIn.onchange = () => setTime(tIn.value || null);
+      tIn.onchange = () => {
+        // можно ввести «16», «1630» или «16:30»: двоеточие и проверку делаем сами
+        const raw = tIn.value.trim();
+        if (!raw) { setTime(null); return; }
+        const digits = raw.replace(/\D/g, '');
+        let h, m;
+        if (/^\d{1,2}$/.test(raw)) { h = +raw; m = 0; }
+        else if (/^\d{1,2}:\d{1,2}$/.test(raw)) { [h, m] = raw.split(':').map(Number); }
+        else if (/^\d{3,4}$/.test(raw)) { h = +digits.slice(0, -2); m = +digits.slice(-2); }
+        if (h === undefined || h > 23 || m > 59) { tIn.value = dueTime || ''; return; }
+        const val = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+        tIn.value = val;
+        setTime(val);
+      };
       dSel.onchange = () => setDur(dSel.value ? +dSel.value : null);
       cal.querySelectorAll('[data-nav]').forEach(b => b.onclick = e => { e.stopPropagation(); view = new Date(y, mo + +b.dataset.nav, 1); paint(); });
       cal.querySelectorAll('[data-k]').forEach(b => b.onclick = e => { e.stopPropagation(); setDate(b.dataset.k); });
