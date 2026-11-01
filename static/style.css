@@ -394,3 +394,11 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .rb:hover{background:#f2f2f4;color:var(--ink)}
 .paste-go:hover{filter:brightness(.94)}
 .linkbtn:hover{color:var(--ink)}
+
+/* колонка «Готово» (любое название со словом «готов») — пастельно-зелёная; перенос колонок */
+.kcol.kdone{background:#e4f4ea}
+.kcol.kdone .kcn{color:#2f6446}
+.kcolph{flex:0 0 260px;border-radius:18px;border:1px dashed #cfcfd6;background:#ececf0;transition:width .18s ease}
+.kcolghost{flex:none}
+.kch{cursor:grab}
+.kch:active{cursor:grabbing}

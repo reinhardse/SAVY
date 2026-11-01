@@ -706,7 +706,7 @@ let curBoard = null;
 async function board(bid) {
   curBoard = bid;
   const b = await api('/boards/' + bid);
-  const cols = b.columns.map(col => `<div class="kcol" data-col="${col.id}">
+  const cols = b.columns.map(col => `<div class="kcol${/готов/i.test(col.name) ? ' kdone' : ''}" data-col="${col.id}">
       <div class="kch"><span class="kcn" data-rencol="${col.id}" title="Нажмите, чтобы переименовать">${esc(col.name)}</span>
         <button class="rb del" data-delcol="${col.id}" aria-label="Удалить колонку">${XICON}</button></div>
       <div class="kcards">${col.cards.map(c => `<div class="kcard" data-card="${c.id}"><div class="kct${c.title ? '' : ' ph'}">${esc(c.title || 'Без названия')}</div></div>`).join('')}</div>
@@ -732,9 +732,9 @@ async function board(bid) {
   $('#addcol').onclick = () => inlineEdit($('#addcol'), '',
     async v => { await api('/boards/' + bid + '/columns', {method: 'POST', body: {name: v}}); board(bid); },
     () => board(bid), 'Название колонки');
-  document.querySelectorAll('[data-rencol]').forEach(s => s.onclick = () => inlineEdit(s, s.textContent,
+  document.querySelectorAll('[data-rencol]').forEach(s => s.onclick = () => { if (!suppressClick) inlineEdit(s, s.textContent,
     async v => { await api('/columns/' + s.dataset.rencol, {method: 'PATCH', body: {name: v}}); board(bid); },
-    () => board(bid)));
+    () => board(bid)); });
   document.querySelectorAll('[data-delcol]').forEach(x => x.onclick = async () => {
     if (!confirm('Удалить колонку вместе с карточками?')) return;
     await api('/columns/' + x.dataset.delcol, {method: 'DELETE'});
@@ -745,6 +745,107 @@ async function board(bid) {
     () => board(bid), 'Заголовок карточки'));
   document.querySelectorAll('[data-card]').forEach(el => el.onclick = () => { if (!suppressClick) openCard(+el.dataset.card); });
   bindDrag();
+  bindColDrag();
+}
+
+/* ---------- перенос колонок: за заголовок колонки ---------- */
+let colDrag = null;
+
+function bindColDrag() {
+  document.querySelectorAll('.kch').forEach(h => h.onpointerdown = e => {
+    if (e.target.closest('button')) return;
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    colDrag = {col: h.closest('.kcol'), x0: e.clientX, y0: e.clientY, started: false};
+    window.addEventListener('pointermove', onColMove);
+    window.addEventListener('pointerup', onColUp);
+    window.addEventListener('pointercancel', onColUp);
+  });
+}
+
+function onColMove(e) {
+  if (!colDrag) return;
+  if (!colDrag.started) {
+    if (Math.hypot(e.clientX - colDrag.x0, e.clientY - colDrag.y0) < 6) return;
+    startColDrag(e);
+  }
+  e.preventDefault();
+  colDrag.tx = e.clientX - colDrag.sx;
+  colDrag.ty = e.clientY - colDrag.sy;
+  const kc = document.querySelector('.kcols');
+  if (kc) {
+    const r = kc.getBoundingClientRect();
+    if (e.clientX > r.right - 70) kc.scrollLeft += 14;
+    if (e.clientX < r.left + 70) kc.scrollLeft -= 14;
+  }
+  placeColumn(e.clientX);
+}
+
+function startColDrag(e) {
+  const r = colDrag.col.getBoundingClientRect();
+  colDrag.started = true;
+  colDrag.sx = e.clientX - r.left;
+  colDrag.sy = e.clientY - r.top;
+  const ph = document.createElement('div');
+  ph.className = 'kcolph';
+  ph.style.width = r.width + 'px';
+  ph.style.height = r.height + 'px';
+  colDrag.col.replaceWith(ph);
+  colDrag.ph = ph;
+  const g = colDrag.col.cloneNode(true);
+  g.classList.add('kghost', 'kcolghost');
+  g.style.width = r.width + 'px';
+  document.body.appendChild(g);
+  colDrag.ghost = g;
+  colDrag.cx = r.left; colDrag.cy = r.top;
+  colDrag.tx = colDrag.cx; colDrag.ty = colDrag.cy;
+  document.body.classList.add('kdragging');
+  const follow = () => {
+    if (!colDrag || !colDrag.ghost) return;
+    colDrag.cx += (colDrag.tx - colDrag.cx) * 0.35;
+    colDrag.cy += (colDrag.ty - colDrag.cy) * 0.35;
+    colDrag.ghost.style.transform = `translate(${colDrag.cx}px, ${colDrag.cy}px) rotate(1.5deg)`;
+    colDrag.raf = requestAnimationFrame(follow);
+  };
+  follow();
+}
+
+// место колонки: по середине колонок слева направо
+function placeColumn(x) {
+  const box = document.querySelector('.kcols');
+  if (!box) return;
+  let before = null;
+  for (const c of box.querySelectorAll('.kcol[data-col]')) {
+    const r = c.getBoundingClientRect();
+    if (x < r.left + r.width / 2) { before = c; break; }
+  }
+  if (before) {
+    if (colDrag.ph.nextElementSibling !== before) box.insertBefore(colDrag.ph, before);
+  } else {
+    const add = box.querySelector('.kaddcol');
+    if (add) box.insertBefore(colDrag.ph, add); else box.appendChild(colDrag.ph);
+  }
+}
+
+async function onColUp() {
+  window.removeEventListener('pointermove', onColMove);
+  window.removeEventListener('pointerup', onColUp);
+  window.removeEventListener('pointercancel', onColUp);
+  const d = colDrag;
+  colDrag = null;
+  if (!d || !d.started) return;
+  cancelAnimationFrame(d.raf);
+  suppressClick = true;
+  setTimeout(() => { suppressClick = false; }, 300);
+  d.ghost.remove();
+  document.body.classList.remove('kdragging');
+  d.ph.replaceWith(d.col);
+  const ids = [...document.querySelectorAll('.kcol[data-col]')].map(c => +c.dataset.col);
+  try {
+    await api('/boards/' + curBoard + '/columns/order', {method: 'POST', body: {ids}});
+  } catch (err) {
+    alert(err.message);
+    board(curBoard);
+  }
 }
 
 /* ---------- перенос карточек между колонками ---------- */

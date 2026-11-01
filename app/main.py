@@ -602,6 +602,23 @@ def board_order(bid: int, body: BoardOrder, db: Session = Depends(get_db), _: in
     return {"ok": True}
 
 
+class IdsIn(BaseModel):
+    ids: list[int]
+
+
+@app.post("/api/boards/{bid}/columns/order")
+def columns_order(bid: int, body: IdsIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    """Порядок колонок на доске: ids — все колонки доски в нужном порядке."""
+    b = _board(db, bid)
+    cols = {c.id: c for c in b.columns}
+    if set(body.ids) != set(cols.keys()):
+        raise HTTPException(400, "Список колонок не совпадает с доской")
+    for idx, cid in enumerate(body.ids):
+        cols[cid].sort = idx
+    db.commit()
+    return {"ok": True}
+
+
 # ---------- сайт ----------
 app.mount("/thumbs", StaticFiles(directory=DATA_DIR / "thumbs"), name="thumbs")
 app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
