@@ -565,3 +565,19 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 /* количество карточек в колонке рядом с названием */
 .kcname{display:flex;align-items:baseline;gap:6px;min-width:0}
 .kcnt{font-size:13px;font-weight:500;color:var(--muted);flex:none}
+
+/* дата карточки: значение в строке свойств и мини-календарь (неделя с понедельника) */
+.card-sheet .kb-dv{border:0;background:transparent;font:inherit;font-size:14px;color:var(--ink);padding:4px 8px;margin-left:-8px;border-radius:6px;cursor:pointer;text-align:left}
+.card-sheet .kb-dv:hover{background:#efefef}
+.card-sheet .kb-dv:not(.on){color:#9b9a97}
+.kb-cal{position:fixed;z-index:95;width:272px;background:#fff;border:1px solid #e6e6ea;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:10px}
+.kb-cal-h{display:flex;align-items:center;justify-content:space-between;padding:2px 2px 8px;font-size:14px;font-weight:600;color:var(--ink)}
+.kb-cal-w,.kb-cal-g{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px;text-align:center}
+.kb-cal-w span{font-size:11px;color:var(--muted);padding:4px 0}
+.kb-cd{border:0;background:transparent;height:32px;border-radius:6px;font:inherit;font-size:13px;color:var(--ink);cursor:pointer;padding:0}
+.kb-cd:hover{background:#f1f1f4}
+.kb-cd.sel{background:#2f2f33;color:#fff}
+.kb-cd.today{box-shadow:inset 0 0 0 1px #c9c9d1}
+.kb-cal-f{border-top:1px solid #ececf0;margin-top:8px;padding-top:6px}
+.kb-cal .kb-mi{border:0;background:transparent;font:inherit;font-size:13px;color:#d13b3b;cursor:pointer;padding:6px 8px;border-radius:6px}
+.kb-cal .kb-mi:hover{background:#f6f6f8}

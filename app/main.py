@@ -6,6 +6,7 @@ import os
 import re
 import secrets
 from contextlib import asynccontextmanager
+from datetime import date as _date
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse
@@ -435,6 +436,7 @@ class CardPatch(BaseModel):
     note: str | None = None
     column_id: int | None = None
     tags: list[str] | None = None
+    due_date: str | None = None
 
 
 def _board(db: Session, bid: int) -> Board:
@@ -479,7 +481,7 @@ def _clean_tags(items) -> list[str]:
 
 def card_out(c: Card) -> dict:
     return {"id": c.id, "title": c.title or "", "note": c.note or "", "column_id": c.column_id,
-            "board_id": c.board_id, "tags": _tags(c.tags)}
+            "board_id": c.board_id, "tags": _tags(c.tags), "due_date": c.due_date}
 
 
 def board_out(b: Board) -> dict:
@@ -601,6 +603,14 @@ def card_patch(kid: int, body: CardPatch, db: Session = Depends(get_db), _: int 
         if c.board_id != k.board_id:
             raise HTTPException(400, "Колонка из другой доски")
         k.column_id = c.id
+    if "due_date" in fields:
+        if body.due_date is None:
+            k.due_date = None
+        else:
+            try:
+                k.due_date = _date.fromisoformat(body.due_date).isoformat()
+            except ValueError:
+                raise HTTPException(400, "Неверная дата")
     if "tags" in fields and body.tags is not None:
         allowed = set(_tags(_board(db, k.board_id).tags))
         k.tags = json.dumps([t for t in _clean_tags(body.tags) if t in allowed], ensure_ascii=False)

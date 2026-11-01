@@ -1104,6 +1104,7 @@ async function openCard(kid) {
       <div class="kb-props">
         <div class="kb-prop"><div class="kb-pl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9-9-9z"/><circle cx="8" cy="8" r="1.4"/></svg><span>Теги</span></div><div class="kb-pv" id="kbtags"></div></div>
         <div class="kb-prop"><div class="kb-pl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg><span>Статус</span></div><div class="kb-pv" id="kbcols"></div></div>
+        <div class="kb-prop"><div class="kb-pl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>Дата</span></div><div class="kb-pv" id="kbdate"></div></div>
       </div>
       <hr class="kb-hr">
       <div class="kb-note kb-edit" id="kbn" contenteditable="true" spellcheck="false">${renderNoteEdit(c.note)}</div></div>
@@ -1187,6 +1188,63 @@ async function openCard(kid) {
     });
   };
   renderCols();
+
+  // дата: мини-календарь, неделя с понедельника, дни по-русски
+  const MONTHS_RU = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+  const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+  const WD_RU = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
+  const keyOf = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  let dueDate = c.due_date || null, cal = null, calOff = null;
+  const closeCal = () => {
+    if (cal) { cal.remove(); cal = null; }
+    if (calOff) { document.removeEventListener('mousedown', calOff); calOff = null; }
+  };
+  const renderDate = () => {
+    const txt = dueDate ? (() => { const [y, m, d] = dueDate.split('-').map(Number); return `${d} ${MONTHS_GEN[m - 1]} ${y}`; })() : 'Добавить дату';
+    $('#kbdate').innerHTML = `<button class="kb-dv${dueDate ? ' on' : ''}" id="kbdv">${txt}</button>`;
+    $('#kbdv').onclick = e => { e.stopPropagation(); openCal(); };
+  };
+  const setDate = async val => {
+    dueDate = val;
+    renderDate();
+    closeCal();
+    try { await api('/cards/' + kid, {method: 'PATCH', body: {due_date: val}}); }
+    catch (e) { alert(e.message); }
+  };
+  const openCal = () => {
+    if (cal) { closeCal(); return; }
+    const base = dueDate ? new Date(dueDate + 'T00:00:00') : new Date();
+    let view = new Date(base.getFullYear(), base.getMonth(), 1);
+    cal = document.createElement('div');
+    cal.className = 'kb-cal';
+    const paint = () => {
+      const y = view.getFullYear(), mo = view.getMonth();
+      const lead = (new Date(y, mo, 1).getDay() + 6) % 7;
+      const days = new Date(y, mo + 1, 0).getDate();
+      const tkey = keyOf(new Date());
+      let cells = '';
+      for (let i = 0; i < lead; i++) cells += '<span></span>';
+      for (let d = 1; d <= days; d++) {
+        const key = `${y}-${String(mo + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        cells += `<button class="kb-cd${key === dueDate ? ' sel' : ''}${key === tkey ? ' today' : ''}" data-k="${key}">${d}</button>`;
+      }
+      cal.innerHTML = `<div class="kb-cal-h"><button class="kb-ib" data-nav="-1" aria-label="Назад">‹</button><span>${MONTHS_RU[mo]} ${y}</span><button class="kb-ib" data-nav="1" aria-label="Вперёд">›</button></div>`
+        + `<div class="kb-cal-w">${WD_RU.map(w => `<span>${w}</span>`).join('')}</div>`
+        + `<div class="kb-cal-g">${cells}</div>`
+        + `<div class="kb-cal-f"><button class="kb-mi" data-clear="1">Очистить дату</button></div>`;
+      cal.querySelectorAll('[data-nav]').forEach(b => b.onclick = e => { e.stopPropagation(); view = new Date(y, mo + +b.dataset.nav, 1); paint(); });
+      cal.querySelectorAll('[data-k]').forEach(b => b.onclick = e => { e.stopPropagation(); setDate(b.dataset.k); });
+      cal.querySelector('[data-clear]').onclick = e => { e.stopPropagation(); setDate(null); };
+    };
+    document.body.appendChild(cal);
+    const r = $('#kbdv').getBoundingClientRect();
+    cal.style.left = Math.max(8, r.left) + 'px';
+    cal.style.top = (r.bottom + 6) + 'px';
+    paint();
+    calOff = e => { if (cal && !cal.contains(e.target) && !(e.target.closest && e.target.closest('#kbdv'))) closeCal(); };
+    document.addEventListener('mousedown', calOff);
+  };
+  renderDate();
 
   // «/» — меню блоков как в Notion: открывается сразу, фильтруется вводом, выбирается стрелками и Enter
   const SL_ICON = {
@@ -1337,7 +1395,7 @@ async function openCard(kid) {
     n.scrollTop = pos;
   };
 
-  beforeClose = flush;
+  beforeClose = async () => { closeCal(); await flush(); };
   $('#sx').onclick = closeSheet;
   const actMenu = $('#kbmenu');
   $('#kbmore').onclick = e => { e.stopPropagation(); actMenu.hidden = !actMenu.hidden; };
