@@ -417,3 +417,5 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .blist.tgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media (min-width:560px){.blist.tgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (min-width:980px){.blist.tgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+/* статус доски в плитке — в правом нижнем углу */
+.kbt .bstatus.kbst{position:absolute;right:12px;bottom:12px;padding:5px 11px;font-size:13px}

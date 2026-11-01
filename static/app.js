@@ -653,7 +653,7 @@ async function boards() {
   const list = await api('/boards');
   const tiles = boardView === 'tiles';
   const item = b => tiles
-    ? `<div class="tile kbt" data-open="${b.id}" style="--c:#f5f5f7;--tc:#222"><div class="ic">${KB_ICON}</div><div class="tf"><div class="n">${b.count}</div><div class="l">${esc(b.name)}</div></div><button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button></div>`
+    ? `<div class="tile kbt" data-open="${b.id}" style="--c:#f5f5f7;--tc:#222"><div class="ic">${KB_ICON}</div><div class="tf"><div class="n">${b.count}</div><div class="l">${esc(b.name)}</div></div><button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button><button class="bstatus kbst" data-stb="${b.id}" data-cur="${b.status || 'work'}" style="--sb:${BSTATUS[b.status || 'work'].bg};--st:${BSTATUS[b.status || 'work'].tc}">${BSTATUS[b.status || 'work'].label}</button></div>`
     : `<div class="brow" data-open="${b.id}"><div class="bname">${esc(b.name)}</div><button class="bstatus" data-stb="${b.id}" data-cur="${b.status || 'work'}" style="--sb:${BSTATUS[b.status || 'work'].bg};--st:${BSTATUS[b.status || 'work'].tc}">${BSTATUS[b.status || 'work'].label}</button><div class="bcount">${b.count}</div><button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button></div>`;
   // справа вверху: плюс (новая доска) и переключатель вида
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Доски</div>
