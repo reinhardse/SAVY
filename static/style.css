@@ -492,10 +492,10 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .kb-edit .kcheck.done .kct{color:#9a9aa3;text-decoration:line-through;opacity:.8}
 /* текст пункта занимает всю строку: каретка видна и в пустом пункте, и курсор-текст работает по всей строке */
 .kb-edit .kcheck .kct{display:block;flex:1;min-width:0;min-height:1.7em;cursor:text}
-/* категории сейфа — в стиле колонок доски: светлая панель, тонкая рамка, без цветной заливки; цвет остаётся в иконке */
-.tile.cat{background:#f6f6f8;color:var(--ink);border:1px solid #ececf0;border-radius:16px;box-shadow:none}
-.tile.cat:hover{border-color:#d9d9e0;box-shadow:0 2px 8px rgba(0,0,0,.05);transform:none}
+/* категории сейфа — свои цвета, рамка и тени как у колонок и карточек доски */
+.tile.cat{background:var(--c);color:var(--tc);border:1px solid rgba(0,0,0,.06);border-radius:16px;box-shadow:none}
+.tile.cat:hover{border-color:rgba(0,0,0,.12);box-shadow:0 2px 8px rgba(0,0,0,.05);transform:none}
 .tile.cat:active{transform:none}
-.tile.cat .ic{background:var(--c);color:var(--tc)}
-.tile.cat .n{color:var(--ink)}
-.tile.cat .l{color:var(--muted)}
+.tile.cat .ic{background:rgba(255,255,255,.75);color:var(--tc)}
+.tile.cat .n{color:var(--tc)}
+.tile.cat .l{color:var(--tc)}
