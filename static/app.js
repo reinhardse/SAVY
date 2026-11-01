@@ -1133,41 +1133,67 @@ async function openCard(kid) {
   t.addEventListener('click', e => { const a = e.target.closest('a'); if (a) { e.preventDefault(); window.open(a.href, '_blank', 'noopener'); } });
   t.addEventListener('blur', () => { t.innerHTML = linkify(titleText()); });
 
-  // «/» — меню форматирования
-  const SLASH = [['Чекбокс', 'check'], ['Заголовок', 'h'], ['Список', 'bul']];
-  let menu = null, slashNode = null, slashOff = 0;
-  const closeSlash = () => { if (menu) menu.remove(); menu = null; slashNode = null; };
-  const openSlash = (node, off) => {
+  // «/» — меню блоков как в Notion: открывается сразу, фильтруется вводом, выбирается стрелками и Enter
+  const SL_ICON = {
+    h: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5v14M13 5v14M5 12h8M17 9v10M17 9h3"/></svg>',
+    check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M8 12.5l2.7 2.7L16 9.5"/></svg>',
+    bul: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="7" r="1.1" fill="currentColor"/><circle cx="5" cy="12" r="1.1" fill="currentColor"/><circle cx="5" cy="17" r="1.1" fill="currentColor"/><path d="M10 7h10M10 12h10M10 17h10"/></svg>',
+  };
+  const SLASH = [
+    {label: 'Заголовок', kind: 'h', sc: '##'},
+    {label: 'Чекбокс', kind: 'check', sc: '[]'},
+    {label: 'Список', kind: 'bul', sc: '-'},
+  ];
+  let menu = null, slashNode = null, slashStart = 0, slashEnd = 0, slashItems = [], slashSel = 0;
+  const closeSlash = () => { if (menu) menu.remove(); menu = null; slashNode = null; slashItems = []; };
+  const paintSlash = () => {
+    if (!menu) return;
+    [...menu.querySelectorAll('.sl-item')].forEach((b, i) => b.classList.toggle('on', i === slashSel));
+  };
+  const renderSlash = q => {
+    const ql = q.toLowerCase();
+    slashItems = SLASH.filter(it => it.label.toLowerCase().includes(ql));
+    slashSel = 0;
+    if (!slashItems.length) { closeSlash(); return; }
+    menu.innerHTML = '<div class="sl-head">Блоки</div>' + slashItems.map((it, i) =>
+      `<button class="sl-item" data-i="${i}"><span class="sl-ic">${SL_ICON[it.kind]}</span><span class="sl-lb">${it.label}</span><span class="sl-sc">${it.sc}</span></button>`).join('');
+    paintSlash();
+  };
+  const openSlash = (node, start, end, q) => {
     closeSlash();
-    slashNode = node; slashOff = off;
-    const r = document.createRange();
-    r.setStart(node, off); r.collapse(true);
-    const rc = r.getBoundingClientRect();
+    slashNode = node; slashStart = start; slashEnd = end;
+    let ln = node;
+    while (ln && ln.parentNode !== n) ln = ln.parentNode;
+    const rc = (ln || node.parentNode).getBoundingClientRect();
     menu = document.createElement('div');
     menu.className = 'slash';
     menu.style.left = Math.max(8, rc.left) + 'px';
     menu.style.top = (rc.bottom + 6) + 'px';
-    menu.innerHTML = SLASH.map(([label], k) => `<button data-k="${k}">${label}</button>`).join('');
     menu.onmousedown = e => {
-      const btn = e.target.closest('[data-k]');
+      const btn = e.target.closest('[data-i]');
       if (!btn) return;
       e.preventDefault();
-      chooseSlash(SLASH[+btn.dataset.k][1]);
+      chooseSlash(slashItems[+btn.dataset.i].kind);
+    };
+    menu.onmousemove = e => {
+      const btn = e.target.closest('[data-i]');
+      if (!btn || +btn.dataset.i === slashSel) return;
+      slashSel = +btn.dataset.i; paintSlash();
     };
     document.body.appendChild(menu);
+    renderSlash(q);
   };
   const chooseSlash = kind => {
-    if (!slashNode) return;
+    if (!slashNode || !slashNode.isConnected) { closeSlash(); return; }
     const txt = slashNode.textContent;
-    slashNode.textContent = txt.slice(0, slashOff - 1) + txt.slice(slashOff);
+    slashNode.textContent = txt.slice(0, slashStart) + txt.slice(slashEnd);
     let el = slashNode;
     while (el && el.parentNode !== n) el = el.parentNode;
     closeSlash();
     if (!el) return;
-    const text = el.classList.contains('kcheck') ? textOf(el.querySelector('.kct')) : textOf(el);
-    const nl = createLine(kind, text.trim());
+    const text = textOf(el.classList.contains('kcheck') ? el.querySelector('.kct') : el).trim();
+    const nl = createLine(kind, text);
     n.replaceChild(nl, el);
-    n.focus({preventScroll: true});
     caretEnd(nl);
     queue();
   };
@@ -1179,12 +1205,24 @@ async function openCard(kid) {
     const r = s.getRangeAt(0);
     const node = r.startContainer;
     if (node.nodeType === 3) {
-      const before = node.textContent.slice(0, r.startOffset);
-      if (before.endsWith('/') && (before.length === 1 || /\s$/.test(before.slice(0, -1)))) { openSlash(node, r.startOffset); return; }
+      // нулевой символ пустой строки в проверку не берём
+      const before = node.textContent.slice(0, r.startOffset).replace(/​/g, '');
+      const m = before.match(/(?:^|\s)\/([^\s/]*)$/);
+      if (m) {
+        const start = r.startOffset - (m[1].length + 1);
+        if (menu && slashNode === node) { slashStart = start; slashEnd = r.startOffset; renderSlash(m[1]); }
+        else openSlash(node, start, r.startOffset, m[1]);
+        return;
+      }
     }
     closeSlash();
   };
   n.addEventListener('keydown', e => {
+    if (menu) {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); slashSel = (slashSel + (e.key === 'ArrowDown' ? 1 : -1) + slashItems.length) % slashItems.length; paintSlash(); return; }
+      if (e.key === 'Enter') { e.preventDefault(); chooseSlash(slashItems[slashSel].kind); return; }
+      if (e.key === 'Escape') { closeSlash(); return; }
+    }
     if (e.key === 'Escape') { closeSlash(); return; }
     if (e.key === 'Tab') {
       const s0 = getSelection();
