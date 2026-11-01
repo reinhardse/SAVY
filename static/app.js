@@ -1504,6 +1504,7 @@ let calMode = +(localStorage.getItem('cal_mode') || 7);   // 7 — неделя,
 let calAnchor = new Date();
 let calHidden = new Set(JSON.parse(localStorage.getItem('cal_hidden') || '[]'));
 let calItems = [], calBoards = [], calMenu = null;
+let calFull = localStorage.getItem('cal_full') === '1'; // во всю ширину, как доска
 
 function calDays() {
   if (calMode === 7) { const s = weekStartOf(calAnchor); return Array.from({length: 7}, (_, i) => shiftDays(s, i)); }
@@ -1512,7 +1513,7 @@ function calDays() {
 }
 
 async function calendarPage() {
-  $('#app').classList.remove('kfull');
+  $('#app').classList.toggle('kfull', calFull);
   const days = calDays();
   const [items, boards] = await Promise.all([
     api(`/calendar?frm=${dkey(days[0])}&to=${dkey(days[days.length - 1])}`),
@@ -1532,9 +1533,13 @@ function paintCal() {
     const time = it.due_time ? `<span class="cal-t">${esc(it.due_time)}</span>` : '';
     return `<div class="cal-item" draggable="true" data-card="${it.id}">${time}<span class="cal-title">${esc(it.title || 'Без названия')}</span><span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(it.board_name)}</span></div>`;
   };
-  const heads = calMode === 7
-    ? days.map((d, i) => `<div class="cal-dh">${WD_FULL[i]}<br><b>${d.getDate()} ${SHORT_MON[d.getMonth()]} ’${String(d.getFullYear()).slice(2)}</b></div>`).join('')
-    : WD_SHORT.map(w => `<div class="cal-dh">${w}</div>`).join('');
+  const heads = WD_SHORT.map(w => `<div class="cal-dh">${w}</div>`).join('');
+  // 7 дней — колонки как на доске: заголовок дня и карточки задач
+  const weekCols = days.map((d, i) => {
+    const k = dkey(d);
+    const items = (byDay[k] || []).map(itemHtml).join('');
+    return `<div class="cal-col${k === todayKey ? ' today' : ''}"><div class="cal-dh">${WD_FULL[i]}<br><b>${d.getDate()} ${SHORT_MON[d.getMonth()]} ’${String(d.getFullYear()).slice(2)}</b></div><div class="cal-day" data-day="${k}">${items}</div></div>`;
+  }).join('');
   const cells = days.map(d => {
     const k = dkey(d);
     const cls = ['cal-day', k === todayKey ? 'today' : '', calMode === 31 && d.getMonth() !== calAnchor.getMonth() ? 'other' : ''].join(' ');
@@ -1550,9 +1555,10 @@ function paintCal() {
         <button class="cal-today" id="caltoday">Сегодня</button>
         <button class="cal-nav" id="calnext" aria-label="Вперёд">›</button>
         <button class="cal-filter" id="calfilter">Доски</button>
+        <button class="iconbtn" id="calfull" aria-label="Во всю ширину" title="${calFull ? 'Вернуть' : 'Во всю ширину'}">${calFull ? RESTORE_ICON : FULL_ICON}</button>
       </div></div>
     <div class="cal-range">${range}</div>
-    <div class="cal-grid ${calMode === 7 ? 'wk' : 'mo'}">${heads}${cells}</div>`;
+    <div class="cal-grid ${calMode === 7 ? 'wk' : 'mo'}">${calMode === 7 ? weekCols : heads + cells}</div>`;
   document.querySelectorAll('.cal-seg [data-m]').forEach(b => b.onclick = () => {
     calMode = +b.dataset.m; localStorage.setItem('cal_mode', calMode); calendarPage();
   });
@@ -1561,6 +1567,13 @@ function paintCal() {
   $('#calnext').onclick = () => step(1);
   $('#caltoday').onclick = () => { calAnchor = new Date(); calendarPage(); };
   $('#calfilter').onclick = e => { e.stopPropagation(); openCalMenu(); };
+  $('#calfull').onclick = () => {
+    calFull = !calFull;
+    localStorage.setItem('cal_full', calFull ? '1' : '0');
+    $('#app').classList.toggle('kfull', calFull);
+    $('#calfull').innerHTML = calFull ? RESTORE_ICON : FULL_ICON;
+    $('#calfull').title = calFull ? 'Вернуть' : 'Во всю ширину';
+  };
   document.querySelectorAll('.cal-item').forEach(el => {
     el.onclick = () => { if (!calDragging) openCard(+el.dataset.card); };
     el.ondragstart = e => { calDragging = true; e.dataTransfer.setData('text/plain', el.dataset.card); e.dataTransfer.effectAllowed = 'move'; };

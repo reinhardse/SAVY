@@ -635,3 +635,17 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .cal-box{width:18px;height:18px;border:1.5px solid #bcbcc4;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;color:transparent;flex:none;background:#fff}
 .cal-box.on{color:inherit}
 @media (max-width:700px){.cal-grid.wk .cal-day{min-height:40vh}.cal-day{min-height:90px;padding:4px}.cal-dh{font-size:10px;padding:6px 4px}.cal-item{padding:4px 5px}}
+
+/* календарь на 7 дней — как доска: колонки дней, карточки задач */
+.cal-grid.wk{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:12px;border:0;background:none;border-radius:0;overflow:visible}
+.cal-col{background:#f6f6f8;border:1px solid #ececf0;border-radius:16px;padding:12px;min-width:0;display:flex;flex-direction:column}
+.cal-grid.wk .cal-dh{background:none;border:0;padding:2px 2px 10px;font-size:15px;font-weight:700;color:var(--ink);line-height:1.35}
+.cal-grid.wk .cal-dh b{display:inline-block;margin-top:2px;font-size:12px;font-weight:500;color:var(--muted)}
+.cal-col.today .cal-dh b{color:#2f2f33;font-weight:700}
+.cal-grid.wk .cal-day{min-height:58vh;padding:0;border:0;background:none;border-radius:12px}
+.cal-grid.wk .cal-day.drop{outline:2px dashed #c9c9d1;outline-offset:4px}
+.cal-grid.wk .cal-item{background:#fff;border:1px solid #ececf0;border-radius:12px;padding:11px 13px;margin-bottom:10px;font-size:14px;gap:4px}
+.cal-grid.wk .cal-item:hover{border-color:#d9d9e0;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+.cal-grid.wk .cal-item .cal-title{white-space:normal;overflow:visible;line-height:1.35}
+.cal-grid.wk .cal-item .cal-t{font-size:12px}
+#app.kfull .cal-head{padding-right:62px}
