@@ -351,3 +351,11 @@ textarea.kb-title:focus,textarea.kb-note:focus{border:0;box-shadow:none}
 .brow.addrow .bname{font-weight:600}
 .addic{width:36px;height:36px;border-radius:50%;background:#f2f2f4;display:flex;align-items:center;justify-content:center;flex:none}
 .addic svg{width:16px;height:16px}
+
+/* доска во всю ширину: колонки растягиваются, домик и кнопка встают в одну линию с «Хаб» */
+#app.kfull{max-width:none;padding-left:18px;padding-right:18px}
+#app.kfull .titlerow{padding-right:62px}
+#app.kfull .kcols{padding-bottom:20px}
+#app.kfull .kcol{flex:1 1 0;min-width:260px}
+#app.kfull .kcol.kaddcol{flex:0 0 200px}
+@media (max-width:999px){#app.kfull .titlerow{padding-right:0}}
