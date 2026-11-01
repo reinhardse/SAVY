@@ -666,3 +666,4 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 #app .cal-nav{width:36px;height:36px;border-radius:50%;padding:0;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line2);background:#fff;color:var(--ink);box-shadow:var(--sh-sm)}
 #app .cal-nav svg{width:18px;height:18px;display:block}
 #app .cal-today,#app .cal-filter{height:36px;padding:0 16px;display:inline-flex;align-items:center;border-radius:999px;border:1px solid var(--line2);background:#fff;box-shadow:var(--sh-sm)}
+#app .cal-nav-grp{display:flex;align-items:center;gap:4px}

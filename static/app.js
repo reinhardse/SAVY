@@ -1545,7 +1545,7 @@ function paintCal() {
     const cols = days.map(d => {
       const k = dkey(d);
       const items = (byDay[k] || []).map(cardHtml).join('');
-      const sub = `${d.getDate()} ${SHORT_MON[d.getMonth()]} ’${String(d.getFullYear()).slice(2)}`;
+      const sub = `${d.getDate()} ${MON_GEN[d.getMonth()]} ’${String(d.getFullYear()).slice(2)}`;
       return `<div class="kcol cal-col${k === todayKey ? ' today' : ''}" data-day="${k}"><div class="kch"><span class="kcname"><span class="kcn">${WD_FULL[wd(d)]}</span><span class="kcnt">${sub}</span></span></div><div class="kcards">${items}</div></div>`;
     }).join('');
     body = `<div class="kcols cal-strip">${cols}</div>`;
@@ -1559,14 +1559,14 @@ function paintCal() {
     body = `<div class="cal-grid mo">${heads}${cells}</div>`;
   }
   const range = calMode === 7
-    ? `${days[0].getDate()} ${SHORT_MON[days[0].getMonth()]} – ${days[6].getDate()} ${SHORT_MON[days[6].getMonth()]} ’${String(days[6].getFullYear()).slice(2)}`
-    : `${MON_RU[calAnchor.getMonth()].slice(0, 3)} ’${String(calAnchor.getFullYear()).slice(2)}`;
+    ? `${days[0].getDate()} ${MON_GEN[days[0].getMonth()]} – ${days[6].getDate()} ${MON_GEN[days[6].getMonth()]} ’${String(days[6].getFullYear()).slice(2)}`
+    : `${MON_RU[calAnchor.getMonth()]} ’${String(calAnchor.getFullYear()).slice(2)}`;
   $('#app').innerHTML = `<div class="titlerow cal-head"><div class="brand">Календарь</div>
       <div class="cal-tools">
         <div class="cal-seg"><button data-m="7" class="${calMode === 7 ? 'on' : ''}">7</button><button data-m="31" class="${calMode === 31 ? 'on' : ''}">31</button></div>
-        <button class="cal-nav" id="calprev" aria-label="Назад"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <div class="cal-nav-grp"><button class="cal-nav" id="calprev" aria-label="Назад"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
         <button class="cal-today" id="caltoday">Сегодня</button>
-        <button class="cal-nav" id="calnext" aria-label="Вперёд"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+        <button class="cal-nav" id="calnext" aria-label="Вперёд"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button></div>
         <button class="cal-filter" id="calfilter">Доски</button>
       </div></div>
     <div class="cal-range">${range}</div>
