@@ -151,8 +151,16 @@ function row(i) {
   // описание: первые 130 символов (для фильмов и книг — 200), дальше «…» — нажатие открывает карточку, чтобы дочитать
   const d = (i.description || '').replace(/\s+/g, ' ').trim();
   const LIMIT = viewMode === 'tiles' ? 60 : ['kinopoisk', 'litres'].includes(i.source) ? 200 : 130;
-  const short = d.length > LIMIT ? d.slice(0, LIMIT).replace(/\s+\S*$/, '') : d;
-  const desc = d ? `<div class="rdesc">${esc(short)}${d.length > LIMIT ? `<button class="more-d" data-id="${i.id}" aria-label="Дочитать">…</button>` : ''}</div>` : '';
+  // обрезаем по целому слову; последнее слово и «…» держатся вместе, чтобы многоточие не уезжало на новую строку
+  let body = esc(d);
+  if (d.length > LIMIT) {
+    const part = d.slice(0, LIMIT);
+    const sp = part.lastIndexOf(' ');
+    const head = sp > 0 ? part.slice(0, sp) : part;
+    const tail = sp > 0 ? part.slice(sp + 1) : '';
+    body = `${esc(head)} <span class="nw">${esc(tail)}<button class="more-d" data-id="${i.id}" aria-label="Дочитать">…</button></span>`;
+  }
+  const desc = d ? `<div class="rdesc">${body}</div>` : '';
   const tags = `${desc}<div class="tagline">${eye}${i.tags.map(t => `<span class="tagbadge">#${esc(t)}</span>`).join('')}</div>`;
   return `<div class="row" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m"><span>${esc(meta)}</span><button class="rb pen" data-id="${i.id}" aria-label="Открыть карточку">${PEN}</button></div>${tags}</div><button class="rb del" data-id="${i.id}" aria-label="Удалить">${XICON}</button></div>`;
 }

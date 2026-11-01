@@ -239,3 +239,9 @@ img.thumb,img.cover{animation:fadeIn .3s ease both}
 
 /* на широком экране плитки идут по четыре в ряд */
 @media (min-width:980px){.list.grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:30px 18px}}
+
+/* многоточие и последнее слово описания не разрываются переносом */
+.rdesc .nw{white-space:nowrap}
+/* крестик в плитках: круг почти прозрачный, чтобы не бил в глаза */
+.list.grid .rb.del{background:rgba(255,255,255,.45);box-shadow:none;color:#555}
+.list.grid .rb.del:hover{background:rgba(255,255,255,.85)}
