@@ -101,12 +101,16 @@ def sync_card(db, card: Card, board_name: str, user_id: int) -> None:
         body = _body(card, board_name)
         if card.gcal_event_id:
             r = httpx.patch(f"{EVENTS}/{card.gcal_event_id}", json=body, headers=headers, timeout=15)
-            if r.status_code != 404:
-                r.raise_for_status()
+            if r.status_code < 400:
                 return
-            card.gcal_event_id = None  # событие удалили в Календаре: создадим заново
+            # Google не принял изменение: запишем причину и пересоздадим событие
+            log.error("Google Calendar PATCH %s: %s %s", card.gcal_event_id, r.status_code, r.text)
+            httpx.delete(f"{EVENTS}/{card.gcal_event_id}", headers=headers, timeout=15)
+            card.gcal_event_id = None
         r = httpx.post(EVENTS, json=body, headers=headers, timeout=15)
-        r.raise_for_status()
+        if r.status_code >= 400:
+            log.error("Google Calendar POST: %s %s", r.status_code, r.text)
+            r.raise_for_status()
         card.gcal_event_id = r.json()["id"]
     except Exception:
         log.exception("Google Calendar: карточка %s не синхронизирована", card.id)
