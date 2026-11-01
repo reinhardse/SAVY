@@ -989,11 +989,12 @@ function linkify(text) {
 }
 
 // ----- заметка: один редактируемый блок; строки: обычные, «## » заголовок, «- » список, «[ ] » / «[x] » чекбоксы -----
-const textOf = el => (el ? (el.textContent || '') : '').replace(/ /g, ' ');
+const textOf = el => (el ? (el.textContent || '') : '').replace(/​/g, '').replace(/ /g, ' ');
 
 function lineHtml(kind, text, checked) {
-  const body = linkify(text) || '<br>';
-  if (kind === 'check') return `<div class="kline kcheck${checked ? ' done' : ''}"><input type="checkbox" class="kcb" contenteditable="false"${checked ? ' checked' : ''}><span class="kct">${body}</span></div>`;
+  // пустая строка держит каретку: нулевой символ вместо <br>
+  const body = linkify(text) || '​';
+  if (kind === 'check') return `<div class="kline kcheck${checked ? ' done' : ''}"><span class="kcb" contenteditable="false" role="checkbox" aria-checked="${checked ? 'true' : 'false'}"></span><span class="kct">${body}</span></div>`;
   if (kind === 'h') return `<div class="kh">${body}</div>`;
   if (kind === 'bul') return `<div class="kline kbul">${body}</div>`;
   return `<div class="kline">${body}</div>`;
@@ -1020,7 +1021,7 @@ function readNote(root) {
   return [...root.childNodes].map(node => {
     if (node.nodeType === 3) return node.textContent;
     const el = node;
-    if (el.classList && el.classList.contains('kcheck')) return `[${el.querySelector('.kcb').checked ? 'x' : ' '}] ${textOf(el.querySelector('.kct'))}`;
+    if (el.classList && el.classList.contains('kcheck')) return `[${el.classList.contains('done') ? 'x' : ' '}] ${textOf(el.querySelector('.kct'))}`;
     if (el.classList && el.classList.contains('kh')) return '## ' + textOf(el);
     if (el.classList && el.classList.contains('kbul')) return '- ' + textOf(el);
     return textOf(el);
@@ -1141,12 +1142,14 @@ async function openCard(kid) {
     }
     queue();
   });
-  // галочка: строка светлеет и перечёркивается
-  n.addEventListener('change', e => {
-    if (e.target.classList && e.target.classList.contains('kcb')) {
-      e.target.closest('.kcheck').classList.toggle('done', e.target.checked);
-      queue();
-    }
+  // квадрат: одно нажатие — одно переключение; фокус и каретку не трогаем
+  n.addEventListener('mousedown', e => {
+    const box = e.target.closest && e.target.closest('.kcb');
+    if (!box) return;
+    e.preventDefault();
+    const done = box.closest('.kcheck').classList.toggle('done');
+    box.setAttribute('aria-checked', done ? 'true' : 'false');
+    queue();
   });
   // ссылки открываются по нажатию, даже в режиме редактирования
   n.addEventListener('click', e => {

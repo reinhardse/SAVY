@@ -483,3 +483,10 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .kb-edit .kcb{width:16px;height:16px;margin-top:calc((1.7em - 16px) / 2);margin-left:0}
 .kb-edit .kcheck{gap:10px;align-items:flex-start}
 .kb-edit .kct{display:inline}
+/* чекбоксы как в Notion: тонкая рамка, скругление, галочка внутри; выполненное — зелёное и зачёркнутое */
+.kb-edit .kcheck{cursor:text}
+.kb-edit .kcb{position:relative;display:inline-block;width:16px;height:16px;margin-top:calc((1.7em - 16px) / 2);box-sizing:border-box;border:1.5px solid #bcbcc4;border-radius:4px;background:#fff;flex:none;cursor:pointer;user-select:none;transition:background-color .15s,border-color .15s}
+.kb-edit .kcb:hover{border-color:#8f8f99}
+.kb-edit .kcheck.done .kcb{background:#3fa975;border-color:#3fa975}
+.kb-edit .kcheck.done .kcb::after{content:'';position:absolute;left:4px;top:1px;width:4px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.kb-edit .kcheck.done .kct{color:#9a9aa3;text-decoration:line-through;opacity:.8}
