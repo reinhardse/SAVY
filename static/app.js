@@ -233,11 +233,11 @@ async function home() {
   const tilesHtml = tile('#/inbox', INBOX_STYLE, INBOX_ICON, inbox.count, 'Входящие')
     + tile('#/all', ALL_STYLE, TILES_ICON, me.total, 'Все') + catTiles;
   $('#app').innerHTML = `<div class="titlerow"><div class="brand logo">SAVE</div>
-      <div class="tr-actions">${viewBtn()}<button class="iconbtn" id="hsbtn" aria-label="Поиск">${LOUPE}</button></div></div>
+      <div class="tr-actions"><button class="iconbtn" id="hsbtn" aria-label="Поиск">${LOUPE}</button></div></div>
     ${pasteHtml()}
     ${tags.length ? `<div class="tags home-tags">${tags.map(t => `<span class="tagchip" data-alltag="${esc(t.name)}">#${esc(t.name)}</span>`).join('')}</div>` : ''}
     <div class="tiles">${tilesHtml}</div>
-    <h2>Последние сохранения</h2>
+    <div class="sechead"><h2>Последние сохранения</h2>${viewBtn()}</div>
     <div class="list${viewMode === 'tiles' ? ' grid' : ''}" id="list">${listHtml}</div>
     <div class="home-foot"><button class="linkbtn" id="kpset">${conf.kp_token_set ? 'Ключ Кинопоиска добавлен ✓ · изменить' : 'Добавить ключ Кинопоиска'}</button></div>`;
   document.querySelectorAll('[data-go]').forEach(t => t.onclick = () => { location.hash = t.dataset.go; });
