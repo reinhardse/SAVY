@@ -1532,7 +1532,7 @@ function paintCal() {
   const cardHtml = it => {
     const k = tagColor(it.board_name);
     const time = it.due_time ? `<span class="kc-tag kc-date">${esc(it.due_time)}</span>` : '';
-    return `<div class="kcard cal-card" draggable="true" data-card="${it.id}"><div class="kct">${esc(it.title || 'Без названия')}</div><div class="kc-tags">${time}<span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(it.board_name)}</span></div></div>`;
+    return `<div class="kcard cal-card" data-card="${it.id}"><div class="kct">${esc(it.title || 'Без названия')}</div><div class="kc-tags">${time}<span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(it.board_name)}</span></div></div>`;
   };
   const wd = d => (d.getDay() + 6) % 7;
   const cols = days.map(d => {
@@ -1543,8 +1543,8 @@ function paintCal() {
     return `<div class="kcol cal-col${k === todayKey ? ' today' : ''}" data-day="${k}"><div class="kch"><span class="kcname"><span class="kcn">${name}</span><span class="kcnt">${sub}</span></span></div><div class="kcards">${items}</div></div>`;
   }).join('');
   const range = calMode === 7
-    ? `${days[0].getDate()} ${MON_GEN[days[0].getMonth()]} – ${days[6].getDate()} ${MON_GEN[days[6].getMonth()]} ${days[6].getFullYear()}`
-    : `${MON_RU[calAnchor.getMonth()]} ${calAnchor.getFullYear()}`;
+    ? `${days[0].getDate()} ${SHORT_MON[days[0].getMonth()]} – ${days[6].getDate()} ${SHORT_MON[days[6].getMonth()]} ’${String(days[6].getFullYear()).slice(2)}`
+    : `${MON_RU[calAnchor.getMonth()].slice(0, 3)} ’${String(calAnchor.getFullYear()).slice(2)}`;
   $('#app').innerHTML = `<div class="titlerow cal-head"><div class="brand">Календарь</div>
       <div class="cal-tools">
         <div class="cal-seg"><button data-m="7" class="${calMode === 7 ? 'on' : ''}">7</button><button data-m="31" class="${calMode === 31 ? 'on' : ''}">31</button></div>
@@ -1563,28 +1563,110 @@ function paintCal() {
   $('#calnext').onclick = () => step(1);
   $('#caltoday').onclick = () => { calAnchor = new Date(); calendarPage(); };
   $('#calfilter').onclick = e => { e.stopPropagation(); openCalMenu(); };
-  document.querySelectorAll('.cal-card').forEach(el => {
-    el.onclick = () => { if (!calDragging) openCard(+el.dataset.card); };
-    el.ondragstart = e => { calDragging = true; e.dataTransfer.setData('text/plain', el.dataset.card); e.dataTransfer.effectAllowed = 'move'; };
-    el.ondragend = () => { setTimeout(() => { calDragging = false; }, 0); };
-  });
-  document.querySelectorAll('.kcol[data-day]').forEach(col => {
-    col.ondragover = e => { e.preventDefault(); col.classList.add('drop'); };
-    col.ondragleave = () => col.classList.remove('drop');
-    col.ondrop = async e => {
-      e.preventDefault();
-      col.classList.remove('drop');
-      const id = +e.dataTransfer.getData('text/plain');
-      const key = col.dataset.day;
-      const it = calItems.find(x => x.id === id);
-      if (!it || it.due_date === key) return;
-      try { await api('/cards/' + id, {method: 'PATCH', body: {due_date: key}}); }
-      catch (err) { alert(err.message); }
-      calendarPage();
-    };
-  });
+  document.querySelectorAll('.cal-card').forEach(el => { el.onclick = () => { if (!calDragging) openCard(+el.dataset.card); }; });
+  bindCalDrag();
 }
 let calDragging = false;
+let calDrag = null;
+
+// перенос карточки — как на доске: призрак за курсором, серый прямоугольник на месте будущего дня
+function bindCalDrag() {
+  document.querySelectorAll('.cal-card').forEach(el => el.onpointerdown = e => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    calDrag = {el, id: +el.dataset.card, x0: e.clientX, y0: e.clientY, started: false, ph: null, ghost: null, sx: 0, sy: 0, cx: 0, cy: 0, tx: 0, ty: 0, raf: 0};
+    window.addEventListener('pointermove', calMove);
+    window.addEventListener('pointerup', calUp);
+    window.addEventListener('pointercancel', calUp);
+  });
+}
+
+function calMove(e) {
+  if (!calDrag) return;
+  if (!calDrag.started) {
+    if (Math.hypot(e.clientX - calDrag.x0, e.clientY - calDrag.y0) < 6) return;
+    calStart(e);
+  }
+  e.preventDefault();
+  calDrag.tx = e.clientX - calDrag.sx;
+  calDrag.ty = e.clientY - calDrag.sy;
+  const strip = document.querySelector('.cal-strip');
+  if (strip) {
+    const r = strip.getBoundingClientRect();
+    if (e.clientX > r.right - 70) strip.scrollLeft += 14;
+    if (e.clientX < r.left + 70) strip.scrollLeft -= 14;
+  }
+  if (e.clientY < 90) window.scrollBy(0, -12);
+  if (e.clientY > window.innerHeight - 90) window.scrollBy(0, 12);
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  const col = under && under.closest('.kcol[data-day]');
+  if (col) calPlace(col, e.clientY);
+}
+
+function calStart(e) {
+  const r = calDrag.el.getBoundingClientRect();
+  calDrag.started = true;
+  calDragging = true;
+  calDrag.sx = e.clientX - r.left;
+  calDrag.sy = e.clientY - r.top;
+  calDrag.cx = r.left; calDrag.cy = r.top;
+  const ph = document.createElement('div');
+  ph.className = 'kph';
+  ph.style.height = r.height + 'px';
+  calDrag.el.replaceWith(ph);
+  calDrag.ph = ph;
+  const g = calDrag.el.cloneNode(true);
+  g.classList.add('kghost');
+  g.style.width = r.width + 'px';
+  document.body.appendChild(g);
+  calDrag.ghost = g;
+  document.body.classList.add('kdragging');
+  const follow = () => {
+    if (!calDrag || !calDrag.ghost) return;
+    calDrag.cx += (calDrag.tx - calDrag.cx) * 0.35;
+    calDrag.cy += (calDrag.ty - calDrag.cy) * 0.35;
+    calDrag.ghost.style.transform = `translate(${calDrag.cx}px, ${calDrag.cy}px) rotate(2deg)`;
+    calDrag.raf = requestAnimationFrame(follow);
+  };
+  calDrag.tx = calDrag.cx; calDrag.ty = calDrag.cy;
+  follow();
+}
+
+// место карточки в колонке дня: между карточками, по их середине
+function calPlace(col, y) {
+  const box = col.querySelector('.kcards');
+  if (!box) return;
+  let before = null;
+  for (const c of box.querySelectorAll('.kcard')) {
+    const r = c.getBoundingClientRect();
+    if (y < r.top + r.height / 2) { before = c; break; }
+  }
+  if (before) {
+    if (calDrag.ph.nextElementSibling !== before) box.insertBefore(calDrag.ph, before);
+  } else if (box.lastElementChild !== calDrag.ph) {
+    box.appendChild(calDrag.ph);
+  }
+}
+
+async function calUp() {
+  window.removeEventListener('pointermove', calMove);
+  window.removeEventListener('pointerup', calUp);
+  window.removeEventListener('pointercancel', calUp);
+  const d = calDrag;
+  calDrag = null;
+  if (!d || !d.started) return;
+  cancelAnimationFrame(d.raf);
+  setTimeout(() => { calDragging = false; }, 300);
+  d.ghost.remove();
+  document.body.classList.remove('kdragging');
+  d.ph.replaceWith(d.el); // карточка встаёт на место серого прямоугольника
+  const col = d.el.closest('.kcol[data-day]');
+  const key = col ? col.dataset.day : null;
+  const it = calItems.find(x => x.id === d.id);
+  if (!key || !it || it.due_date === key) return;
+  it.due_date = key; // данные меняем сразу, без перезагрузки календаря
+  try { await api('/cards/' + d.id, {method: 'PATCH', body: {due_date: key}}); }
+  catch (err) { alert(err.message); calendarPage(); }
+}
 
 function renderCalMenu() {
   if (!calMenu) return;
