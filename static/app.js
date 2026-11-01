@@ -1259,7 +1259,7 @@ async function openCard(kid) {
       cal.innerHTML = `<div class="kb-cal-h"><button class="kb-ib" data-nav="-1" aria-label="Назад">‹</button><span>${MONTHS_RU[mo]} ${y}</span><button class="kb-ib" data-nav="1" aria-label="Вперёд">›</button></div>`
         + `<div class="kb-cal-w">${WD_RU.map(w => `<span>${w}</span>`).join('')}</div>`
         + `<div class="kb-cal-g">${cells}</div>`
-        + `<div class="kb-cal-t"><span class="kb-cal-tl">Время</span><input type="time" id="kbtime" value="${dueTime || ''}"${dis}>`
+        + `<div class="kb-cal-t"><span class="kb-cal-tl">Время</span><input type="time" lang="ru-RU" id="kbtime" value="${dueTime || ''}"${dis}>`
         + `<select id="kbdur"${dueDate && dueTime ? '' : ' disabled'}><option value="">Длительность</option>${DUR.map(([v, l]) => `<option value="${v}"${dueDur === v ? ' selected' : ''}>${l}</option>`).join('')}</select></div>`
         + `<div class="kb-cal-f"><button class="kb-mi" data-clear="1">Очистить дату</button></div>`;
       const tIn = cal.querySelector('#kbtime'), dSel = cal.querySelector('#kbdur');
