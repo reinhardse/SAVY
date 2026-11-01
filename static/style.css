@@ -267,3 +267,8 @@ img.thumb,img.cover{animation:fadeIn .3s ease both}
   .tile .ic svg{width:18px;height:18px}
   .tile .n{font-size:28px}
 }
+
+/* главная: заголовок «Последние сохранения» крупнее, кнопка вида справа от него, больше воздуха до первой обложки */
+.sechead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 2px 30px}
+.sechead h2{font-size:26px;line-height:1.2;font-weight:800;letter-spacing:-.02em;margin:0}
+@media (max-width:560px){.sechead h2{font-size:24px}}
