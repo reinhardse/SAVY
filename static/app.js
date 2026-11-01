@@ -625,6 +625,27 @@ function hub() {
 }
 
 /* ---------- канбан: список досок ---------- */
+// статусы досок: цвета как у меток SAVE
+const BSTATUS = {
+  work: {label: 'В работе', bg: '#e6f0ff', tc: '#2f4bb0'},
+  pause: {label: 'Пауза', bg: '#fff4d6', tc: '#8a6100'},
+  archive: {label: 'Архив', bg: '#eeeef1', tc: '#5b5f6b'},
+};
+
+function openStatus(bid, cur) {
+  sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">${XICON}</button>
+    <div class="sheet-body hub-body">
+      <div class="kp-title">Статус доски</div>
+      ${Object.entries(BSTATUS).map(([k, v]) => `<button class="srow${k === cur ? ' on' : ''}" data-st="${k}"><span class="bstatus" style="--sb:${v.bg};--st:${v.tc}">${v.label}</span>${k === cur ? '<span class="srowchk">✓</span>' : ''}</button>`).join('')}
+    </div>`, 'hub-sheet');
+  $('#sx').onclick = closeSheet;
+  document.querySelectorAll('[data-st]').forEach(b => b.onclick = async () => {
+    $('#sheet-root').innerHTML = '';
+    await api('/boards/' + bid, {method: 'PATCH', body: {status: b.dataset.st}});
+    boards();
+  });
+}
+
 // вид досок: строки или плитки; выбор запоминается отдельно от закладок
 let boardView = (() => { try { return localStorage.getItem('kb_view') === 'tiles' ? 'tiles' : 'list'; } catch { return 'list'; } })();
 
@@ -633,7 +654,7 @@ async function boards() {
   const tiles = boardView === 'tiles';
   const item = b => tiles
     ? `<div class="tile kbt" data-open="${b.id}" style="--c:#f5f5f7;--tc:#222"><div class="ic">${KB_ICON}</div><div class="tf"><div class="n">${b.count}</div><div class="l">${esc(b.name)}</div></div><button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button></div>`
-    : `<div class="brow" data-open="${b.id}"><div class="bname">${esc(b.name)}</div><div class="bcount">${b.count}</div><button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button></div>`;
+    : `<div class="brow" data-open="${b.id}"><div class="bname">${esc(b.name)}</div><button class="bstatus" data-stb="${b.id}" data-cur="${b.status || 'work'}" style="--sb:${BSTATUS[b.status || 'work'].bg};--st:${BSTATUS[b.status || 'work'].tc}">${BSTATUS[b.status || 'work'].label}</button><div class="bcount">${b.count}</div><button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button></div>`;
   // справа вверху: плюс (новая доска) и переключатель вида
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Доски</div>
       <div class="tr-actions"><button class="iconbtn" id="addboard" aria-label="Новая доска" title="Новая доска">${PLUS_ICON}</button>
@@ -646,8 +667,12 @@ async function boards() {
   };
   $('#addboard').onclick = newBoard;
   document.querySelectorAll('[data-open]').forEach(r => r.onclick = e => {
-    if (e.target.closest('[data-delb]')) return;
+    if (e.target.closest('[data-delb], [data-stb]')) return;
     location.hash = '#/board/' + r.dataset.open;
+  });
+  document.querySelectorAll('[data-stb]').forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    openStatus(+b.dataset.stb, b.dataset.cur);
   });
   document.querySelectorAll('[data-delb]').forEach(b => b.onclick = async e => {
     e.stopPropagation();

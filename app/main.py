@@ -473,7 +473,7 @@ def boards_list(db: Session = Depends(get_db), _: int = Depends(require_auth)):
     out = []
     for b in db.scalars(select(Board).where(Board.user_id == USER_ID).order_by(Board.id)).all():
         n = db.scalar(select(func.count()).select_from(Card).where(Card.board_id == b.id))
-        out.append({"id": b.id, "name": b.name, "count": n})
+        out.append({"id": b.id, "name": b.name, "count": n, "status": b.status or "work"})
     return out
 
 
@@ -491,14 +491,25 @@ def board_read(bid: int, db: Session = Depends(get_db), _: int = Depends(require
     return board_out(_board(db, bid))
 
 
+class BoardPatch(BaseModel):
+    name: str | None = None
+    status: str | None = None
+
+
+BOARD_STATUSES = ("work", "pause", "archive")
+
+
 @app.patch("/api/boards/{bid}")
-def board_rename(bid: int, body: NameIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+def board_rename(bid: int, body: BoardPatch, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     b = _board(db, bid)
-    name = body.name.strip()[:120]
-    if name:
-        b.name = name
+    if body.name is not None and body.name.strip():
+        b.name = body.name.strip()[:120]
+    if body.status is not None:
+        if body.status not in BOARD_STATUSES:
+            raise HTTPException(400, "Неизвестный статус")
+        b.status = body.status
     db.commit()
-    return {"id": b.id, "name": b.name}
+    return {"id": b.id, "name": b.name, "status": b.status}
 
 
 @app.delete("/api/boards/{bid}")

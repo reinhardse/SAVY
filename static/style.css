@@ -402,3 +402,18 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .kcolghost{flex:none}
 .kch{cursor:grab}
 .kch:active{cursor:grabbing}
+
+/* доски: строки повыше и поширше, статус-пилюля справа от названия, три плитки в ряд как у категорий SAVE */
+.brow{padding:24px 6px;gap:14px}
+.brow .bname{font-size:20px}
+.brow .bcount{font-size:15px}
+.bstatus{flex:none;border:0;border-radius:999px;padding:7px 14px;font-size:14px;font-weight:600;background:var(--sb);color:var(--st);cursor:pointer;transition:box-shadow .15s,transform .15s;font-family:inherit;white-space:nowrap}
+.bstatus:hover{box-shadow:var(--sh-sm)}
+.bstatus:active{transform:scale(.97)}
+.srow{width:100%;display:flex;align-items:center;justify-content:space-between;border:0;background:#fff;border-radius:16px;padding:12px;cursor:pointer;transition:background-color .15s;text-align:left}
+.srow:hover{background:#f5f5f7}
+.srow .bstatus{pointer-events:none}
+.srowchk{color:var(--muted);font-size:18px}
+.blist.tgrid{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (min-width:560px){.blist.tgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:980px){.blist.tgrid{grid-template-columns:repeat(3,minmax(0,1fr))}}

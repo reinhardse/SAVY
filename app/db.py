@@ -91,6 +91,7 @@ class Board(Base):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, nullable=False, default=1, index=True)
     name = Column(String(120), nullable=False)
+    status = Column(String(20), default="work")  # work — в работе, pause — пауза, archive — архив
     created_at = Column(DateTime, default=now)
     columns = relationship("KColumn", back_populates="board", cascade="all, delete-orphan", order_by="KColumn.sort")
 
@@ -119,6 +120,11 @@ class Card(Base):
 
 def init_db():
     Base.metadata.create_all(engine)
+    # колонка статуса появилась позже: добавляем в уже существующую таблицу
+    from sqlalchemy import inspect, text
+    if "status" not in [c["name"] for c in inspect(engine).get_columns("boards")]:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE boards ADD COLUMN status VARCHAR(20) DEFAULT 'work'"))
     with SessionLocal() as s:
         if not s.scalars(select(Category)).first():
             for slug, name, color, sort in DEFAULT_CATEGORIES:
