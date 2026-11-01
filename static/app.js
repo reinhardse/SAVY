@@ -1504,16 +1504,16 @@ let calMode = +(localStorage.getItem('cal_mode') || 7);   // 7 — неделя,
 let calAnchor = new Date();
 let calHidden = new Set(JSON.parse(localStorage.getItem('cal_hidden') || '[]'));
 let calItems = [], calBoards = [], calMenu = null;
-let calFull = localStorage.getItem('cal_full') === '1'; // во всю ширину, как доска
 
 function calDays() {
   if (calMode === 7) { const s = weekStartOf(calAnchor); return Array.from({length: 7}, (_, i) => shiftDays(s, i)); }
-  const s = weekStartOf(new Date(calAnchor.getFullYear(), calAnchor.getMonth(), 1));
-  return Array.from({length: 42}, (_, i) => shiftDays(s, i));
+  const first = new Date(calAnchor.getFullYear(), calAnchor.getMonth(), 1);
+  const n = new Date(calAnchor.getFullYear(), calAnchor.getMonth() + 1, 0).getDate();
+  return Array.from({length: n}, (_, i) => shiftDays(first, i));
 }
 
 async function calendarPage() {
-  $('#app').classList.toggle('kfull', calFull);
+  $('#app').classList.add('kfull'); // календарь всегда во всю ширину
   const days = calDays();
   const [items, boards] = await Promise.all([
     api(`/calendar?frm=${dkey(days[0])}&to=${dkey(days[days.length - 1])}`),
@@ -1528,22 +1528,19 @@ function paintCal() {
   const todayKey = dkey(new Date());
   const byDay = {};
   calItems.filter(it => !calHidden.has(it.board_id)).forEach(it => { (byDay[it.due_date] ||= []).push(it); });
-  const itemHtml = it => {
+  // карточка задачи — как карточка доски: заголовок, время и метка доски
+  const cardHtml = it => {
     const k = tagColor(it.board_name);
-    const time = it.due_time ? `<span class="cal-t">${esc(it.due_time)}</span>` : '';
-    return `<div class="cal-item" draggable="true" data-card="${it.id}">${time}<span class="cal-title">${esc(it.title || 'Без названия')}</span><span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(it.board_name)}</span></div>`;
+    const time = it.due_time ? `<span class="kc-tag kc-date">${esc(it.due_time)}</span>` : '';
+    return `<div class="kcard cal-card" draggable="true" data-card="${it.id}"><div class="kct">${esc(it.title || 'Без названия')}</div><div class="kc-tags">${time}<span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(it.board_name)}</span></div></div>`;
   };
-  const heads = WD_SHORT.map(w => `<div class="cal-dh">${w}</div>`).join('');
-  // 7 дней — колонки как на доске: заголовок дня и карточки задач
-  const weekCols = days.map((d, i) => {
+  const wd = d => (d.getDay() + 6) % 7;
+  const cols = days.map(d => {
     const k = dkey(d);
-    const items = (byDay[k] || []).map(itemHtml).join('');
-    return `<div class="cal-col${k === todayKey ? ' today' : ''}"><div class="cal-dh">${WD_FULL[i]}<br><b>${d.getDate()} ${SHORT_MON[d.getMonth()]} ’${String(d.getFullYear()).slice(2)}</b></div><div class="cal-day" data-day="${k}">${items}</div></div>`;
-  }).join('');
-  const cells = days.map(d => {
-    const k = dkey(d);
-    const cls = ['cal-day', k === todayKey ? 'today' : '', calMode === 31 && d.getMonth() !== calAnchor.getMonth() ? 'other' : ''].join(' ');
-    return `<div class="${cls}" data-day="${k}"><div class="cal-dn">${d.getDate()}</div>${(byDay[k] || []).map(itemHtml).join('')}</div>`;
+    const items = (byDay[k] || []).map(cardHtml).join('');
+    const name = calMode === 7 ? WD_FULL[wd(d)] : `${d.getDate()} ${SHORT_MON[d.getMonth()]}`;
+    const sub = calMode === 7 ? `${d.getDate()} ${SHORT_MON[d.getMonth()]} ’${String(d.getFullYear()).slice(2)}` : WD_SHORT[wd(d)];
+    return `<div class="kcol cal-col${k === todayKey ? ' today' : ''}" data-day="${k}"><div class="kch"><span class="kcname"><span class="kcn">${name}</span><span class="kcnt">${sub}</span></span></div><div class="kcards">${items}</div></div>`;
   }).join('');
   const range = calMode === 7
     ? `${days[0].getDate()} ${MON_GEN[days[0].getMonth()]} – ${days[6].getDate()} ${MON_GEN[days[6].getMonth()]} ${days[6].getFullYear()}`
@@ -1555,10 +1552,9 @@ function paintCal() {
         <button class="cal-today" id="caltoday">Сегодня</button>
         <button class="cal-nav" id="calnext" aria-label="Вперёд">›</button>
         <button class="cal-filter" id="calfilter">Доски</button>
-        <button class="iconbtn" id="calfull" aria-label="Во всю ширину" title="${calFull ? 'Вернуть' : 'Во всю ширину'}">${calFull ? RESTORE_ICON : FULL_ICON}</button>
       </div></div>
     <div class="cal-range">${range}</div>
-    <div class="cal-grid ${calMode === 7 ? 'wk' : 'mo'}">${calMode === 7 ? weekCols : heads + cells}</div>`;
+    <div class="kcols cal-strip">${cols}</div>`;
   document.querySelectorAll('.cal-seg [data-m]').forEach(b => b.onclick = () => {
     calMode = +b.dataset.m; localStorage.setItem('cal_mode', calMode); calendarPage();
   });
@@ -1567,26 +1563,19 @@ function paintCal() {
   $('#calnext').onclick = () => step(1);
   $('#caltoday').onclick = () => { calAnchor = new Date(); calendarPage(); };
   $('#calfilter').onclick = e => { e.stopPropagation(); openCalMenu(); };
-  $('#calfull').onclick = () => {
-    calFull = !calFull;
-    localStorage.setItem('cal_full', calFull ? '1' : '0');
-    $('#app').classList.toggle('kfull', calFull);
-    $('#calfull').innerHTML = calFull ? RESTORE_ICON : FULL_ICON;
-    $('#calfull').title = calFull ? 'Вернуть' : 'Во всю ширину';
-  };
-  document.querySelectorAll('.cal-item').forEach(el => {
+  document.querySelectorAll('.cal-card').forEach(el => {
     el.onclick = () => { if (!calDragging) openCard(+el.dataset.card); };
     el.ondragstart = e => { calDragging = true; e.dataTransfer.setData('text/plain', el.dataset.card); e.dataTransfer.effectAllowed = 'move'; };
     el.ondragend = () => { setTimeout(() => { calDragging = false; }, 0); };
   });
-  document.querySelectorAll('.cal-day').forEach(cell => {
-    cell.ondragover = e => { e.preventDefault(); cell.classList.add('drop'); };
-    cell.ondragleave = () => cell.classList.remove('drop');
-    cell.ondrop = async e => {
+  document.querySelectorAll('.kcol[data-day]').forEach(col => {
+    col.ondragover = e => { e.preventDefault(); col.classList.add('drop'); };
+    col.ondragleave = () => col.classList.remove('drop');
+    col.ondrop = async e => {
       e.preventDefault();
-      cell.classList.remove('drop');
+      col.classList.remove('drop');
       const id = +e.dataTransfer.getData('text/plain');
-      const key = cell.dataset.day;
+      const key = col.dataset.day;
       const it = calItems.find(x => x.id === id);
       if (!it || it.due_date === key) return;
       try { await api('/cards/' + id, {method: 'PATCH', body: {due_date: key}}); }

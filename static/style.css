@@ -649,3 +649,11 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .cal-grid.wk .cal-item .cal-title{white-space:normal;overflow:visible;line-height:1.35}
 .cal-grid.wk .cal-item .cal-t{font-size:12px}
 #app.kfull .cal-head{padding-right:62px}
+
+/* календарь: дни — колонки как на доске, ширина карточек как у доски, прокрутка вправо */
+#app .cal-strip{display:flex;gap:12px;overflow-x:auto;align-items:flex-start;padding-bottom:14px;scrollbar-width:none}
+#app .cal-strip::-webkit-scrollbar{display:none}
+#app .cal-strip .kcol.cal-col{flex:0 0 260px;width:260px;min-width:260px;max-width:260px;align-self:flex-start}
+#app .cal-col.today .kcnt{background:#2f2f33;color:#fff;border-radius:999px;padding:1px 8px}
+#app .cal-col.drop{outline:2px dashed #c9c9d1;outline-offset:4px}
+#app .cal-card{cursor:pointer}
