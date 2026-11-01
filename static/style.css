@@ -506,3 +506,5 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .kb-mi:hover{background:#f2f2f4}
 .kb-mi.bad{color:#d13b3b}
 @media (max-width:560px){.card-sheet .kb-card{padding:12px 22px 22px}}
+/* текст заметки: 16px, межстрочный 24px, начертание 400 */
+.card-sheet .kb-note,.card-sheet .kb-note .kline,.card-sheet .kb-note .kh,.card-sheet .kb-note .kct,.card-sheet .kb-note .kbul{font-size:16px;line-height:24px;font-weight:400}
