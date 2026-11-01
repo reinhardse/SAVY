@@ -991,6 +991,14 @@ function placeInColumn(col, y) {
   }
 }
 
+// пересчёт счётчиков колонок по карточкам на экране
+const refreshColCounts = () => {
+  document.querySelectorAll('.kcol[data-col]').forEach(c => {
+    const el = c.querySelector('.kcnt');
+    if (el) el.textContent = c.querySelectorAll('.kcard').length;
+  });
+};
+
 async function onDragUp() {
   window.removeEventListener('pointermove', onDragMove);
   window.removeEventListener('pointerup', onDragUp);
@@ -1004,6 +1012,7 @@ async function onDragUp() {
   d.ghost.remove();
   document.body.classList.remove('kdragging');
   d.ph.replaceWith(d.el);
+  refreshColCounts();
   const columns = [...document.querySelectorAll('.kcol[data-col]')].map(c => ({
     id: +c.dataset.col,
     cards: [...c.querySelectorAll('.kcard')].map(k => +k.dataset.card),
@@ -1167,7 +1176,13 @@ async function openCard(kid) {
       const id = +b.dataset.col;
       if (id === curCol) return;
       curCol = id; renderCols();
-      try { await api('/cards/' + kid, {method: 'PATCH', body: {column_id: id}}); }
+      try {
+        await api('/cards/' + kid, {method: 'PATCH', body: {column_id: id}});
+        // карточка на доске под окном переезжает в новую колонку, счётчики меняются сразу
+        const el = document.querySelector(`.kcard[data-card="${kid}"]`);
+        const target = document.querySelector(`.kcol[data-col="${id}"] .kcards`);
+        if (el && target) { target.appendChild(el); refreshColCounts(); }
+      }
       catch (e) { alert(e.message); }
     });
   };
