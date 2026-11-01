@@ -183,7 +183,7 @@ function bindRows() {
 
 /* ---------- главная ---------- */
 async function home() {
-  const [me, items, tags] = await Promise.all([api('/me'), api('/items?limit=15'), api('/tags')]);
+  const [me, items, tags, conf] = await Promise.all([api('/me'), api('/items?limit=15'), api('/tags'), api('/settings')]);
   cats = me.categories;
   const listHtml = items.length ? items.map(row).join('') : '<div class="empty">Пока пусто. Вставьте ссылку выше.</div>';
   $('#app').innerHTML = `<div class="titlerow"><div class="brand logo">SAVE</div>
@@ -197,9 +197,11 @@ async function home() {
         <div class="ic">${ICONS[c.slug] || ''}</div><div class="n">${c.count}</div><div class="l">${esc(c.name)}</div></button>`;
     }).join('')}</div>
     <h2>Последние сохранения</h2>
-    <div class="list" id="list">${listHtml}</div>${nav('home')}`;
+    <div class="list" id="list">${listHtml}</div>
+    <div class="home-foot"><button class="linkbtn" id="kpset">${conf.kp_token_set ? 'Ключ Кинопоиска добавлен ✓ · изменить' : 'Добавить ключ Кинопоиска'}</button></div>${nav('home')}`;
   document.querySelectorAll('.tile').forEach(t => t.onclick = () => { location.hash = '#/cat/' + t.dataset.slug; });
   document.querySelectorAll('[data-alltag]').forEach(t => t.onclick = () => { location.hash = '#/tag/' + encodeURIComponent(t.dataset.alltag); });
+  $('#kpset').onclick = () => openKpKey(conf.kp_token_set);
   $('#hsbtn').onclick = () => { openSearch = true; if (location.hash === '#/all') route(); else location.hash = '#/all'; };
   bindPaste(); bindRows(); $('#list').dataset.h = listHtml;
   schedulePoll(items, homeList);
@@ -488,6 +490,27 @@ async function openItem(id) {
   };
 
   build();
+}
+
+/* ---------- ключ Кинопоиска: вводится здесь, без терминала ---------- */
+function openKpKey(isSet) {
+  sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">×</button>
+    <div class="sheet-body kp-body">
+      <div class="kp-title">Ключ Кинопоиска</div>
+      <p class="kp-note">Нужен, чтобы подтягивать название, обложку и описание фильмов. Бесплатный ключ выдаёт Telegram-бот @kinopoiskdev_bot: нажмите «Старт» и скопируйте ключ сюда.</p>
+      <input class="in-text" id="kpkey" placeholder="${isSet ? 'Новый ключ (старый заменится)' : 'Вставьте ключ'}" autocomplete="off" autocapitalize="off" spellcheck="false">
+      <div class="err" id="kperr"></div>
+      <div class="btnrow"><div class="left"></div><button class="savebtn dirty" id="kpsave">Сохранить</button></div>
+    </div>`);
+  $('#sx').onclick = closeSheet;
+  $('#kpkey').focus();
+  $('#kpsave').onclick = async () => {
+    const token = $('#kpkey').value.trim();
+    if (!token) return;
+    const b = $('#kpsave'); b.disabled = true; b.textContent = 'Сохраняю…';
+    try { await api('/settings/kp-token', {method: 'POST', body: {token}}); closeSheet(); }
+    catch (e) { $('#kperr').textContent = e.message; b.disabled = false; b.textContent = 'Сохранить'; }
+  };
 }
 
 /* ---------- старт ---------- */

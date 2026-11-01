@@ -8,6 +8,8 @@ from urllib.parse import parse_qsl, quote, urlencode, urljoin, urlsplit, urlunsp
 import httpx
 from bs4 import BeautifulSoup
 
+from .db import DATA_DIR
+
 UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 "
       "(KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1")
 TRACKING = {"fbclid", "igsh", "igshid", "gclid", "yclid", "si", "feature", "ref", "ref_src", "mc_cid", "mc_eid"}
@@ -18,6 +20,28 @@ ATTEMPTS = 3  # сайты иногда отвечают медленно или
 MAPS_HOSTS = ("maps.google.", "google.com/maps", "maps.app.goo.gl", "yandex.ru/maps", "yandex.com/maps", "2gis.", "maps.apple.com")
 SHOP_HOSTS = ("ozon.", "wildberries.", "market.yandex.", "aliexpress.", "amazon.", "ebay.", "lamoda.")
 BOOK_HOSTS = ("litres.", "labirint.", "goodreads.", "bookmate.", "fantlab.")
+
+
+KP_FILE = DATA_DIR / "kp_token"
+
+
+def kp_token() -> str | None:
+    """Ключ kinopoisk.dev: из переменной окружения или из файла, который заполняется на странице приложения."""
+    t = os.environ.get("LIBRARY_KP_TOKEN")
+    if t and t.strip():
+        return t.strip()
+    try:
+        return KP_FILE.read_text().strip() or None
+    except OSError:
+        return None
+
+
+def set_kp_token(token: str) -> None:
+    if token:
+        KP_FILE.write_text(token)
+        os.chmod(KP_FILE, 0o600)
+    elif KP_FILE.exists():
+        KP_FILE.unlink()
 
 
 SERVICE_HOSTS = ("sso.kinopoisk.ru", "sso.passport.yandex.ru", "passport.yandex.ru")
@@ -252,7 +276,7 @@ def _wikidata_title(client: httpx.Client, kp_id: str, dbg: list | None = None) -
 def _kp_api(client: httpx.Client, kp_id: str, dbg: list) -> tuple[str | None, str | None, str | None]:
     """Название и постер из API по бесплатному ключу: kinopoisk.dev (LIBRARY_KP_TOKEN) или kinopoiskapiunofficial.tech
     (LIBRARY_KPU_TOKEN). Без ключа ничего не делает."""
-    token = os.environ.get("LIBRARY_KP_TOKEN")
+    token = kp_token()
     if token:
         try:
             r = _get_retry(client, f"https://api.kinopoisk.dev/v1.4/movie/{kp_id}",

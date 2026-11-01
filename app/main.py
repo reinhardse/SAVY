@@ -3,6 +3,7 @@ import csv
 import io
 import json
 import os
+import re
 import secrets
 from contextlib import asynccontextmanager
 
@@ -295,6 +296,35 @@ def me(db: Session = Depends(get_db), _: int = Depends(require_auth)):
 @app.get("/api/categories")
 def categories(db: Session = Depends(get_db), _: int = Depends(require_auth)):
     return [cat_out(c) for c in db.scalars(select(Category).order_by(Category.sort))]
+
+
+@app.get("/api/settings")
+def get_settings(_: int = Depends(require_auth)):
+    return {"kp_token_set": bool(meta.kp_token())}
+
+
+class TokenIn(BaseModel):
+    token: str
+
+
+@app.post("/api/settings/kp-token")
+def set_kp_token(body: TokenIn, tasks: BackgroundTasks, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    """Сохраняет ключ kinopoisk.dev и сразу обновляет уже сохранённые фильмы Кинопоиска (название, обложка, описание)."""
+    token = body.token.strip()
+    if token and not re.fullmatch(r"[A-Za-z0-9._-]{8,200}", token):
+        raise HTTPException(400, "Ключ выглядит неправильно: он состоит из букв, цифр и дефисов, без пробелов")
+    meta.set_kp_token(token)
+    refreshed = 0
+    if token:
+        items = db.scalars(select(Item).where(Item.user_id == USER_ID, Item.url.ilike("%kinopoisk.ru/%"))).unique()
+        for it in items:
+            if re.search(r"/(?:film|series)/\d+", it.url):
+                it.source = "kinopoisk"
+                it.meta_state = "pending"
+                tasks.add_task(process_item, it.id)
+                refreshed += 1
+        db.commit()
+    return {"ok": True, "refreshed": refreshed}
 
 
 @app.get("/api/inbox/stats")

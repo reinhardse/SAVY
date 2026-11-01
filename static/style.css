@@ -214,3 +214,9 @@ img.thumb,img.cover{animation:fadeIn .3s ease both}
 .rdesc{color:var(--muted);font-size:14px;font-weight:400;line-height:1.35;margin-top:2px;word-break:break-word}
 .more-d{border:0;background:none;color:var(--ink);font-weight:700;font-size:14px;padding:0 0 0 2px;cursor:pointer;letter-spacing:.05em}
 .more-d:hover{text-decoration:underline}
+
+/* ключ Кинопоиска внизу главной */
+.home-foot{margin-top:6px;padding-bottom:10px}
+.kp-body{padding-top:62px}
+.kp-title{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:8px}
+.kp-note{color:var(--muted);font-size:14px;line-height:1.45;margin:0 0 14px}
