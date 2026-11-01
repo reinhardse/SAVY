@@ -983,14 +983,20 @@ async function onDragUp() {
   }
 }
 
-// окно карточки: заголовок и текст (простой текст, ссылки не превращаются в кнопки)
+// ссылки в тексте становятся кликабельными (безопасно: сначала экранируем текст)
+function linkify(text) {
+  return esc(text || '').replace(/(https?:\/\/[^\s<]+)/g, u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
+}
+
+// окно карточки: заголовок и текст; в тексте ссылки кликабельны
 async function openCard(kid) {
   const c = await api('/cards/' + kid);
   let timer = null, dirty = false;
   sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">${XICON}</button>
     <div class="sheet-body kb-card">
       <textarea class="kb-title" id="kbt" rows="1" maxlength="200" placeholder="Заголовок">${esc(c.title)}</textarea>
-      <textarea class="kb-note" id="kbn" placeholder="Текст заметки">${esc(c.note)}</textarea>
+      <div class="kb-note kb-nv" id="kbnv">${linkify(c.note) || '<span class="ph">Текст заметки</span>'}</div>
+      <textarea class="kb-note" id="kbn" placeholder="Текст заметки" hidden>${esc(c.note)}</textarea>
       <div class="kb-foot"><span class="kb-saved" id="kbs">Сохранено</span><button class="btn bad" id="kbdel">Удалить карточку</button></div>
     </div>`, 'card-sheet');
   const t = $('#kbt'), n = $('#kbn');
@@ -1012,6 +1018,18 @@ async function openCard(kid) {
   };
   t.oninput = () => { grow(t); queue(); };
   n.oninput = () => { grow(n); queue(); };
+  // просмотр: ссылки кликабельны; нажатие по тексту — редактирование
+  const nv = $('#kbnv');
+  nv.onclick = e => {
+    if (e.target.closest('a')) return;
+    nv.hidden = true; n.hidden = false; grow(n); n.focus();
+  };
+  n.onblur = async () => {
+    await flush();
+    n.hidden = true;
+    nv.innerHTML = linkify(n.value) || '<span class="ph">Текст заметки</span>';
+    nv.hidden = false;
+  };
   beforeClose = flush;
   $('#sx').onclick = closeSheet;
   $('#kbdel').onclick = async () => {

@@ -441,3 +441,10 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 /* карточка в колонке «Готово» — пастельно-зелёная, чуть темнее фона колонки; вне колонки снова белая */
 .kcol.kdone .kcard{background:#cdeedb;border-color:#b9e2c9}
 .kcol.kdone .kcard:hover{border-color:#a8d9bb;box-shadow:0 2px 8px rgba(47,100,70,.12)}
+
+/* ссылки в заметке кликабельны; текст в режиме просмотра */
+.kb-nv{white-space:pre-wrap;word-break:break-word;cursor:text}
+.kb-nv .ph{color:var(--muted)}
+.kb-nv a{color:#2f4bb0;text-decoration:underline;text-underline-offset:2px;word-break:break-all}
+.kb-nv a:hover{color:#1d3592}
+[hidden]{display:none!important}
