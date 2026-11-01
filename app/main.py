@@ -491,6 +491,23 @@ def board_out(b: Board) -> dict:
         {"id": col.id, "name": col.name, "cards": [card_out(k) for k in col.cards]} for col in b.columns]}
 
 
+@app.get("/api/calendar")
+def calendar_items(frm: str, to: str, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    """Все карточки с датой из всех досок за период: для экрана «Календарь»."""
+    try:
+        a = _date.fromisoformat(frm).isoformat()
+        b = _date.fromisoformat(to).isoformat()
+    except ValueError:
+        raise HTTPException(400, "Неверная дата")
+    names = {bd.id: bd.name for bd in db.scalars(select(Board).where(Board.user_id == USER_ID)).all()}
+    rows = db.scalars(select(Card).join(Board, Card.board_id == Board.id)
+                      .where(Board.user_id == USER_ID, Card.due_date >= a, Card.due_date <= b)
+                      .order_by(Card.due_date, Card.due_time)).all()
+    return [{"id": c.id, "title": c.title or "", "due_date": c.due_date, "due_time": c.due_time,
+             "duration_min": c.duration_min, "board_id": c.board_id, "board_name": names.get(c.board_id, "")}
+            for c in rows]
+
+
 @app.get("/api/boards")
 def boards_list(db: Session = Depends(get_db), _: int = Depends(require_auth)):
     out = []

@@ -363,6 +363,7 @@ async function route() {
   pollLeft = view === 'home' ? 6 : pollLeft;
   if (view === 'hub') return hub();
   if (view === 'kanban') return boards();
+  if (view === 'calendar') return calendarPage();
   if (view === 'board') return board(+arg);
   const map = {inbox: ['Входящие', {inbox: 1}], all: ['Все материалы', {}]};
   if (view === 'cat') {
@@ -593,7 +594,7 @@ const openHubMenu = async () => {
   const app = (go, icon, label) => `<button class="hm-app" data-go="${go}"><span class="hm-ic">${icon}</span><span class="hm-lb">${esc(label)}</span></button>`;
   const m = document.createElement('div');
   m.className = 'hubmenu';
-  m.innerHTML = `<div class="hm-grid">${app('#/hub', GRID_ICON, 'Хаб')}${app('#/home', APP_ICON_SAVE, 'Сейв')}${app('#/kanban', KB_ICON, 'Доски')}</div>`
+  m.innerHTML = `<div class="hm-grid">${app('#/hub', GRID_ICON, 'Хаб')}${app('#/calendar', CAL_SVG, 'Календарь')}${app('#/home', APP_ICON_SAVE, 'Сейв')}${app('#/kanban', KB_ICON, 'Доски')}</div>`
     + (boards.length ? `<div class="hm-head">Проекты</div><div class="hm-grid">${boards.map(b => app('#/board/' + b.id, KB_ICON, b.name)).join('')}</div>` : '');
   const gcTxt = !gc.configured ? 'Google Календарь · не настроен' : gc.connected ? 'Google Календарь · подключён, отключить' : 'Подключить Google Календарь';
   m.innerHTML += `<div class="hm-foot"><button class="hm-gc" id="hmgc">${gcTxt}</button></div>`;
@@ -1488,6 +1489,140 @@ async function openCard(kid) {
     await api('/cards/' + kid, {method: 'DELETE'});
     closeSheet();
   };
+}
+
+/* ---------- календарь: все карточки с датой из всех досок ---------- */
+const CAL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>';
+const dkey = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const weekStartOf = d => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x; };
+const shiftDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+const WD_FULL = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+const WD_SHORT = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
+const MON_RU = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+const MON_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+let calMode = +(localStorage.getItem('cal_mode') || 7);   // 7 — неделя, 31 — месяц
+let calAnchor = new Date();
+let calHidden = new Set(JSON.parse(localStorage.getItem('cal_hidden') || '[]'));
+let calItems = [], calBoards = [], calMenu = null;
+
+function calDays() {
+  if (calMode === 7) { const s = weekStartOf(calAnchor); return Array.from({length: 7}, (_, i) => shiftDays(s, i)); }
+  const s = weekStartOf(new Date(calAnchor.getFullYear(), calAnchor.getMonth(), 1));
+  return Array.from({length: 42}, (_, i) => shiftDays(s, i));
+}
+
+async function calendarPage() {
+  $('#app').classList.remove('kfull');
+  const days = calDays();
+  const [items, boards] = await Promise.all([
+    api(`/calendar?frm=${dkey(days[0])}&to=${dkey(days[days.length - 1])}`),
+    api('/boards'),
+  ]);
+  calItems = items; calBoards = boards;
+  paintCal();
+}
+
+function paintCal() {
+  const days = calDays();
+  const todayKey = dkey(new Date());
+  const byDay = {};
+  calItems.filter(it => !calHidden.has(it.board_id)).forEach(it => { (byDay[it.due_date] ||= []).push(it); });
+  const itemHtml = it => {
+    const k = tagColor(it.board_name);
+    const time = it.due_time ? `<span class="cal-t">${esc(it.due_time)}</span>` : '';
+    return `<div class="cal-item" draggable="true" data-card="${it.id}">${time}<span class="cal-title">${esc(it.title || 'Без названия')}</span><span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(it.board_name)}</span></div>`;
+  };
+  const heads = calMode === 7
+    ? days.map((d, i) => `<div class="cal-dh">${WD_FULL[i]}<br><b>${d.getDate()} ${SHORT_MON[d.getMonth()]} ’${String(d.getFullYear()).slice(2)}</b></div>`).join('')
+    : WD_SHORT.map(w => `<div class="cal-dh">${w}</div>`).join('');
+  const cells = days.map(d => {
+    const k = dkey(d);
+    const cls = ['cal-day', k === todayKey ? 'today' : '', calMode === 31 && d.getMonth() !== calAnchor.getMonth() ? 'other' : ''].join(' ');
+    return `<div class="${cls}" data-day="${k}"><div class="cal-dn">${d.getDate()}</div>${(byDay[k] || []).map(itemHtml).join('')}</div>`;
+  }).join('');
+  const range = calMode === 7
+    ? `${days[0].getDate()} ${MON_GEN[days[0].getMonth()]} – ${days[6].getDate()} ${MON_GEN[days[6].getMonth()]} ${days[6].getFullYear()}`
+    : `${MON_RU[calAnchor.getMonth()]} ${calAnchor.getFullYear()}`;
+  $('#app').innerHTML = `<div class="titlerow cal-head"><div class="brand">Календарь</div>
+      <div class="cal-tools">
+        <div class="cal-seg"><button data-m="7" class="${calMode === 7 ? 'on' : ''}">7</button><button data-m="31" class="${calMode === 31 ? 'on' : ''}">31</button></div>
+        <button class="cal-nav" id="calprev" aria-label="Назад">‹</button>
+        <button class="cal-today" id="caltoday">Сегодня</button>
+        <button class="cal-nav" id="calnext" aria-label="Вперёд">›</button>
+        <button class="cal-filter" id="calfilter">Доски</button>
+      </div></div>
+    <div class="cal-range">${range}</div>
+    <div class="cal-grid ${calMode === 7 ? 'wk' : 'mo'}">${heads}${cells}</div>`;
+  document.querySelectorAll('.cal-seg [data-m]').forEach(b => b.onclick = () => {
+    calMode = +b.dataset.m; localStorage.setItem('cal_mode', calMode); calendarPage();
+  });
+  const step = n => { calAnchor = calMode === 7 ? shiftDays(calAnchor, 7 * n) : new Date(calAnchor.getFullYear(), calAnchor.getMonth() + n, 1); calendarPage(); };
+  $('#calprev').onclick = () => step(-1);
+  $('#calnext').onclick = () => step(1);
+  $('#caltoday').onclick = () => { calAnchor = new Date(); calendarPage(); };
+  $('#calfilter').onclick = e => { e.stopPropagation(); openCalMenu(); };
+  document.querySelectorAll('.cal-item').forEach(el => {
+    el.onclick = () => { if (!calDragging) openCard(+el.dataset.card); };
+    el.ondragstart = e => { calDragging = true; e.dataTransfer.setData('text/plain', el.dataset.card); e.dataTransfer.effectAllowed = 'move'; };
+    el.ondragend = () => { setTimeout(() => { calDragging = false; }, 0); };
+  });
+  document.querySelectorAll('.cal-day').forEach(cell => {
+    cell.ondragover = e => { e.preventDefault(); cell.classList.add('drop'); };
+    cell.ondragleave = () => cell.classList.remove('drop');
+    cell.ondrop = async e => {
+      e.preventDefault();
+      cell.classList.remove('drop');
+      const id = +e.dataTransfer.getData('text/plain');
+      const key = cell.dataset.day;
+      const it = calItems.find(x => x.id === id);
+      if (!it || it.due_date === key) return;
+      try { await api('/cards/' + id, {method: 'PATCH', body: {due_date: key}}); }
+      catch (err) { alert(err.message); }
+      calendarPage();
+    };
+  });
+}
+let calDragging = false;
+
+function renderCalMenu() {
+  if (!calMenu) return;
+  calMenu.innerHTML = '<div class="sl-head">Доски в календаре</div>' + (calBoards.length
+    ? calBoards.map(b => {
+        const on = !calHidden.has(b.id);
+        const k = tagColor(b.name);
+        const st = on ? ` style="background:${k.bg};border-color:${k.bd};color:${k.tc}"` : '';
+        return `<button class="sl-item" data-b="${b.id}"><span class="cal-box${on ? ' on' : ''}"${st}>✓</span><span class="sl-lb">${esc(b.name)}</span></button>`;
+      }).join('')
+    : '<div class="sl-head">Досок пока нет</div>');
+}
+function closeCalMenu() {
+  if (calMenu) { calMenu.remove(); calMenu = null; }
+}
+function openCalMenu() {
+  if (calMenu) { closeCalMenu(); return; }
+  const btn = $('#calfilter');
+  calMenu = document.createElement('div');
+  calMenu.className = 'slash cal-menu';
+  const r = btn.getBoundingClientRect();
+  calMenu.style.left = Math.max(8, r.right - 260) + 'px';
+  calMenu.style.top = (r.bottom + 6) + 'px';
+  calMenu.onmousedown = e => {
+    e.stopPropagation(); // меню перерисуется; внешний клик его не должен закрыть
+    const row = e.target.closest('[data-b]');
+    if (!row) return;
+    e.preventDefault();
+    const id = +row.dataset.b;
+    calHidden.has(id) ? calHidden.delete(id) : calHidden.add(id);
+    localStorage.setItem('cal_hidden', JSON.stringify([...calHidden]));
+    renderCalMenu();
+    paintCal();
+  };
+  document.body.appendChild(calMenu);
+  renderCalMenu();
+  document.addEventListener('mousedown', function off(e) {
+    if (!calMenu) { document.removeEventListener('mousedown', off); return; }
+    if (!calMenu.contains(e.target) && !(e.target.closest && e.target.closest('#calfilter'))) { closeCalMenu(); document.removeEventListener('mousedown', off); }
+  });
 }
 
 /* ---------- старт ---------- */
