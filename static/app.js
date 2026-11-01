@@ -34,6 +34,11 @@ const BACK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-
 const LIST_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>';
 const TILES_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.8"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.8"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.8"/></svg>';
 const XICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+const HOME_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>';
+const INBOX_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13l2.5-7.5A2 2 0 0 1 7.4 4h9.2a2 2 0 0 1 1.9 1.5L21 13"/><path d="M3 13v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5h-5l-1.5 2.5h-5L8 13z"/></svg>';
+const FOLDER_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
+const INBOX_STYLE = {bg: '#e7edff', tc: '#2f4bb0'};
+const ALL_STYLE = {bg: '#efeff2', tc: '#222'};
 const PEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>';
 // глаз: серый по умолчанию, пастельная зелёная галочка, когда материал проработан
 const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M7 12c1.5-2.5 3.2-3.8 5-3.8s3.5 1.3 5 3.8c-1.5 2.5-3.2 3.8-5 3.8S8.5 14.5 7 12z"/><circle cx="12" cy="12" r="1.7"/></svg>';
@@ -112,9 +117,8 @@ function showLogin() {
 }
 
 /* ---------- каркас ---------- */
-function nav(active) {
-  return `<nav><div class="in">${NAV.map(([k, l, ic]) => `<a href="#/${k}" class="${k === active ? 'on' : ''}"><b>${ic}</b><span>${l}</span></a>`).join('')}</div></nav>`;
-}
+// боковое меню убрано: разделы открываются плитками на главной
+function nav() { return ''; }
 
 function pasteHtml() {
   return `<div class="paste"><input id="paste" placeholder="Вставить ссылку" inputmode="url" autocapitalize="off"><button class="paste-go" id="pastego" aria-label="Добавить"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button></div>`;
@@ -218,25 +222,24 @@ function bindRows() {
 
 /* ---------- главная ---------- */
 async function home() {
-  const [me, items, tags, conf] = await Promise.all([api('/me'), api('/items?limit=15'), api('/tags'), api('/settings')]);
+  const [me, items, tags, conf, inbox] = await Promise.all([api('/me'), api('/items?limit=15'), api('/tags'), api('/settings'), api('/inbox/stats')]);
   cats = me.categories;
   const homeEmpty = '<div class="empty">Пока пусто. Вставьте ссылку выше.</div>';
   lastItems = items; lastEmpty = homeEmpty;
   const listHtml = items.length ? items.map(row).join('') : homeEmpty;
+  const tile = (go, st, icon, count, label) => `<button class="tile" style="--c:${st.bg};--tc:${st.tc}" data-go="${go}"><div class="ic">${icon}</div><div class="tf"><div class="n">${count}</div><div class="l">${esc(label)}</div></div></button>`;
+  const catTiles = me.categories.map(c => tile('#/cat/' + c.slug, styleOf(c.slug), ICONS[c.slug] || FOLDER_ICON, c.count, c.name)).join('');
+  const tilesHtml = tile('#/inbox', INBOX_STYLE, INBOX_ICON, inbox.count, 'Входящие') + catTiles
+    + tile('#/all', ALL_STYLE, TILES_ICON, me.total, 'Все');
   $('#app').innerHTML = `<div class="titlerow"><div class="brand logo">SAVE</div>
       <div class="tr-actions">${viewBtn()}<button class="iconbtn" id="hsbtn" aria-label="Поиск">${LOUPE}</button></div></div>
-    <div class="hero"><div class="big">${me.total}</div><div class="sub">Материалов в библиотеке</div></div>
     ${pasteHtml()}
     ${tags.length ? `<div class="tags home-tags">${tags.map(t => `<span class="tagchip" data-alltag="${esc(t.name)}">#${esc(t.name)}</span>`).join('')}</div>` : ''}
-    <div class="tiles">${me.categories.map(c => {
-      const st = styleOf(c.slug);
-      return `<button class="tile" style="--c:${st.bg};--tc:${st.tc}" data-slug="${esc(c.slug)}">
-        <div class="ic">${ICONS[c.slug] || ''}</div><div class="n">${c.count}</div><div class="l">${esc(c.name)}</div></button>`;
-    }).join('')}</div>
+    <div class="tiles">${tilesHtml}</div>
     <h2>Последние сохранения</h2>
     <div class="list${viewMode === 'tiles' ? ' grid' : ''}" id="list">${listHtml}</div>
-    <div class="home-foot"><button class="linkbtn" id="kpset">${conf.kp_token_set ? 'Ключ Кинопоиска добавлен ✓ · изменить' : 'Добавить ключ Кинопоиска'}</button></div>${nav('home')}`;
-  document.querySelectorAll('.tile').forEach(t => t.onclick = () => { location.hash = '#/cat/' + t.dataset.slug; });
+    <div class="home-foot"><button class="linkbtn" id="kpset">${conf.kp_token_set ? 'Ключ Кинопоиска добавлен ✓ · изменить' : 'Добавить ключ Кинопоиска'}</button></div>`;
+  document.querySelectorAll('[data-go]').forEach(t => t.onclick = () => { location.hash = t.dataset.go; });
   document.querySelectorAll('[data-alltag]').forEach(t => t.onclick = () => { location.hash = '#/tag/' + encodeURIComponent(t.dataset.alltag); });
   $('#kpset').onclick = () => openKpKey(conf.kp_token_set);
   $('#vbtn').onclick = toggleView;
@@ -260,6 +263,7 @@ async function listView(title, params, active, withTags = false) {
   const wantSearch = openSearch; openSearch = false;
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">${esc(title)}</div>
       <div class="tr-actions"><button class="iconbtn" id="bback" aria-label="Назад">${BACK}</button>
+      <button class="iconbtn" id="hbtn" aria-label="Главная">${HOME_ICON}</button>
       ${viewBtn()}<button class="iconbtn" id="sbtn" aria-label="Поиск">${LOUPE}</button></div></div>
     ${params.category || params.inbox ? '<div class="catsub" id="csub"></div>' : ''}
     ${active === 'inbox' ? pasteHtml() : ''}
@@ -269,6 +273,7 @@ async function listView(title, params, active, withTags = false) {
   bindPaste();
   $('#vbtn').onclick = toggleView;
   $('#bback').onclick = () => { location.hash = '#/home'; };
+  $('#hbtn').onclick = () => { location.hash = '#/home'; };
   if (wantSearch) setTimeout(() => $('#q').focus(), 0);
   $('#sbtn').onclick = () => {
     const box = $('#q');
