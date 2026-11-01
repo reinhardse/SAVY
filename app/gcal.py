@@ -5,7 +5,7 @@
 """
 import logging
 import os
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import httpx
 from sqlalchemy import select
@@ -75,7 +75,8 @@ def _body(card: Card, board_name: str) -> dict:
     title = card.title or "Без названия"
     desc = f"Из SAVE · доска «{board_name}»"
     if card.due_time:
-        start = datetime.fromisoformat(f"{card.due_date}T{card.due_time}:00")
+        # смещение указываем явно: Москва, +03:00 круглый год
+        start = datetime.fromisoformat(f"{card.due_date}T{card.due_time}:00").replace(tzinfo=timezone(timedelta(hours=3)))
         end = start + timedelta(minutes=card.duration_min or 60)
         return {"summary": title, "description": desc,
                 "start": {"dateTime": start.isoformat(), "timeZone": TZ},
