@@ -988,40 +988,74 @@ function linkify(text) {
   return esc(text || '').replace(/(https?:\/\/[^\s<]+)/g, u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
 }
 
-// заметка: [ ] и [x] — чекбоксы, «## » — заголовок, «- » — список, остальное — текст со ссылками
-function renderNote(text) {
-  return (text || '').split('\n').map((line, i) => {
+// ----- заметка: один редактируемый блок; строки: обычные, «## » заголовок, «- » список, «[ ] » / «[x] » чекбоксы -----
+const textOf = el => (el ? (el.textContent || '') : '').replace(/ /g, ' ');
+
+function lineHtml(kind, text, checked) {
+  const body = linkify(text) || '<br>';
+  if (kind === 'check') return `<div class="kline kcheck${checked ? ' done' : ''}"><input type="checkbox" class="kcb" contenteditable="false"${checked ? ' checked' : ''}><span class="kct">${body}</span></div>`;
+  if (kind === 'h') return `<div class="kh">${body}</div>`;
+  if (kind === 'bul') return `<div class="kline kbul">${body}</div>`;
+  return `<div class="kline">${body}</div>`;
+}
+
+function createLine(kind, text, checked = false) {
+  const t = document.createElement('template');
+  t.innerHTML = lineHtml(kind, text, checked).trim();
+  return t.content.firstElementChild;
+}
+
+function renderNoteEdit(text) {
+  return (text || '').split('\n').map(line => {
     const m = line.match(/^\[( |x|X)\] ?(.*)$/);
-    if (m) {
-      const done = m[1] !== ' ';
-      return `<div class="kline kcheck${done ? ' done' : ''}"><input type="checkbox" class="kcb" data-cb="${i}"${done ? ' checked' : ''}><span>${linkify(m[2])}</span></div>`;
-    }
-    if (line.startsWith('## ')) return `<div class="kh">${linkify(line.slice(3))}</div>`;
-    if (line.startsWith('- ')) return `<div class="kline kbul">• ${linkify(line.slice(2))}</div>`;
-    return `<div class="kline">${linkify(line) || '<br>'}</div>`;
+    if (m) return lineHtml('check', m[2], m[1] !== ' ');
+    if (line.startsWith('## ')) return lineHtml('h', line.slice(3));
+    if (line.startsWith('- ')) return lineHtml('bul', line.slice(2));
+    return lineHtml('plain', line);
   }).join('');
 }
 
-// окно карточки: заголовок и текст; в тексте ссылки кликабельны
+// текст заметки из блока: по строкам
+function readNote(root) {
+  return [...root.childNodes].map(node => {
+    if (node.nodeType === 3) return node.textContent;
+    const el = node;
+    if (el.classList && el.classList.contains('kcheck')) return `[${el.querySelector('.kcb').checked ? 'x' : ' '}] ${textOf(el.querySelector('.kct'))}`;
+    if (el.classList && el.classList.contains('kh')) return '## ' + textOf(el);
+    if (el.classList && el.classList.contains('kbul')) return '- ' + textOf(el);
+    return textOf(el);
+  }).join('\n');
+}
+
+function caretEnd(el) {
+  const target = el.classList.contains('kcheck') ? el.querySelector('.kct') : el;
+  const r = document.createRange();
+  r.selectNodeContents(target);
+  r.collapse(false);
+  const s = getSelection();
+  s.removeAllRanges();
+  s.addRange(r);
+}
+
+// окно карточки: заголовок и заметка
 async function openCard(kid) {
   const c = await api('/cards/' + kid);
   let timer = null, dirty = false;
   sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">${XICON}</button>
     <div class="sheet-body kb-card">
       <textarea class="kb-title" id="kbt" rows="1" maxlength="200" placeholder="Заголовок">${esc(c.title)}</textarea>
-      <div class="kb-note kb-nv" id="kbnv">${renderNote(c.note) || '<span class="ph">Текст заметки</span>'}</div>
-      <textarea class="kb-note" id="kbn" placeholder="Текст заметки" hidden>${esc(c.note)}</textarea>
+      <div class="kb-note kb-edit" id="kbn" contenteditable="true" spellcheck="false">${renderNoteEdit(c.note)}</div>
       <div class="kb-foot"><span class="kb-saved" id="kbs">Сохранено</span><button class="btn bad" id="kbdel">Удалить карточку</button></div>
     </div>`, 'card-sheet');
   const t = $('#kbt'), n = $('#kbn');
   const grow = el => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
-  grow(t); grow(n);
+  grow(t);
   const flush = async () => {
     clearTimeout(timer); timer = null;
     if (!dirty) return;
     dirty = false;
     try {
-      await api('/cards/' + kid, {method: 'PATCH', body: {title: t.value.slice(0, 200), note: n.value}});
+      await api('/cards/' + kid, {method: 'PATCH', body: {title: t.value.slice(0, 200), note: readNote(n)}});
       const s = $('#kbs'); if (s) s.textContent = 'Сохранено';
     } catch (e) { alert(e.message); }
   };
@@ -1031,65 +1065,103 @@ async function openCard(kid) {
     clearTimeout(timer); timer = setTimeout(flush, 500);
   };
   t.oninput = () => { grow(t); queue(); };
-  // «/» в тексте открывает меню форматирования
-  const SLASH = [['Чекбокс', '[ ] '], ['Заголовок', '## '], ['Список', '- ']];
-  let slashAt = -1, menu = null;
-  const closeSlash = () => { if (menu) menu.remove(); menu = null; slashAt = -1; };
-  const openSlash = at => {
+
+  // «/» — меню форматирования
+  const SLASH = [['Чекбокс', 'check'], ['Заголовок', 'h'], ['Список', 'bul']];
+  let menu = null, slashNode = null, slashOff = 0;
+  const closeSlash = () => { if (menu) menu.remove(); menu = null; slashNode = null; };
+  const openSlash = (node, off) => {
     closeSlash();
-    slashAt = at;
-    const before = n.value.slice(0, at + 1).split('\n');
-    const lh = parseFloat(getComputedStyle(n).lineHeight) || 28;
+    slashNode = node; slashOff = off;
+    const r = document.createRange();
+    r.setStart(node, off); r.collapse(true);
+    const rc = r.getBoundingClientRect();
     menu = document.createElement('div');
     menu.className = 'slash';
-    menu.style.top = (n.offsetTop + (before.length) * lh + 6) + 'px';
-    menu.style.left = (n.offsetLeft + 4) + 'px';
+    menu.style.left = Math.max(8, rc.left) + 'px';
+    menu.style.top = (rc.bottom + 6) + 'px';
     menu.innerHTML = SLASH.map(([label], k) => `<button data-k="${k}">${label}</button>`).join('');
-    // mousedown, а не click: иначе поле потеряет фокус раньше выбора
     menu.onmousedown = e => {
       const btn = e.target.closest('[data-k]');
       if (!btn) return;
       e.preventDefault();
-      const pre = SLASH[+btn.dataset.k][1];
-      n.value = n.value.slice(0, slashAt) + pre + n.value.slice(slashAt + 1);
-      const caret = slashAt + pre.length;
-      closeSlash();
-      n.setSelectionRange(caret, caret);
-      grow(n); queue(); n.focus();
+      chooseSlash(SLASH[+btn.dataset.k][1]);
     };
-    $('#ov').querySelector('.sheet').querySelector('.kb-card').appendChild(menu);
+    document.body.appendChild(menu);
   };
+  const chooseSlash = kind => {
+    if (!slashNode) return;
+    const txt = slashNode.textContent;
+    slashNode.textContent = txt.slice(0, slashOff - 1) + txt.slice(slashOff);
+    let el = slashNode;
+    while (el && el.parentNode !== n) el = el.parentNode;
+    closeSlash();
+    if (!el) return;
+    const text = el.classList.contains('kcheck') ? textOf(el.querySelector('.kct')) : textOf(el);
+    const nl = createLine(kind, text.trim());
+    n.replaceChild(nl, el);
+    n.focus({preventScroll: true});
+    caretEnd(nl);
+    queue();
+  };
+
   n.oninput = () => {
-    grow(n); queue();
-    const pos = n.selectionStart, ch = n.value[pos - 1], prev = n.value[pos - 2];
-    if (ch === '/' && (pos === 1 || prev === '\n' || prev === ' ')) openSlash(pos - 1);
-    else closeSlash();
-  };
-  n.addEventListener('keydown', e => { if (e.key === 'Escape') closeSlash(); });
-  // просмотр: ссылки кликабельны, галочки переключаются, нажатие по тексту — редактирование
-  const nv = $('#kbnv');
-  const edit = () => { nv.hidden = true; n.hidden = false; grow(n); n.focus(); };
-  nv.onclick = e => {
-    const cb = e.target.closest('.kcb');
-    if (cb) {
-      const lines = n.value.split('\n');
-      const k = +cb.dataset.cb;
-      lines[k] = lines[k].replace(/^\[( |x|X)\]/, cb.checked ? '[x]' : '[ ]');
-      n.value = lines.join('\n');
-      nv.innerHTML = renderNote(n.value);
-      queue();
-      return;
+    queue();
+    const s = getSelection();
+    if (!s.rangeCount || !s.getRangeAt(0).collapsed) { closeSlash(); return; }
+    const r = s.getRangeAt(0);
+    const node = r.startContainer;
+    if (node.nodeType === 3) {
+      const before = node.textContent.slice(0, r.startOffset);
+      if (before.endsWith('/') && (before.length === 1 || /\s$/.test(before.slice(0, -1)))) { openSlash(node, r.startOffset); return; }
     }
-    if (e.target.closest('a')) return;
-    edit();
+    closeSlash();
   };
+  n.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeSlash(); return; }
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    const s = getSelection();
+    if (!s.rangeCount) return;
+    let el = s.anchorNode;
+    while (el && el.parentNode !== n) el = el.parentNode;
+    if (!el || !el.classList) return;
+    const isCheck = el.classList.contains('kcheck'), isBul = el.classList.contains('kbul');
+    if (!isCheck && !isBul) return;
+    e.preventDefault();
+    const text = isCheck ? textOf(el.querySelector('.kct')) : textOf(el);
+    if (text.trim() === '') {
+      // пустой пункт + Enter — список заканчивается, строка становится обычной
+      const plain = createLine('plain', '');
+      n.replaceChild(plain, el);
+      caretEnd(plain);
+    } else {
+      const nl = createLine(isCheck ? 'check' : 'bul', '');
+      el.after(nl);
+      caretEnd(nl);
+    }
+    queue();
+  });
+  // галочка: строка светлеет и перечёркивается
+  n.addEventListener('change', e => {
+    if (e.target.classList && e.target.classList.contains('kcb')) {
+      e.target.closest('.kcheck').classList.toggle('done', e.target.checked);
+      queue();
+    }
+  });
+  // ссылки открываются по нажатию, даже в режиме редактирования
+  n.addEventListener('click', e => {
+    const a = e.target.closest('a');
+    if (a) { e.preventDefault(); window.open(a.href, '_blank', 'noopener'); }
+  });
+  // при выходе из поля ссылки, набранные вручную, становятся кликабельными
   n.onblur = async () => {
     closeSlash();
     await flush();
-    n.hidden = true;
-    nv.innerHTML = renderNote(n.value) || '<span class="ph">Текст заметки</span>';
-    nv.hidden = false;
+    const pos = n.scrollTop;
+    n.innerHTML = renderNoteEdit(readNote(n));
+    n.scrollTop = pos;
   };
+
   beforeClose = flush;
   $('#sx').onclick = closeSheet;
   $('#kbdel').onclick = async () => {
