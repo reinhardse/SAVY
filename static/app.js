@@ -731,13 +731,23 @@ function inlineEdit(el, value, onSave, onCancel, placeholder = '') {
 
 /* ---------- канбан: одна доска ---------- */
 let curBoard = null;
+// превью заметки для карточки доски: строки без маркеров, одной строкой
+const cardPreview = note => (note || '').split('\n')
+  .map(l => l.replace(/^\[( |x|X)\] ?/, '').replace(/^## /, '').replace(/^- /, '').trim())
+  .filter(Boolean).join(' ').slice(0, 160);
+const cardHtml = c => {
+  const prev = cardPreview(c.note);
+  const tags = (c.tags || []).map(t => `<span class="kc-tag">${esc(t)}</span>`).join('');
+  return `<div class="kcard" data-card="${c.id}"><div class="kct${c.title ? '' : ' ph'}">${esc(c.title || 'Без названия')}</div>${prev ? `<div class="kc-prev">${esc(prev)}</div>` : ''}${tags ? `<div class="kc-tags">${tags}</div>` : ''}</div>`;
+};
+
 async function board(bid) {
   curBoard = bid;
   const b = await api('/boards/' + bid);
   const cols = b.columns.map(col => `<div class="kcol${/готов/i.test(col.name) ? ' kdone' : ''}" data-col="${col.id}">
       <div class="kch"><span class="kcn" data-rencol="${col.id}" title="Нажмите, чтобы переименовать">${esc(col.name)}</span>
         <button class="rb del" data-delcol="${col.id}" aria-label="Удалить колонку">${XICON}</button></div>
-      <div class="kcards">${col.cards.map(c => `<div class="kcard" data-card="${c.id}"><div class="kct${c.title ? '' : ' ph'}">${esc(c.title || 'Без названия')}</div></div>`).join('')}</div>
+      <div class="kcards">${col.cards.map(cardHtml).join('')}</div>
       <button class="kadd" data-addcard="${col.id}">+ Добавить карточку</button>
     </div>`).join('');
   $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
@@ -1045,6 +1055,8 @@ function caretEnd(el) {
 // окно карточки: заголовок и заметка
 async function openCard(kid) {
   const c = await api('/cards/' + kid);
+  const bd = await api('/boards/' + c.board_id);
+  let boardTags = bd.tags || [], cardTags = c.tags || [];
   let timer = null, dirty = false;
   const DOTS = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';
   sheet(`<div class="sheet-body kb-card">
@@ -1057,9 +1069,44 @@ async function openCard(kid) {
         </div>
       </div>
       <textarea class="kb-title" id="kbt" rows="1" maxlength="200" placeholder="Заголовок">${esc(c.title)}</textarea>
+      <div class="kb-tags" id="kbtags"></div>
+      <hr class="kb-hr">
       <div class="kb-note kb-edit" id="kbn" contenteditable="true" spellcheck="false">${renderNoteEdit(c.note)}</div>
     </div>`, 'card-sheet');
   const t = $('#kbt'), n = $('#kbn');
+  // теги: список доски, отмеченные — у карточки
+  const renderTags = () => {
+    const box = $('#kbtags');
+    box.innerHTML = boardTags.map(x => `<button class="kb-tag${cardTags.includes(x) ? ' on' : ''}" data-tag="${esc(x)}">${esc(x)}</button>`).join('')
+      + '<button class="kb-tag add" id="kbaddtag">+ тег</button>';
+    box.querySelectorAll('[data-tag]').forEach(b => b.onclick = async () => {
+      const name = b.dataset.tag;
+      cardTags = cardTags.includes(name) ? cardTags.filter(x => x !== name) : [...cardTags, name];
+      renderTags();
+      try { const r = await api('/cards/' + kid, {method: 'PATCH', body: {tags: cardTags}}); cardTags = r.tags; renderTags(); }
+      catch (e) { alert(e.message); }
+    });
+    $('#kbaddtag').onclick = () => {
+      $('#kbaddtag').outerHTML = '<input class="kb-tag-in" id="kbnewtag" placeholder="Новый тег" maxlength="40">';
+      const inp = $('#kbnewtag'); inp.focus();
+      inp.onblur = () => renderTags();
+      inp.onkeydown = async e => {
+        if (e.key === 'Escape') { inp.onblur = null; renderTags(); return; }
+        if (e.key !== 'Enter') return;
+        const name = inp.value.trim();
+        inp.onblur = null;
+        if (!name) { renderTags(); return; }
+        try {
+          const b2 = await api('/boards/' + c.board_id, {method: 'PATCH', body: {tags: [...boardTags, name]}});
+          boardTags = b2.tags;
+          const k2 = await api('/cards/' + kid, {method: 'PATCH', body: {tags: [...cardTags, name]}});
+          cardTags = k2.tags;
+        } catch (err) { alert(err.message); }
+        renderTags();
+      };
+    };
+  };
+  renderTags();
   const grow = el => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
   grow(t);
   const flush = async () => {

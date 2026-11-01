@@ -92,6 +92,7 @@ class Board(Base):
     user_id = Column(Integer, nullable=False, default=1, index=True)
     name = Column(String(120), nullable=False)
     status = Column(String(20), default="work")  # work — в работе, pause — пауза, archive — архив
+    tags = Column(Text, default="[]")  # свой список тегов доски, JSON-массив строк
     created_at = Column(DateTime, default=now)
     columns = relationship("KColumn", back_populates="board", cascade="all, delete-orphan", order_by="KColumn.sort")
 
@@ -113,6 +114,7 @@ class Card(Base):
     column_id = Column(Integer, ForeignKey("kcolumns.id", ondelete="CASCADE"), nullable=False, index=True)
     title = Column(String(200), default="")
     note = Column(Text, default="")
+    tags = Column(Text, default="[]")  # теги карточки — из списка её доски, JSON-массив строк
     sort = Column(Integer, default=0)
     created_at = Column(DateTime, default=now)
     column = relationship("KColumn", back_populates="cards")
@@ -125,6 +127,13 @@ def init_db():
     if "status" not in [c["name"] for c in inspect(engine).get_columns("boards")]:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE boards ADD COLUMN status VARCHAR(20) DEFAULT 'work'"))
+    cols = inspect(engine).get_columns
+    if "tags" not in [c["name"] for c in cols("boards")]:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE boards ADD COLUMN tags TEXT DEFAULT '[]'"))
+    if "tags" not in [c["name"] for c in cols("cards")]:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE cards ADD COLUMN tags TEXT DEFAULT '[]'"))
     with SessionLocal() as s:
         if not s.scalars(select(Category)).first():
             for slug, name, color, sort in DEFAULT_CATEGORIES:

@@ -434,6 +434,7 @@ class CardPatch(BaseModel):
     title: str | None = None
     note: str | None = None
     column_id: int | None = None
+    tags: list[str] | None = None
 
 
 def _board(db: Session, bid: int) -> Board:
@@ -459,12 +460,30 @@ def _card(db: Session, kid: int) -> Card:
     return c
 
 
+def _tags(raw) -> list[str]:
+    try:
+        v = json.loads(raw or "[]")
+    except ValueError:
+        return []
+    return [t for t in v if isinstance(t, str)] if isinstance(v, list) else []
+
+
+def _clean_tags(items) -> list[str]:
+    out = []
+    for t in items:
+        t = (t or "").strip()[:40]
+        if t and t.lower() not in [o.lower() for o in out]:
+            out.append(t)
+    return out[:50]
+
+
 def card_out(c: Card) -> dict:
-    return {"id": c.id, "title": c.title or "", "note": c.note or "", "column_id": c.column_id}
+    return {"id": c.id, "title": c.title or "", "note": c.note or "", "column_id": c.column_id,
+            "board_id": c.board_id, "tags": _tags(c.tags)}
 
 
 def board_out(b: Board) -> dict:
-    return {"id": b.id, "name": b.name, "columns": [
+    return {"id": b.id, "name": b.name, "tags": _tags(b.tags), "columns": [
         {"id": col.id, "name": col.name, "cards": [card_out(k) for k in col.cards]} for col in b.columns]}
 
 
@@ -494,6 +513,7 @@ def board_read(bid: int, db: Session = Depends(get_db), _: int = Depends(require
 class BoardPatch(BaseModel):
     name: str | None = None
     status: str | None = None
+    tags: list[str] | None = None
 
 
 BOARD_STATUSES = ("work", "pause", "archive")
@@ -508,8 +528,15 @@ def board_rename(bid: int, body: BoardPatch, db: Session = Depends(get_db), _: i
         if body.status not in BOARD_STATUSES:
             raise HTTPException(400, "Неизвестный статус")
         b.status = body.status
+    if body.tags is not None:
+        new = _clean_tags(body.tags)
+        gone = {t for t in _tags(b.tags) if t not in new}
+        if gone:
+            for k in db.scalars(select(Card).where(Card.board_id == b.id)).all():
+                k.tags = json.dumps([t for t in _tags(k.tags) if t not in gone], ensure_ascii=False)
+        b.tags = json.dumps(new, ensure_ascii=False)
     db.commit()
-    return {"id": b.id, "name": b.name, "status": b.status}
+    return {"id": b.id, "name": b.name, "status": b.status, "tags": _tags(b.tags)}
 
 
 @app.delete("/api/boards/{bid}")
@@ -574,6 +601,9 @@ def card_patch(kid: int, body: CardPatch, db: Session = Depends(get_db), _: int 
         if c.board_id != k.board_id:
             raise HTTPException(400, "Колонка из другой доски")
         k.column_id = c.id
+    if "tags" in fields and body.tags is not None:
+        allowed = set(_tags(_board(db, k.board_id).tags))
+        k.tags = json.dumps([t for t in _clean_tags(body.tags) if t in allowed], ensure_ascii=False)
     db.commit()
     return card_out(k)
 
