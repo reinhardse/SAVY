@@ -731,14 +731,10 @@ function inlineEdit(el, value, onSave, onCancel, placeholder = '') {
 
 /* ---------- канбан: одна доска ---------- */
 let curBoard = null;
-// превью заметки для карточки доски: строки без маркеров, одной строкой
-const cardPreview = note => (note || '').split('\n')
-  .map(l => l.replace(/^\[( |x|X)\] ?/, '').replace(/^## /, '').replace(/^- /, '').trim())
-  .filter(Boolean).join(' ').slice(0, 160);
+// карточка доски: заголовок и теги
 const cardHtml = c => {
-  const prev = cardPreview(c.note);
   const tags = (c.tags || []).map(t => `<span class="kc-tag">${esc(t)}</span>`).join('');
-  return `<div class="kcard" data-card="${c.id}"><div class="kct${c.title ? '' : ' ph'}">${esc(c.title || 'Без названия')}</div>${prev ? `<div class="kc-prev">${esc(prev)}</div>` : ''}${tags ? `<div class="kc-tags">${tags}</div>` : ''}</div>`;
+  return `<div class="kcard" data-card="${c.id}"><div class="kct${c.title ? '' : ' ph'}">${esc(c.title || 'Без названия')}</div>${tags ? `<div class="kc-tags">${tags}</div>` : ''}</div>`;
 };
 
 async function board(bid) {
@@ -1001,25 +997,25 @@ function linkify(text) {
 // ----- заметка: один редактируемый блок; строки: обычные, «## » заголовок, «- » список, «[ ] » / «[x] » чекбоксы -----
 const textOf = el => (el ? (el.textContent || '') : '').replace(/​/g, '').replace(/ /g, ' ');
 
-function lineHtml(kind, text, checked) {
+function lineHtml(kind, text, checked, level = 0) {
   // пустая строка держит каретку: нулевой символ вместо <br>
   const body = linkify(text) || '​';
-  if (kind === 'check') return `<div class="kline kcheck${checked ? ' done' : ''}"><span class="kcb" contenteditable="false" role="checkbox" aria-checked="${checked ? 'true' : 'false'}"></span><span class="kct">${body}</span></div>`;
+  if (kind === 'check') return `<div class="kline kcheck${checked ? ' done' : ''}" data-lvl="${level}" style="margin-left:${level * 24}px"><span class="kcb" contenteditable="false" role="checkbox" aria-checked="${checked ? 'true' : 'false'}"></span><span class="kct">${body}</span></div>`;
   if (kind === 'h') return `<div class="kh">${body}</div>`;
   if (kind === 'bul') return `<div class="kline kbul">${body}</div>`;
   return `<div class="kline">${body}</div>`;
 }
 
-function createLine(kind, text, checked = false) {
+function createLine(kind, text, checked = false, level = 0) {
   const t = document.createElement('template');
-  t.innerHTML = lineHtml(kind, text, checked).trim();
+  t.innerHTML = lineHtml(kind, text, checked, level).trim();
   return t.content.firstElementChild;
 }
 
 function renderNoteEdit(text) {
   return (text || '').split('\n').map(line => {
-    const m = line.match(/^\[( |x|X)\] ?(.*)$/);
-    if (m) return lineHtml('check', m[2], m[1] !== ' ');
+    const m = line.match(/^( *)\[( |x|X)\] ?(.*)$/);
+    if (m) return lineHtml('check', m[3], m[2] !== ' ', Math.min(6, Math.floor(m[1].length / 2)));
     if (line.startsWith('## ')) return lineHtml('h', line.slice(3));
     if (line.startsWith('- ')) return lineHtml('bul', line.slice(2));
     return lineHtml('plain', line);
@@ -1031,7 +1027,7 @@ function readNote(root) {
   return [...root.childNodes].map(node => {
     if (node.nodeType === 3) return node.textContent;
     const el = node;
-    if (el.classList && el.classList.contains('kcheck')) return `[${el.classList.contains('done') ? 'x' : ' '}] ${textOf(el.querySelector('.kct'))}`;
+    if (el.classList && el.classList.contains('kcheck')) return '  '.repeat(+(el.dataset.lvl || 0)) + `[${el.classList.contains('done') ? 'x' : ' '}] ${textOf(el.querySelector('.kct'))}`;
     if (el.classList && el.classList.contains('kh')) return '## ' + textOf(el);
     if (el.classList && el.classList.contains('kbul')) return '- ' + textOf(el);
     return textOf(el);
@@ -1068,7 +1064,7 @@ async function openCard(kid) {
           <div class="kb-menu" id="kbmenu" hidden><button class="kb-mi bad" id="kbdel">Удалить карточку</button></div>
         </div>
       </div>
-      <textarea class="kb-title" id="kbt" rows="1" maxlength="200" placeholder="Заголовок">${esc(c.title)}</textarea>
+      <div class="kb-title" id="kbt" contenteditable="true" spellcheck="false" data-ph="Заголовок">${linkify((c.title || '').replace(/\s+/g, ' '))}</div>
       <div class="kb-tags" id="kbtags"></div>
       <hr class="kb-hr">
       <div class="kb-note kb-edit" id="kbn" contenteditable="true" spellcheck="false">${renderNoteEdit(c.note)}</div>
@@ -1114,7 +1110,7 @@ async function openCard(kid) {
     if (!dirty) return;
     dirty = false;
     try {
-      await api('/cards/' + kid, {method: 'PATCH', body: {title: t.value.slice(0, 200), note: readNote(n)}});
+      await api('/cards/' + kid, {method: 'PATCH', body: {title: titleText(), note: readNote(n)}});
       const s = $('#kbs'); if (s) s.textContent = 'Сохранено';
     } catch (e) { alert(e.message); }
   };
@@ -1123,7 +1119,12 @@ async function openCard(kid) {
     const s = $('#kbs'); if (s) s.textContent = 'Сохраняю…';
     clearTimeout(timer); timer = setTimeout(flush, 500);
   };
-  t.oninput = () => { grow(t); queue(); };
+  const titleText = () => t.textContent.replace(/\s+/g, ' ').trim().slice(0, 200);
+  t.oninput = () => { if (!t.textContent) t.innerHTML = ''; queue(); };
+  t.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); n.focus(); } });
+  t.addEventListener('paste', e => { e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').replace(/\s*\n\s*/g, ' ')); });
+  t.addEventListener('click', e => { const a = e.target.closest('a'); if (a) { e.preventDefault(); window.open(a.href, '_blank', 'noopener'); } });
+  t.addEventListener('blur', () => { t.innerHTML = linkify(titleText()); });
 
   // «/» — меню форматирования
   const SLASH = [['Чекбокс', 'check'], ['Заголовок', 'h'], ['Список', 'bul']];
@@ -1178,6 +1179,19 @@ async function openCard(kid) {
   };
   n.addEventListener('keydown', e => {
     if (e.key === 'Escape') { closeSlash(); return; }
+    if (e.key === 'Tab') {
+      const s0 = getSelection();
+      if (!s0.rangeCount) return;
+      let ln = s0.anchorNode;
+      while (ln && ln.parentNode !== n) ln = ln.parentNode;
+      if (!ln || !ln.classList || !ln.classList.contains('kcheck')) return;
+      e.preventDefault();
+      const lvl = Math.max(0, Math.min(6, +(ln.dataset.lvl || 0) + (e.shiftKey ? -1 : 1)));
+      ln.dataset.lvl = lvl;
+      ln.style.marginLeft = (lvl * 24) + 'px';
+      queue();
+      return;
+    }
     if (e.key !== 'Enter' || e.shiftKey) return;
     const s = getSelection();
     if (!s.rangeCount) return;
@@ -1194,7 +1208,7 @@ async function openCard(kid) {
       n.replaceChild(plain, el);
       caretEnd(plain);
     } else {
-      const nl = createLine(isCheck ? 'check' : 'bul', '');
+      const nl = createLine(isCheck ? 'check' : 'bul', '', false, isCheck ? +(el.dataset.lvl || 0) : 0);
       el.after(nl);
       caretEnd(nl);
     }
