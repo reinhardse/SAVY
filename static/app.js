@@ -988,6 +988,20 @@ function linkify(text) {
   return esc(text || '').replace(/(https?:\/\/[^\s<]+)/g, u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
 }
 
+// заметка: [ ] и [x] — чекбоксы, «## » — заголовок, «- » — список, остальное — текст со ссылками
+function renderNote(text) {
+  return (text || '').split('\n').map((line, i) => {
+    const m = line.match(/^\[( |x|X)\] ?(.*)$/);
+    if (m) {
+      const done = m[1] !== ' ';
+      return `<div class="kline kcheck${done ? ' done' : ''}"><input type="checkbox" class="kcb" data-cb="${i}"${done ? ' checked' : ''}><span>${linkify(m[2])}</span></div>`;
+    }
+    if (line.startsWith('## ')) return `<div class="kh">${linkify(line.slice(3))}</div>`;
+    if (line.startsWith('- ')) return `<div class="kline kbul">• ${linkify(line.slice(2))}</div>`;
+    return `<div class="kline">${linkify(line) || '<br>'}</div>`;
+  }).join('');
+}
+
 // окно карточки: заголовок и текст; в тексте ссылки кликабельны
 async function openCard(kid) {
   const c = await api('/cards/' + kid);
@@ -995,7 +1009,7 @@ async function openCard(kid) {
   sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">${XICON}</button>
     <div class="sheet-body kb-card">
       <textarea class="kb-title" id="kbt" rows="1" maxlength="200" placeholder="Заголовок">${esc(c.title)}</textarea>
-      <div class="kb-note kb-nv" id="kbnv">${linkify(c.note) || '<span class="ph">Текст заметки</span>'}</div>
+      <div class="kb-note kb-nv" id="kbnv">${renderNote(c.note) || '<span class="ph">Текст заметки</span>'}</div>
       <textarea class="kb-note" id="kbn" placeholder="Текст заметки" hidden>${esc(c.note)}</textarea>
       <div class="kb-foot"><span class="kb-saved" id="kbs">Сохранено</span><button class="btn bad" id="kbdel">Удалить карточку</button></div>
     </div>`, 'card-sheet');
@@ -1017,17 +1031,63 @@ async function openCard(kid) {
     clearTimeout(timer); timer = setTimeout(flush, 500);
   };
   t.oninput = () => { grow(t); queue(); };
-  n.oninput = () => { grow(n); queue(); };
-  // просмотр: ссылки кликабельны; нажатие по тексту — редактирование
+  // «/» в тексте открывает меню форматирования
+  const SLASH = [['Чекбокс', '[ ] '], ['Заголовок', '## '], ['Список', '- ']];
+  let slashAt = -1, menu = null;
+  const closeSlash = () => { if (menu) menu.remove(); menu = null; slashAt = -1; };
+  const openSlash = at => {
+    closeSlash();
+    slashAt = at;
+    const before = n.value.slice(0, at + 1).split('\n');
+    const lh = parseFloat(getComputedStyle(n).lineHeight) || 28;
+    menu = document.createElement('div');
+    menu.className = 'slash';
+    menu.style.top = (n.offsetTop + (before.length) * lh + 6) + 'px';
+    menu.style.left = (n.offsetLeft + 4) + 'px';
+    menu.innerHTML = SLASH.map(([label], k) => `<button data-k="${k}">${label}</button>`).join('');
+    // mousedown, а не click: иначе поле потеряет фокус раньше выбора
+    menu.onmousedown = e => {
+      const btn = e.target.closest('[data-k]');
+      if (!btn) return;
+      e.preventDefault();
+      const pre = SLASH[+btn.dataset.k][1];
+      n.value = n.value.slice(0, slashAt) + pre + n.value.slice(slashAt + 1);
+      const caret = slashAt + pre.length;
+      closeSlash();
+      n.setSelectionRange(caret, caret);
+      grow(n); queue(); n.focus();
+    };
+    $('#ov').querySelector('.sheet').querySelector('.kb-card').appendChild(menu);
+  };
+  n.oninput = () => {
+    grow(n); queue();
+    const pos = n.selectionStart, ch = n.value[pos - 1], prev = n.value[pos - 2];
+    if (ch === '/' && (pos === 1 || prev === '\n' || prev === ' ')) openSlash(pos - 1);
+    else closeSlash();
+  };
+  n.addEventListener('keydown', e => { if (e.key === 'Escape') closeSlash(); });
+  // просмотр: ссылки кликабельны, галочки переключаются, нажатие по тексту — редактирование
   const nv = $('#kbnv');
+  const edit = () => { nv.hidden = true; n.hidden = false; grow(n); n.focus(); };
   nv.onclick = e => {
+    const cb = e.target.closest('.kcb');
+    if (cb) {
+      const lines = n.value.split('\n');
+      const k = +cb.dataset.cb;
+      lines[k] = lines[k].replace(/^\[( |x|X)\]/, cb.checked ? '[x]' : '[ ]');
+      n.value = lines.join('\n');
+      nv.innerHTML = renderNote(n.value);
+      queue();
+      return;
+    }
     if (e.target.closest('a')) return;
-    nv.hidden = true; n.hidden = false; grow(n); n.focus();
+    edit();
   };
   n.onblur = async () => {
+    closeSlash();
     await flush();
     n.hidden = true;
-    nv.innerHTML = linkify(n.value) || '<span class="ph">Текст заметки</span>';
+    nv.innerHTML = renderNote(n.value) || '<span class="ph">Текст заметки</span>';
     nv.hidden = false;
   };
   beforeClose = flush;
