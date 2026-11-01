@@ -490,3 +490,5 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .kb-edit .kcheck.done .kcb{background:#3fa975;border-color:#3fa975}
 .kb-edit .kcheck.done .kcb::after{content:'';position:absolute;left:4px;top:1px;width:4px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
 .kb-edit .kcheck.done .kct{color:#9a9aa3;text-decoration:line-through;opacity:.8}
+/* текст пункта занимает всю строку: каретка видна и в пустом пункте, и курсор-текст работает по всей строке */
+.kb-edit .kcheck .kct{display:block;flex:1;min-width:0;min-height:1.7em;cursor:text}

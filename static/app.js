@@ -1030,9 +1030,13 @@ function readNote(root) {
 
 function caretEnd(el) {
   const target = el.classList.contains('kcheck') ? el.querySelector('.kct') : el;
+  // ставим каретку внутрь последнего текстового узла: на границе элемента она не рисуется
+  const w = document.createTreeWalker(target, NodeFilter.SHOW_TEXT);
+  let last = null;
+  while (w.nextNode()) last = w.currentNode;
   const r = document.createRange();
-  r.selectNodeContents(target);
-  r.collapse(false);
+  if (last) r.setStart(last, last.length); else r.setStart(target, 0);
+  r.collapse(true);
   const s = getSelection();
   s.removeAllRanges();
   s.addRange(r);
