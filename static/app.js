@@ -178,7 +178,7 @@ function paint(el, html) {
   bindRows();
 }
 
-const viewIcon = () => viewMode === 'tiles' ? LIST_ICON : TILES_ICON;
+const viewIcon = () => viewMode === 'tiles' ? TILES_ICON : LIST_ICON; // значок показывает текущий вид
 const viewBtn = () => `<button class="iconbtn" id="vbtn" aria-label="Вид списка" title="${viewMode === 'tiles' ? 'Строки' : 'Плитки'}">${viewIcon()}</button>`;
 
 function paintList(el, items, empty) {
