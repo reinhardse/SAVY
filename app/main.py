@@ -289,13 +289,13 @@ def me(db: Session = Depends(get_db), _: int = Depends(require_auth)):
     done = db.scalar(select(func.count()).select_from(Item).where(Item.user_id == USER_ID, Item.status == "done"))
     fav = db.scalar(select(func.count()).select_from(Item).where(*base, Item.is_favorite.is_(True)))
     per_cat = dict(db.execute(select(Item.category_id, func.count()).where(*base).group_by(Item.category_id)).all())
-    cats = [{**cat_out(c), "count": per_cat.get(c.id, 0)} for c in db.scalars(select(Category).order_by(Category.sort))]
+    cats = [{**cat_out(c), "count": per_cat.get(c.id, 0)} for c in db.scalars(select(Category).order_by(Category.sort, Category.id))]
     return {"total": total, "new": new, "done": done, "favorites": fav, "categories": cats}
 
 
 @app.get("/api/categories")
 def categories(db: Session = Depends(get_db), _: int = Depends(require_auth)):
-    return [cat_out(c) for c in db.scalars(select(Category).order_by(Category.sort))]
+    return [cat_out(c) for c in db.scalars(select(Category).order_by(Category.sort, Category.id))]
 
 
 @app.get("/api/settings")

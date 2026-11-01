@@ -229,8 +229,9 @@ async function home() {
   const listHtml = items.length ? items.map(row).join('') : homeEmpty;
   const tile = (go, st, icon, count, label) => `<button class="tile" style="--c:${st.bg};--tc:${st.tc}" data-go="${go}"><div class="ic">${icon}</div><div class="tf"><div class="n">${count}</div><div class="l">${esc(label)}</div></div></button>`;
   const catTiles = me.categories.map(c => tile('#/cat/' + c.slug, styleOf(c.slug), ICONS[c.slug] || FOLDER_ICON, c.count, c.name)).join('');
-  const tilesHtml = tile('#/inbox', INBOX_STYLE, INBOX_ICON, inbox.count, 'Входящие') + catTiles
-    + tile('#/all', ALL_STYLE, TILES_ICON, me.total, 'Все');
+  // порядок: «Входящие», «Все», затем категории в порядке создания (новые — в конце)
+  const tilesHtml = tile('#/inbox', INBOX_STYLE, INBOX_ICON, inbox.count, 'Входящие')
+    + tile('#/all', ALL_STYLE, TILES_ICON, me.total, 'Все') + catTiles;
   $('#app').innerHTML = `<div class="titlerow"><div class="brand logo">SAVE</div>
       <div class="tr-actions">${viewBtn()}<button class="iconbtn" id="hsbtn" aria-label="Поиск">${LOUPE}</button></div></div>
     ${pasteHtml()}
@@ -262,7 +263,7 @@ async function listView(title, params, active, withTags = false) {
   listParams = params;
   const wantSearch = openSearch; openSearch = false;
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">${esc(title)}</div>
-      <div class="tr-actions"><button class="iconbtn" id="bback" aria-label="Назад">${BACK}</button>
+      <div class="tr-actions">
       <button class="iconbtn" id="hbtn" aria-label="Главная">${HOME_ICON}</button>
       ${viewBtn()}<button class="iconbtn" id="sbtn" aria-label="Поиск">${LOUPE}</button></div></div>
     ${params.category || params.inbox ? '<div class="catsub" id="csub"></div>' : ''}
@@ -272,7 +273,6 @@ async function listView(title, params, active, withTags = false) {
     <div class="list${viewMode === 'tiles' ? ' grid' : ''}" id="list"></div>${nav(active)}`;
   bindPaste();
   $('#vbtn').onclick = toggleView;
-  $('#bback').onclick = () => { location.hash = '#/home'; };
   $('#hbtn').onclick = () => { location.hash = '#/home'; };
   if (wantSearch) setTimeout(() => $('#q').focus(), 0);
   $('#sbtn').onclick = () => {
