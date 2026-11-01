@@ -1507,9 +1507,8 @@ let calItems = [], calBoards = [], calMenu = null;
 
 function calDays() {
   if (calMode === 7) { const s = weekStartOf(calAnchor); return Array.from({length: 7}, (_, i) => shiftDays(s, i)); }
-  const first = new Date(calAnchor.getFullYear(), calAnchor.getMonth(), 1);
-  const n = new Date(calAnchor.getFullYear(), calAnchor.getMonth() + 1, 0).getDate();
-  return Array.from({length: n}, (_, i) => shiftDays(first, i));
+  const s0 = weekStartOf(new Date(calAnchor.getFullYear(), calAnchor.getMonth(), 1));
+  return Array.from({length: 42}, (_, i) => shiftDays(s0, i));
 }
 
 async function calendarPage() {
@@ -1535,13 +1534,29 @@ function paintCal() {
     return `<div class="kcard cal-card" data-card="${it.id}"><div class="kct">${esc(it.title || 'Без названия')}</div><div class="kc-tags">${time}<span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(it.board_name)}</span></div></div>`;
   };
   const wd = d => (d.getDay() + 6) % 7;
-  const cols = days.map(d => {
-    const k = dkey(d);
-    const items = (byDay[k] || []).map(cardHtml).join('');
-    const name = calMode === 7 ? WD_FULL[wd(d)] : `${d.getDate()} ${SHORT_MON[d.getMonth()]}`;
-    const sub = calMode === 7 ? `${d.getDate()} ${SHORT_MON[d.getMonth()]} ’${String(d.getFullYear()).slice(2)}` : WD_SHORT[wd(d)];
-    return `<div class="kcol cal-col${k === todayKey ? ' today' : ''}" data-day="${k}"><div class="kch"><span class="kcname"><span class="kcn">${name}</span><span class="kcnt">${sub}</span></span></div><div class="kcards">${items}</div></div>`;
-  }).join('');
+  const cardMini = it => {
+    const k = tagColor(it.board_name);
+    const time = it.due_time ? `<span class="cal-t">${esc(it.due_time)}</span>` : '';
+    return `<div class="cal-item cal-card" data-card="${it.id}">${time}<span class="cal-title">${esc(it.title || 'Без названия')}</span><span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(it.board_name)}</span></div>`;
+  };
+  let body;
+  if (calMode === 7) {
+    const cols = days.map(d => {
+      const k = dkey(d);
+      const items = (byDay[k] || []).map(cardHtml).join('');
+      const sub = `${d.getDate()} ${SHORT_MON[d.getMonth()]} ’${String(d.getFullYear()).slice(2)}`;
+      return `<div class="kcol cal-col${k === todayKey ? ' today' : ''}" data-day="${k}"><div class="kch"><span class="kcname"><span class="kcn">${WD_FULL[wd(d)]}</span><span class="kcnt">${sub}</span></span></div><div class="kcards">${items}</div></div>`;
+    }).join('');
+    body = `<div class="kcols cal-strip">${cols}</div>`;
+  } else {
+    const heads = WD_SHORT.map(w => `<div class="cal-dh">${w}</div>`).join('');
+    const cells = days.map(d => {
+      const k = dkey(d);
+      const cls = ['cal-day', k === todayKey ? 'today' : '', d.getMonth() !== calAnchor.getMonth() ? 'other' : ''].join(' ');
+      return `<div class="${cls}" data-day="${k}"><div class="cal-dn">${d.getDate()}</div><div class="kcards">${(byDay[k] || []).map(cardMini).join('')}</div></div>`;
+    }).join('');
+    body = `<div class="cal-grid mo">${heads}${cells}</div>`;
+  }
   const range = calMode === 7
     ? `${days[0].getDate()} ${SHORT_MON[days[0].getMonth()]} – ${days[6].getDate()} ${SHORT_MON[days[6].getMonth()]} ’${String(days[6].getFullYear()).slice(2)}`
     : `${MON_RU[calAnchor.getMonth()].slice(0, 3)} ’${String(calAnchor.getFullYear()).slice(2)}`;
@@ -1554,7 +1569,7 @@ function paintCal() {
         <button class="cal-filter" id="calfilter">Доски</button>
       </div></div>
     <div class="cal-range">${range}</div>
-    <div class="kcols cal-strip">${cols}</div>`;
+    ${body}`;
   document.querySelectorAll('.cal-seg [data-m]').forEach(b => b.onclick = () => {
     calMode = +b.dataset.m; localStorage.setItem('cal_mode', calMode); calendarPage();
   });
@@ -1598,7 +1613,7 @@ function calMove(e) {
   if (e.clientY < 90) window.scrollBy(0, -12);
   if (e.clientY > window.innerHeight - 90) window.scrollBy(0, 12);
   const under = document.elementFromPoint(e.clientX, e.clientY);
-  const col = under && under.closest('.kcol[data-day]');
+  const col = under && under.closest('.kcol[data-day], .cal-day[data-day]');
   if (col) calPlace(col, e.clientY);
 }
 
@@ -1659,7 +1674,7 @@ async function calUp() {
   d.ghost.remove();
   document.body.classList.remove('kdragging');
   d.ph.replaceWith(d.el); // карточка встаёт на место серого прямоугольника
-  const col = d.el.closest('.kcol[data-day]');
+  const col = d.el.closest('.kcol[data-day], .cal-day[data-day]');
   const key = col ? col.dataset.day : null;
   const it = calItems.find(x => x.id === d.id);
   if (!key || !it || it.due_date === key) return;
