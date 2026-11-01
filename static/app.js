@@ -1288,25 +1288,27 @@ async function openCard(kid) {
       cal.innerHTML = `<div class="kb-cal-h"><button class="kb-ib" data-nav="-1" aria-label="Назад">‹</button><span>${MONTHS_RU[mo]} ${y}</span><button class="kb-ib" data-nav="1" aria-label="Вперёд">›</button></div>`
         + `<div class="kb-cal-w">${WD_RU.map(w => `<span>${w}</span>`).join('')}</div>`
         + `<div class="kb-cal-g">${cells}</div>`
-        + `<div class="kb-cal-t"><span class="kb-cal-tl">Время</span><input type="text" id="kbtime" inputmode="numeric" maxlength="5" placeholder="ЧЧ:ММ" value="${dueTime || ''}"${dis}>`
+        + `<div class="kb-cal-t"><span class="kb-cal-tl">Время</span><span class="kb-tpair" id="kbtwrap"><input class="kb-tin" id="kbth" inputmode="numeric" maxlength="2" placeholder="ЧЧ" value="${dueTime ? dueTime.split(':')[0] : ''}"${dis}><span>:</span><input class="kb-tin" id="kbtm" inputmode="numeric" maxlength="2" placeholder="ММ" value="${dueTime ? dueTime.split(':')[1] : ''}"${dis}></span>`
         + `<select id="kbdur"${dueDate && dueTime ? '' : ' disabled'}><option value="">Длительность</option>${DUR.map(([v, l]) => `<option value="${v}"${dueDur === v ? ' selected' : ''}>${l}</option>`).join('')}</select></div>`
         + `<div class="kb-cal-f"><button class="kb-mi" data-clear="1">Очистить дату</button></div>`;
-      const tIn = cal.querySelector('#kbtime'), dSel = cal.querySelector('#kbdur');
-      tIn.onkeydown = e => { if (e.key === 'Enter') tIn.blur(); };
-      // двоеточие ставится само, пока печатаете: «1630» превращается в «16:30»
-      tIn.oninput = () => { const d = tIn.value.replace(/\D/g, '').slice(0, 4); tIn.value = d.length > 2 ? d.slice(0, 2) + ':' + d.slice(2) : d; };
-      tIn.onchange = () => {
-        // можно ввести «16», «1630» или «16:30»: двоеточие и проверку делаем сами
-        const digits = tIn.value.replace(/\D/g, '');
-        if (!digits) { setTime(null); return; }
-        let h, m;
-        if (digits.length <= 2) { h = +digits; m = 0; }
-        else { h = +digits.slice(0, -2); m = +digits.slice(-2); }
-        if (h > 23 || m > 59) { tIn.value = dueTime || ''; return; }
+      const tH = cal.querySelector('#kbth'), tM = cal.querySelector('#kbtm'), tWrap = cal.querySelector('#kbtwrap'), dSel = cal.querySelector('#kbdur');
+      // часы и минуты — два окошка: печатаете часы, как хотите, и сами переходите к минутам после двух цифр
+      const onlyDigits = el => { el.value = el.value.replace(/\D/g, '').slice(0, 2); };
+      tH.oninput = () => { onlyDigits(tH); if (tH.value.length === 2) { tM.focus(); tM.select(); } };
+      tM.oninput = () => onlyDigits(tM);
+      tH.onfocus = () => tH.select();
+      tM.onfocus = () => tM.select();
+      const commitTime = () => {
+        const hs = tH.value, ms = tM.value;
+        if (!hs && !ms) { setTime(null); return; }
+        const h = +(hs || 0), m = +(ms || 0);
+        if (h > 23 || m > 59) { tH.value = dueTime ? dueTime.split(':')[0] : ''; tM.value = dueTime ? dueTime.split(':')[1] : ''; return; }
         const val = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-        tIn.value = val;
+        tH.value = val.slice(0, 2); tM.value = val.slice(3);
         setTime(val);
       };
+      tWrap.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); commitTime(); (e.target).blur(); } });
+      tWrap.addEventListener('focusout', e => { if (!tWrap.contains(e.relatedTarget)) commitTime(); });
       dSel.onchange = () => setDur(dSel.value ? +dSel.value : null);
       cal.querySelectorAll('[data-nav]').forEach(b => b.onclick = e => { e.stopPropagation(); view = new Date(y, mo + +b.dataset.nav, 1); paint(); });
       cal.querySelectorAll('[data-k]').forEach(b => b.onclick = e => { e.stopPropagation(); setDate(b.dataset.k); });

@@ -595,3 +595,10 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .hubmenu .hm-foot{border-top:1px solid #ececf0;margin-top:8px;padding-top:6px}
 .hubmenu .hm-gc{display:block;width:100%;border:0;background:transparent;font:inherit;font-size:13px;color:var(--ink);text-align:left;padding:8px 10px;border-radius:8px;cursor:pointer}
 .hubmenu .hm-gc:hover{background:#f4f4f6}
+
+/* время: два окошка — часы и минуты */
+.kb-tpair{display:flex;align-items:center;gap:4px;flex:none}
+.kb-tpair span{color:var(--muted);font-size:14px}
+.kb-tin{width:38px;text-align:center;border:1px solid #e3e3e8;border-radius:8px;padding:4px 0;font:inherit;font-size:13px;color:var(--ink);background:#fff;outline:none}
+.kb-tin:focus{border-color:#9a9aa3}
+.kb-tin:disabled{opacity:.45}
