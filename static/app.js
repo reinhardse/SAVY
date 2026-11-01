@@ -108,6 +108,7 @@ async function api(path, opt = {}) {
 
 /* ---------- вход ---------- */
 function showLogin() {
+  setHubButton(false);
   $('#sheet-root').innerHTML = '';
   $('#app').innerHTML = `<form class="login" id="lf"><div class="brand logo">SAVE</div>
     <input class="in-text" type="password" id="pw" placeholder="Пароль" autofocus>
@@ -373,7 +374,7 @@ async function closeSheet() {
   $('#sheet-root').innerHTML = ''; route();
 }
 
-function sheet(html) {
+function sheet(html, cls = '') {
   beforeClose = null;
   let ov = $('#ov');
   if (!ov) {
@@ -382,6 +383,7 @@ function sheet(html) {
     ov.onclick = e => { if (e.target.id === 'ov') closeSheet(); };
   }
   const box = ov.querySelector('.sheet');
+  box.className = 'sheet ' + cls;
   box.innerHTML = html;
   // содержимое плавно проявляется, окно и его фон не перерисовываются
   box.classList.remove('swap'); void box.offsetWidth; box.classList.add('swap');
@@ -481,7 +483,7 @@ async function openItem(id) {
   const build = () => {
     const meta = [SRC[it.source], TYPE[it.content_type]].filter(Boolean).join(' · ');
     const refreshBtn = it.thumb && it.title && it.meta_state === 'ok' && (!['kinopoisk', 'litres'].includes(it.source) || it.description) ? '' : '<button class="linkbtn" id="rf">Обновить данные</button>';
-    sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">×</button>${coverHtml(it, 'cover')}
+    sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">${XICON}</button>${coverHtml(it, 'cover')}
       <div class="sheet-body">
       <textarea class="title-in auto" id="ti" rows="1" maxlength="100" placeholder="Название">${esc(draft.title)}</textarea>
       <div class="metarow"><div class="meta-line">${esc(meta)}</div></div>
@@ -550,7 +552,7 @@ async function openItem(id) {
 
 /* ---------- ключ Кинопоиска: вводится здесь, без терминала ---------- */
 function openKpKey(isSet) {
-  sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">×</button>
+  sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">${XICON}</button>
     <div class="sheet-body kp-body">
       <div class="kp-title">Ключ Кинопоиска</div>
       <p class="kp-note">Нужен, чтобы подтягивать название, обложку и описание фильмов. Бесплатный ключ выдаёт Telegram-бот @kinopoiskdev_bot: нажмите «Старт» и скопируйте ключ сюда.</p>
@@ -569,6 +571,40 @@ function openKpKey(isSet) {
   };
 }
 
+/* ---------- кнопка «Хаб» и окно приложений ---------- */
+const GRID_ICON = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="6" cy="6" r="2"/><circle cx="12" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="6" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="18" cy="12" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="12" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>';
+
+function ensureHubButton() {
+  if ($('#hubbtn')) return;
+  const b = document.createElement('button');
+  b.id = 'hubbtn';
+  b.className = 'hubbtn';
+  b.setAttribute('aria-label', 'Хаб');
+  b.title = 'Хаб';
+  b.innerHTML = GRID_ICON;
+  b.onclick = openHub;
+  document.body.appendChild(b);
+}
+
+function setHubButton(show) {
+  ensureHubButton();
+  $('#hubbtn').style.display = show ? '' : 'none';
+}
+
+function openHub() {
+  sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">${XICON}</button>
+    <div class="sheet-body hub-body">
+      <div class="kp-title">Хаб</div>
+      <button class="hubrow" data-go="#/home"><span class="hubic">${APP_ICON_SAVE}</span><span class="hubtxt"><b>SAVE</b><i>Закладки</i></span></button>
+      <button class="hubrow" data-go="#/kanban"><span class="hubic">${KB_ICON}</span><span class="hubtxt"><b>Канбан</b><i>Доски и задачи</i></span></button>
+    </div>`, 'hub-sheet');
+  $('#sx').onclick = closeSheet;
+  document.querySelectorAll('.hubrow').forEach(r => r.onclick = () => {
+    $('#sheet-root').innerHTML = '';
+    location.hash = r.dataset.go;
+  });
+}
+
 /* ---------- хаб приложений ---------- */
 function hub() {
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Приложения</div></div>
@@ -582,11 +618,9 @@ function hub() {
 /* ---------- канбан: список досок ---------- */
 async function boards() {
   const list = await api('/boards');
-  $('#app').innerHTML = `<div class="titlerow"><div class="brand">Доски</div>
-      <div class="tr-actions"><button class="iconbtn" id="khome" aria-label="Приложения">${HOME_ICON}</button>
-      <button class="iconbtn sqbtn" id="addboard" aria-label="Новая доска">${PLUS_ICON}</button></div></div>
+  $('#app').innerHTML = `<div class="titlerow"><div class="brand">Доски</div></div>
+    <button class="addwide" id="addboard">${PLUS_ICON}<span>Новая доска</span></button>
     <div class="blist">${list.length ? list.map(b => `<div class="brow" data-open="${b.id}"><div class="bname">${esc(b.name)}</div><div class="bcount">${b.count}</div><button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button></div>`).join('') : '<div class="empty">Пока нет досок. Нажмите + справа вверху.</div>'}</div>`;
-  $('#khome').onclick = () => { location.hash = '#/hub'; };
   $('#addboard').onclick = newBoard;
   document.querySelectorAll('[data-open]').forEach(r => r.onclick = e => {
     if (e.target.closest('[data-delb]')) return;
@@ -601,7 +635,7 @@ async function boards() {
 }
 
 function newBoard() {
-  sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">×</button>
+  sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">${XICON}</button>
     <div class="sheet-body kp-body">
       <div class="kp-title">Новая доска</div>
       <input class="in-text" id="bname" placeholder="Название доски" maxlength="120">
@@ -654,10 +688,9 @@ async function board(bid) {
       <button class="kadd" data-addcard="${col.id}">+ Добавить карточку</button>
     </div>`).join('');
   $('#app').innerHTML = `<div class="titlerow"><div class="kbtitle" id="kbname" title="Нажмите, чтобы переименовать">${esc(b.name)}</div>
-      <div class="tr-actions"><button class="iconbtn" id="khome" aria-label="Приложения">${HOME_ICON}</button></div></div>
-    <div class="kup"><a href="#/kanban">← Все доски</a></div>
+      <div class="tr-actions"><button class="iconbtn" id="kball" aria-label="Все доски" title="Все доски">${KB_ICON}</button></div></div>
     <div class="kcols">${cols}<div class="kcol kaddcol"><button class="kadd" id="addcol">+ Колонка</button></div></div>`;
-  $('#khome').onclick = () => { location.hash = '#/hub'; };
+  $('#kball').onclick = () => { location.hash = '#/kanban'; };
   $('#kbname').onclick = () => inlineEdit($('#kbname'), b.name,
     async v => { await api('/boards/' + bid, {method: 'PATCH', body: {name: v}}); board(bid); },
     () => board(bid), 'Название доски');
@@ -682,12 +715,12 @@ async function board(bid) {
 async function openCard(kid) {
   const c = await api('/cards/' + kid);
   let timer = null, dirty = false;
-  sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">×</button>
+  sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">${XICON}</button>
     <div class="sheet-body kb-card">
       <textarea class="kb-title" id="kbt" rows="1" maxlength="200" placeholder="Заголовок">${esc(c.title)}</textarea>
       <textarea class="kb-note" id="kbn" placeholder="Текст заметки">${esc(c.note)}</textarea>
       <div class="kb-foot"><span class="kb-saved" id="kbs">Сохранено</span><button class="btn bad" id="kbdel">Удалить карточку</button></div>
-    </div>`);
+    </div>`, 'card-sheet');
   const t = $('#kbt'), n = $('#kbn');
   const grow = el => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
   grow(t); grow(n);
@@ -720,6 +753,7 @@ async function openCard(kid) {
 /* ---------- старт ---------- */
 async function start() {
   try { cats = await api('/categories'); } catch { return; }
+  setHubButton(true);
   route();
 }
 window.addEventListener('hashchange', route);

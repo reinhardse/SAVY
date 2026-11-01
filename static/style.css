@@ -306,3 +306,32 @@ textarea.kb-title:focus,textarea.kb-note:focus{border:0;box-shadow:none}
 .kb-saved{color:var(--muted);font-size:13px}
 /* кнопка удаления колонки стоит в заголовке колонки, а не в углу страницы */
 .kch .rb.del{position:static;flex:none;width:28px;height:28px}
+
+/* === кнопка «Хаб» на воздухе справа, окно приложений, большое окно карточки === */
+.hubbtn{position:fixed;top:18px;right:18px;z-index:6;width:44px;height:44px;border-radius:50%;border:1px solid var(--line2);background:#fff;color:var(--ink);box-shadow:var(--sh-sm);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:box-shadow .15s,transform .15s}
+.hubbtn:hover{box-shadow:var(--sh-md)}
+.hubbtn:active{transform:scale(.94)}
+.hubbtn svg{width:18px;height:18px}
+@media (max-width:999px){.hubbtn{top:auto;bottom:22px;right:18px}}
+.hub-sheet{max-width:360px}
+.hub-body{padding-top:56px}
+.hubrow{width:100%;display:flex;align-items:center;gap:14px;border:0;background:#fff;border-radius:16px;padding:12px;cursor:pointer;text-align:left;transition:background-color .15s}
+.hubrow:hover{background:#f5f5f7}
+.hubic{width:44px;height:44px;border-radius:12px;background:#f5f5f7;display:flex;align-items:center;justify-content:center;flex:none}
+.hubic svg{width:24px;height:24px}
+.hubtxt{display:flex;flex-direction:column;min-width:0}
+.hubtxt b{font-size:16px;font-weight:700}
+.hubtxt i{font-style:normal;color:var(--muted);font-size:13px;margin-top:2px}
+.addwide{width:100%;height:52px;border:0;border-radius:16px;background:#f2f2f4;color:var(--ink);font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;margin:0 0 14px;transition:background-color .15s}
+.addwide:hover{background:#e9e9ec}
+.addwide svg{width:18px;height:18px}
+/* крестик окна — справа вверху, по центру круга */
+.sheet-x{left:auto;right:16px;top:16px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;padding:0}
+.sheet-x svg{width:14px;height:14px;display:block}
+/* окно карточки — большое, как страница Notion */
+.sheet.card-sheet{max-width:880px;width:calc(100% - 32px);max-height:92vh;min-height:72vh;border-radius:26px}
+.card-sheet .kb-card{padding:64px 48px 28px}
+.card-sheet .kb-title{font-size:36px;line-height:1.2;margin-bottom:18px}
+.card-sheet .kb-note{font-size:18px;line-height:1.7;min-height:50vh}
+.card-sheet .kb-foot{margin-top:24px}
+@media (max-width:560px){.sheet.card-sheet{width:calc(100% - 16px);min-height:80vh}.card-sheet .kb-card{padding:60px 22px 22px}.card-sheet .kb-title{font-size:28px}.card-sheet .kb-note{font-size:16px}}
