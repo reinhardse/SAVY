@@ -115,7 +115,7 @@ function showLogin() {
   setHubButton(false);
   $('#sheet-root').innerHTML = '';
   $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
-  $('#app').innerHTML = `<form class="login" id="lf"><div class="brand logo">SAVE</div>
+  $('#app').innerHTML = `<form class="login" id="lf"><div class="brand logo">СЕЙВ</div>
     <input class="in-text" type="password" id="pw" placeholder="Пароль" autofocus>
     <div class="err" id="le"></div><button class="btn pri">Войти</button></form>`;
   $('#lf').onsubmit = async e => {
@@ -242,7 +242,7 @@ async function home() {
   const tilesHtml = tile('#/inbox', INBOX_STYLE, INBOX_ICON, inbox.count, 'Входящие')
     + tile('#/all', ALL_STYLE, TILES_ICON, me.total, 'Все') + catTiles;
   $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
-  $('#app').innerHTML = `<div class="titlerow"><div class="brand logo" id="brandgo" style="cursor:pointer" title="Приложения">SAVE</div>
+  $('#app').innerHTML = `<div class="titlerow"><div class="brand logo" id="brandgo" style="cursor:pointer" title="Приложения">СЕЙВ</div>
       <div class="tr-actions"><button class="iconbtn" id="hsbtn" aria-label="Поиск">${LOUPE}</button></div></div>
     ${pasteHtml()}
     ${tags.length ? `<div class="tags home-tags">${tags.map(t => `<span class="tagchip" data-alltag="${esc(t.name)}">#${esc(t.name)}</span>`).join('')}</div>` : ''}
@@ -605,8 +605,8 @@ function openHub() {
   sheet(`<button class="sheet-x" id="sx" aria-label="Закрыть">${XICON}</button>
     <div class="sheet-body hub-body">
       <div class="kp-title">Хаб</div>
-      <button class="hubrow" data-go="#/home"><span class="hubic">${APP_ICON_SAVE}</span><span class="hubtxt"><b>SAVE</b><i>Закладки</i></span></button>
-      <button class="hubrow" data-go="#/kanban"><span class="hubic">${KB_ICON}</span><span class="hubtxt"><b>Канбан</b><i>Доски и задачи</i></span></button>
+      <button class="hubrow" data-go="#/home"><span class="hubic">${APP_ICON_SAVE}</span><span class="hubtxt"><b>СЕЙВ</b><i>Закладки</i></span></button>
+      <button class="hubrow" data-go="#/kanban"><span class="hubic">${KB_ICON}</span><span class="hubtxt"><b>Доски</b><i>Доски и задачи</i></span></button>
     </div>`, 'hub-sheet');
   $('#sx').onclick = closeSheet;
   document.querySelectorAll('.hubrow').forEach(r => r.onclick = () => {
@@ -620,8 +620,8 @@ function hub() {
   $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Приложения</div></div>
     <div class="tiles apps">
-      <button class="tile" style="--c:#fff0f3;--tc:#c1173f" data-go="#/home"><div class="ic">${APP_ICON_SAVE}</div><div class="tf"><div class="l2">SAVE</div><div class="l">Закладки</div></div></button>
-      <button class="tile" style="--c:#e7f6ee;--tc:#2f6446" data-go="#/kanban"><div class="ic">${KB_ICON}</div><div class="tf"><div class="l2">Канбан</div><div class="l">Доски и задачи</div></div></button>
+      <button class="tile" style="--c:#fff0f3;--tc:#c1173f" data-go="#/home"><div class="ic">${APP_ICON_SAVE}</div><div class="tf"><div class="l2">СЕЙВ</div><div class="l">Закладки</div></div></button>
+      <button class="tile" style="--c:#e7f6ee;--tc:#2f6446" data-go="#/kanban"><div class="ic">${KB_ICON}</div><div class="tf"><div class="l2">Доски</div><div class="l">Доски и задачи</div></div></button>
     </div>`;
   document.querySelectorAll('[data-go]').forEach(t => t.onclick = () => { location.hash = t.dataset.go; });
 }
