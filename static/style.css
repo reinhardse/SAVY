@@ -718,8 +718,8 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 
 /* контуры светлее; «Добавить» — пунктир как был; картинка не перехватывает перетаскивание */
 .hl-add{background:transparent;border:1px dashed #cfcfd6;color:var(--muted)}
-.hl-item[data-hl-item] .hl-tile{border:1px solid #ececf2;box-shadow:none}
-.hl-item[data-hl-item] .hl-tile:hover{border-color:#dedee6;box-shadow:none}
+.hl-item[data-hl-item] .hl-tile{border:1px solid #ececf2;box-shadow:none;transition:transform .15s,border-color .15s}
+.hl-item[data-hl-item] .hl-tile:hover{border-color:#dedee6;box-shadow:none;transform:scale(1.06)}
 .hl-ph{border:1px dashed #e4e4ea;background:#f6f6f8}
 .hl-img,.hl-ic{pointer-events:none;-webkit-user-drag:none;user-select:none}
 .hl-tile{-webkit-user-drag:none;user-select:none}
