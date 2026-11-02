@@ -747,3 +747,4 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 @media (max-width:520px){.bgrid{grid-template-columns:1fr}}
 
 .kb-prio:not(.on){opacity:.7}
+.kc-prio{font-weight:600;letter-spacing:.02em}

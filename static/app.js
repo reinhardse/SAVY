@@ -787,11 +787,14 @@ const cardDateText = c => {
 
 // карточка доски: заголовок, дата и теги
 const NOTE_ICON = '<svg class="kc-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg>';
+// приоритеты: 3, 2, 1 — значки; 0 — «пустой», то есть без приоритета (не выводится на карточке)
+const KB_PRIO = {3: {t: '!!!', bg: '#ffe1e1', tc: '#b42318', bd: '#f5b5b5'}, 2: {t: '!!', bg: '#fff3c4', tc: '#8a6100', bd: '#f3dc85'}, 1: {t: '!', bg: '#dfeafe', tc: '#2f4bb0', bd: '#b5ccf5'}, 0: {t: '—', bg: '#f2f2f4', tc: '#6b6b74', bd: '#e3e3e8'}};
 const cardHtml = c => {
   const dt = cardDateText(c);
   const dateChip = dt ? `<span class="kc-tag kc-date">${esc(dt)}</span>` : '';
   const tags = (c.tags || []).map(t => { const k = tagColor(t); return `<span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(t)}</span>`; }).join('');
-  const row = dateChip + tags;
+  const prioChip = c.priority > 0 ? `<span class="kc-tag kc-prio" style="background:${KB_PRIO[c.priority].bg};color:${KB_PRIO[c.priority].tc}">${KB_PRIO[c.priority].t}</span>` : '';
+  const row = prioChip + dateChip + tags;
   const hasNote = !!(c.note || '').trim(); // значок «есть заметка», как в Notion
   return `<div class="kcard" data-card="${c.id}"><div class="kct${c.title ? '' : ' ph'}">${hasNote ? NOTE_ICON : ''}${esc(c.title || 'Без названия')}</div>${row ? `<div class="kc-tags">${row}</div>` : ''}</div>`;
 };
@@ -1231,17 +1234,32 @@ async function openCard(kid) {
   renderCols();
 
   // приоритет: три значка как у тегов; выбранный — цветной, остальные полупрозрачные; повторный клик снимает
-  const KB_PRIO = {3: {t: '!!!', bg: '#ffe1e1', tc: '#b42318', bd: '#f5b5b5'}, 2: {t: '!!', bg: '#fff3c4', tc: '#8a6100', bd: '#f3dc85'}, 1: {t: '!', bg: '#dfeafe', tc: '#2f4bb0', bd: '#b5ccf5'}};
   const renderPrio = () => {
     const box = $('#kbprio');
-    box.innerHTML = [3, 2, 1].map(p => `<button class="kb-tag kb-prio${prio === p ? ' on' : ''}" style="--tb:${KB_PRIO[p].bg};--tt:${KB_PRIO[p].tc};--tbd:${KB_PRIO[p].bd}" data-prio="${p}">${KB_PRIO[p].t}</button>`).join('');
+    const cur = prio || 0;
+    box.innerHTML = [3, 2, 1, 0].map(p => `<button class="kb-tag kb-prio${cur === p ? ' on' : ''}" style="--tb:${KB_PRIO[p].bg};--tt:${KB_PRIO[p].tc};--tbd:${KB_PRIO[p].bd}" data-prio="${p}">${KB_PRIO[p].t}</button>`).join('');
     box.querySelectorAll('[data-prio]').forEach(b => b.onclick = async () => {
       const p = +b.dataset.prio;
-      prio = prio === p ? null : p;
+      prio = p || null;
       renderPrio();
+      syncBoardPrio(prio);
       try { await api('/cards/' + kid, {method: 'PATCH', body: {priority: prio}}); }
       catch (e) { alert(e.message); }
     });
+  };
+  // значок на карточке доски под окном меняется сразу
+  const syncBoardPrio = p => {
+    const el = document.querySelector(`.kcard[data-card="${kid}"]`);
+    if (!el) return;
+    el.querySelectorAll('.kc-prio').forEach(x => x.remove());
+    if (!p) return;
+    const chip = document.createElement('span');
+    chip.className = 'kc-tag kc-prio';
+    chip.style.cssText = `background:${KB_PRIO[p].bg};color:${KB_PRIO[p].tc}`;
+    chip.textContent = KB_PRIO[p].t;
+    let row = el.querySelector('.kc-tags');
+    if (!row) { row = document.createElement('div'); row.className = 'kc-tags'; el.appendChild(row); }
+    row.prepend(chip);
   };
   renderPrio();
 
