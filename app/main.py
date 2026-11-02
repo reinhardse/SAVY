@@ -945,11 +945,13 @@ class CrmContactPatch(CrmContactIn):
 class CrmCompanyIn(BaseModel):
     name: str = ""
     card_url: str | None = None
+    inn: str | None = None
 
 
 class CrmCompanyPatch(BaseModel):
     name: str | None = None
     card_url: str | None = None
+    inn: str | None = None
 
 
 def _crm_name(c: Contact) -> str:
@@ -957,7 +959,7 @@ def _crm_name(c: Contact) -> str:
 
 
 def _crm_company_brief(c: Company) -> dict:
-    return {"id": c.id, "name": c.name or "Без названия"}
+    return {"id": c.id, "name": c.name or "Без названия", "inn": c.inn or ""}
 
 
 def _crm_contact_brief(c: Contact) -> dict:
@@ -1033,7 +1035,7 @@ def _crm_contact_full(db: Session, c: Contact) -> dict:
 
 
 def _crm_company_full(db: Session, c: Company) -> dict:
-    return {"id": c.id, "name": c.name or "Без названия", "card_url": c.card_url,
+    return {"id": c.id, "name": c.name or "Без названия", "card_url": c.card_url, "inn": c.inn or "",
             "contacts": [_crm_contact_brief(x) for x in c.contacts],
             "deals": _crm_group_deals(c.deals),
             "items": _crm_feed(db, "companies", c)}
@@ -1367,7 +1369,8 @@ def crm_companies(q: str = "", db: Session = Depends(get_db), _: int = Depends(r
 
 @app.post("/api/crm/companies")
 def crm_company_create(body: CrmCompanyIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
-    c = Company(name=body.name.strip()[:200], card_url=(body.card_url or "").strip()[:500] or None)
+    c = Company(name=body.name.strip()[:200], card_url=(body.card_url or "").strip()[:500] or None,
+                inn=(body.inn or "").strip()[:20] or None)
     db.add(c)
     db.commit()
     return _crm_company_full(db, c)
@@ -1391,6 +1394,8 @@ def crm_company_patch(kid: int, body: CrmCompanyPatch, db: Session = Depends(get
         c.name = body.name.strip()[:200]
     if "card_url" in f:
         c.card_url = (body.card_url or "").strip()[:500] or None
+    if "inn" in f:
+        c.inn = (body.inn or "").strip()[:20] or None
     db.commit()
     return _crm_company_full(db, c)
 
@@ -1400,5 +1405,31 @@ def crm_company_delete(kid: int, db: Session = Depends(get_db), _: int = Depends
     c = db.get(Company, kid)
     if c:
         db.delete(c)
+        db.commit()
+    return {"ok": True}
+
+
+class CrmMessagePatch(BaseModel):
+    text: str
+
+
+@app.patch("/api/crm/messages/{mid}")
+def crm_message_patch(mid: int, body: CrmMessagePatch, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    m = db.get(DealMessage, mid)
+    if not m:
+        raise HTTPException(404, "Сообщение не найдено")
+    text = body.text.strip()
+    if not text:
+        raise HTTPException(400, "Пустое сообщение")
+    m.text = text[:5000]
+    db.commit()
+    return {"id": m.id, "kind": "message", "text": m.text, "created_at": m.created_at.isoformat()}
+
+
+@app.delete("/api/crm/messages/{mid}")
+def crm_message_delete(mid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    m = db.get(DealMessage, mid)
+    if m:
+        db.delete(m)
         db.commit()
     return {"ok": True}

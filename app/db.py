@@ -171,6 +171,7 @@ class Company(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String(200), default="")
     card_url = Column(String(500), nullable=True)  # ссылка на карточку компании (Google Диск)
+    inn = Column(String(20), nullable=True)  # ИНН
     created_at = Column(DateTime, default=now)
     deals = relationship("Deal", secondary=deal_companies, back_populates="companies")
     contacts = relationship("Contact", secondary=contact_companies, back_populates="companies")
@@ -263,6 +264,10 @@ def init_db():
     Base.metadata.create_all(engine)
     with engine.begin() as _conn:
         _migrate_crm(_conn)
+        from sqlalchemy import inspect as _insp, text as _text
+        if "companies" in _insp(_conn).get_table_names():
+            if "inn" not in [c["name"] for c in _insp(_conn).get_columns("companies")]:
+                _conn.execute(_text("ALTER TABLE companies ADD COLUMN inn VARCHAR(20)"))
     # колонка статуса появилась позже: добавляем в уже существующую таблицу
     from sqlalchemy import inspect, text
     if "board_links" in inspect(engine).get_table_names():
