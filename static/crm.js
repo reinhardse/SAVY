@@ -1,5 +1,5 @@
-/* ---------- CRM: воронка сделок, контакты, компании, задачи ----------
-   Отдельный файл поверх app.js: использует api, sheet, closeSheet, esc, $, beforeClose, XICON, PLUS_ICON. */
+/* ---------- CRM: воронка сделок, контакты, компании, сообщения и задачи ----------
+   Отдельный файл поверх app.js: использует api, sheet, closeSheet, beforeClose, esc, $, tagColor, XICON, PLUS_ICON. */
 
 const CRM_STAGES_UI = [
   {key: 'new', name: 'Новая заявка', c: '#9fc4f5'},
@@ -22,6 +22,7 @@ const CRM_ICO = {
   send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l16-8-6 16-2-6z"/></svg>',
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   chev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>',
+  back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
 };
 
 const crmPlural = (n, one, few, many) => {
@@ -37,6 +38,11 @@ const crmStamp = iso => new Date(iso).toLocaleString('ru-RU', {day: '2-digit', m
 const crmDebounce = (fn, ms = 220) => { let t = null; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 const crmToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const crmCap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const crmInitials = name => String(name || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
+const crmAvatar = (name, cls = '') => {
+  const k = tagColor(name || '?');
+  return `<span class="crm-av ${cls}" style="background:${k.bg};color:${k.tc}">${esc(crmInitials(name))}</span>`;
+};
 
 // окна поверх друг друга: закрытие верхнего возвращает предыдущее
 let crmStack = [];     // функции, которые заново открывают окна под текущим
@@ -57,11 +63,9 @@ function crmCloseWin() {
   crmCurrent = null;
   return closeSheet();
 }
-const crmSheetTop = (tools = '') => `<div class="crm-dtop"><span class="kb-saved" id="crmsaved">Сохранено</span>
-  <div class="kb-tools">${tools}<button class="kb-ib" id="sx" aria-label="Закрыть">${XICON}</button></div></div>`;
 
 /* ---------- каркас: слева меню разделов, справа содержимое ---------- */
-function crmShell(active, inner) {
+function crmShell(active, inner, narrow = false) {
   crmStack = []; crmCurrent = null;
   $('#app').classList.add('kfull');
   $('#app').innerHTML = `<div class="crm">
@@ -71,7 +75,7 @@ function crmShell(active, inner) {
       <a class="crm-nav-i${active === 'contacts' ? ' on' : ''}" href="#/crm/contacts"><span class="crm-nav-ic">${CRM_ICO.user}</span>Контакты</a>
       <a class="crm-nav-i${active === 'companies' ? ' on' : ''}" href="#/crm/companies"><span class="crm-nav-ic">${CRM_ICO.building}</span>Компании</a>
     </div>
-    <div class="crm-main">${inner}</div>
+    <div class="crm-main${narrow ? ' narrow' : ''}">${inner}</div>
   </div>`;
 }
 
@@ -89,8 +93,12 @@ function crmDealCard(d) {
 
 function crmStageCol(s) {
   const n = s.deals.length;
+  const ui = crmStage(s.key);
   return `<div class="crm-col" data-stage="${s.key}">
-    <div class="crm-col-h"><span class="crm-col-t">${esc(s.name)}</span><span class="crm-col-s">${n} ${crmPlural(n, 'сделка', 'сделки', 'сделок')} · ${crmMoney(s.sum)}</span></div>
+    <div class="crm-col-h" style="--sc:${ui.c}">
+      <div class="crm-col-t">${esc(s.name)}</div>
+      <div class="crm-col-s">${n} ${crmPlural(n, 'сделка', 'сделки', 'сделок')}: ${crmMoney(s.sum)}</div>
+    </div>
     <div class="crm-col-b">
       <div class="crm-quick" data-quick="${s.key}"><button class="crm-quick-btn">Быстрое добавление</button></div>
       ${s.deals.map(crmDealCard).join('')}
@@ -136,7 +144,43 @@ async function crmPipeline() {
   };
 }
 
-/* ---------- лента сделки: сообщения и задачи ---------- */
+/* ---------- окно: слева содержимое, справа сообщения и задачи (одинаково у сделки, контакта, компании) ---------- */
+function crmWin(left, mode, tools = '') {
+  return `<div class="crm-win${mode === 'page' ? ' page' : ''}">
+    <div class="crm-left">${mode === 'sheet' ? crmSheetTop(tools) : ''}${left}</div>
+    <div class="crm-right">
+      <div class="crm-chat-h">Сообщения и задачи</div>
+      <div class="crm-msgs" id="crmmsgs"></div>
+      <div class="crm-tf" id="crmtf" hidden>
+        <input class="crm-tf-title" id="crmtftitle" placeholder="Что нужно сделать">
+        <div class="crm-tf-row">
+          <input type="date" class="crm-tf-date" id="crmtfdate" value="${crmToday()}">
+          <input type="time" class="crm-tf-time" id="crmtftime" aria-label="Время">
+          <button class="crm-tf-ok" id="crmtfok">Добавить</button>
+          <button class="crm-tf-x" id="crmtfx" aria-label="Отмена">${XICON}</button>
+        </div>
+      </div>
+      <div class="crm-compose">
+        <textarea id="crmmsg" rows="1" placeholder="Напишите сообщение…"></textarea>
+        <div class="crm-compose-bar">
+          <button class="crm-addtask" id="crmaddtask">+ задача</button>
+          <button class="crm-send" id="crmsend" aria-label="Отправить сообщение">${CRM_ICO.send}<span>Отправить</span></button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+const crmSheetTop = (tools = '') => `<div class="crm-dtop"><span class="kb-saved" id="crmsaved">Сохранено</span>
+  <div class="kb-tools">${tools}<button class="kb-ib" id="sx" aria-label="Закрыть">${XICON}</button></div></div>`;
+
+// подсказка «сохранено» в окне
+function crmSaved() {
+  const s = $('#crmsaved');
+  if (s) s.textContent = 'Сохранено';
+}
+
+/* ---------- лента: сообщения и задачи ---------- */
 function crmTaskHtml(t) {
   const when = [crmDate(t.due_date), t.due_time].filter(Boolean).join(' · ');
   if (t.status === 'done') {
@@ -161,6 +205,80 @@ function crmItemsHtml(items) {
     ? crmTaskHtml(i)
     : `<div class="crm-msg"><div class="crm-bub">${esc(i.text).replace(/\n/g, '<br>')}</div><div class="crm-msg-t">${crmStamp(i.created_at)}</div></div>`
   ).join('') || '<div class="crm-msgs-empty">Пока нет сообщений и задач</div>';
+}
+
+// kind: deals | contacts | companies — кому принадлежит лента
+function crmBindFeed(kind, oid, items) {
+  let list = items;
+  const box = $('#crmmsgs');
+  const render = () => {
+    box.innerHTML = crmItemsHtml(list);
+    bindTasks();
+    box.scrollTop = box.scrollHeight;
+  };
+  const bindTasks = () => {
+    document.querySelectorAll('[data-task-done]').forEach(b => b.onclick = () => {
+      const cf = document.querySelector(`[data-task-cf="${b.dataset.taskDone}"]`);
+      cf.hidden = false;
+      cf.querySelector('textarea').focus();
+      b.parentElement.hidden = true;
+    });
+    document.querySelectorAll('[data-task-cf]').forEach(cf => {
+      const id = +cf.dataset.taskCf;
+      cf.querySelector('.crm-task-cancel').onclick = () => { cf.hidden = true; cf.previousElementSibling.hidden = false; };
+      cf.querySelector('.crm-task-save').onclick = async () => {
+        const result = cf.querySelector('textarea').value.trim();
+        if (!result) { cf.querySelector('textarea').focus(); return; }
+        try {
+          const upd = await api(`/crm/tasks/${id}/complete`, {method: 'POST', body: {result}});
+          list = list.map(i => i.kind === 'task' && i.id === id ? upd : i);
+          render();
+        } catch (e) { alert(e.message); }
+      };
+    });
+  };
+  render();
+
+  // задача: форма над полем ввода, без отдельного окна
+  const tf = $('#crmtf');
+  $('#crmaddtask').onclick = () => {
+    tf.hidden = !tf.hidden;
+    if (!tf.hidden) $('#crmtftitle').focus();
+  };
+  $('#crmtfx').onclick = () => { tf.hidden = true; };
+  const addTask = async () => {
+    const title = $('#crmtftitle').value.trim();
+    const due = $('#crmtfdate').value;
+    const time = $('#crmtftime').value;
+    if (!title) { $('#crmtftitle').focus(); return; }
+    if (!due) { $('#crmtfdate').focus(); return; }
+    try {
+      const task = await api(`/crm/${kind}/${oid}/tasks`, {method: 'POST', body: {title, due_date: due, due_time: time || null}});
+      list = [...list, task];
+      $('#crmtftitle').value = '';
+      $('#crmtftime').value = '';
+      tf.hidden = true;
+      render();
+    } catch (e) { alert(e.message); }
+  };
+  $('#crmtfok').onclick = addTask;
+  $('#crmtftitle').onkeydown = e => { if (e.key === 'Enter') addTask(); if (e.key === 'Escape') tf.hidden = true; };
+
+  // сообщения
+  const ta = $('#crmmsg');
+  const send = async () => {
+    const text = ta.value.trim();
+    if (!text) return;
+    ta.value = '';
+    try {
+      const m = await api(`/crm/${kind}/${oid}/messages`, {method: 'POST', body: {text}});
+      list = [...list, m];
+      render();
+    } catch (e) { alert(e.message); }
+    ta.focus();
+  };
+  $('#crmsend').onclick = send;
+  ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
 }
 
 /* ---------- ссылки: контакты и компании, выбор из базы с поиском ---------- */
@@ -251,14 +369,12 @@ async function crmOpenDeal(id) {
         <div class="crm-pv crm-links" id="crmlk-companies">${crmEntChips('companies', d.companies)}<button class="crm-add-btn" data-add-companies="1">+ компанию</button></div></div>`;
 
     // этап: выпадающий список
-    const dd = $('#crmdd');
     $('#crmddb').onclick = e => { e.stopPropagation(); $('#crmddm').hidden = !$('#crmddm').hidden; };
-    dd.querySelectorAll('[data-stage]').forEach(b => b.onclick = async e => {
+    $('#crmdd').querySelectorAll('[data-stage]').forEach(b => b.onclick = async e => {
       e.stopPropagation();
       d.stage = b.dataset.stage; paint();
       await saveDeal({stage: d.stage});
     });
-    document.addEventListener('click', crmCloseDd, {once: true});
     // формат: повторный клик снимает
     $('#crmprops').querySelectorAll('[data-fmt]').forEach(b => b.onclick = async () => {
       const f = b.dataset.fmt;
@@ -290,41 +406,16 @@ async function crmOpenDeal(id) {
       id => crmOpenWin(() => crmCompanyView(id, 'sheet')), paint);
   };
 
-  sheet(`<div class="crm-dsheet">
-    <div class="crm-dleft">
-      ${crmSheetTop(`<button class="kb-ib" id="crmdel" aria-label="Удалить сделку">${CRM_ICO.trash}</button>`)}
-      <div class="crm-dbody">
-        <div class="crm-dtitle" id="crmtitle" contenteditable="true" spellcheck="false" data-ph="Название сделки">${esc(d.title && d.title !== 'Без названия' ? d.title : '')}</div>
-        <div class="crm-props" id="crmprops"></div>
-      </div>
-    </div>
-    <div class="crm-dright">
-      <div class="crm-chat-h">Сообщения и задачи</div>
-      <div class="crm-msgs" id="crmmsgs">${crmItemsHtml(d.items)}</div>
-      <div class="crm-tf" id="crmtf" hidden>
-        <input class="crm-tf-title" id="crmtftitle" placeholder="Что нужно сделать">
-        <div class="crm-tf-row">
-          <input type="date" class="crm-tf-date" id="crmtfdate" value="${crmToday()}">
-          <input type="time" class="crm-tf-time" id="crmtftime" aria-label="Время">
-          <button class="crm-tf-ok" id="crmtfok">Добавить</button>
-          <button class="crm-tf-x" id="crmtfx" aria-label="Отмена">${XICON}</button>
-        </div>
-      </div>
-      <div class="crm-compose">
-        <div class="crm-compose-row">
-          <textarea id="crmmsg" rows="1" placeholder="Напишите сообщение…"></textarea>
-          <button class="crm-send" id="crmsend" aria-label="Отправить">${CRM_ICO.send}</button>
-        </div>
-        <div class="crm-compose-bar"><button class="crm-addtask" id="crmaddtask">+ задача</button></div>
-      </div>
-    </div>
-  </div>`, 'crm-sheet crm-dwin');
+  const left = `<div class="crm-body">
+      <div class="crm-dtitle" id="crmtitle" contenteditable="true" spellcheck="false" data-ph="Название сделки">${esc(d.title && d.title !== 'Без названия' ? d.title : '')}</div>
+      <div class="crm-props" id="crmprops"></div>
+    </div>`;
+  sheet(`<div class="crm-win-box">${crmWin(left, 'sheet', `<button class="kb-ib" id="crmdel" aria-label="Удалить сделку">${CRM_ICO.trash}</button>`)}</div>`,
+    'crm-sheet crm-dwin');
 
   $('#sx').onclick = crmCloseWin;
   beforeClose = async () => { location.hash = back; };
   paint();
-  const msgs = $('#crmmsgs');
-  msgs.scrollTop = msgs.scrollHeight;
 
   // название: сохраняем при уходе из поля
   const t = $('#crmtitle');
@@ -345,87 +436,7 @@ async function crmOpenDeal(id) {
     closeSheet();
   };
 
-  // лента: задачи — «Завершить» раскрывает поле итога
-  const bindItems = () => {
-    document.querySelectorAll('[data-task-done]').forEach(b => b.onclick = () => {
-      const cf = document.querySelector(`[data-task-cf="${b.dataset.taskDone}"]`);
-      cf.hidden = false;
-      cf.querySelector('textarea').focus();
-      b.parentElement.hidden = true;
-    });
-    document.querySelectorAll('[data-task-cf]').forEach(cf => {
-      const id = +cf.dataset.taskCf;
-      cf.querySelector('.crm-task-cancel').onclick = () => { cf.hidden = true; cf.previousElementSibling.hidden = false; };
-      cf.querySelector('.crm-task-save').onclick = async () => {
-        const result = cf.querySelector('textarea').value.trim();
-        if (!result) { cf.querySelector('textarea').focus(); return; }
-        try {
-          const upd = await api(`/crm/tasks/${id}/complete`, {method: 'POST', body: {result}});
-          d.items = d.items.map(i => i.kind === 'task' && i.id === id ? upd : i);
-          renderItems();
-        } catch (e) { alert(e.message); }
-      };
-    });
-  };
-  const renderItems = () => {
-    const box = $('#crmmsgs');
-    box.innerHTML = crmItemsHtml(d.items);
-    bindItems();
-    box.scrollTop = box.scrollHeight;
-  };
-  bindItems();
-
-  // задача: форма над полем ввода, без отдельного окна
-  const tf = $('#crmtf');
-  $('#crmaddtask').onclick = () => {
-    tf.hidden = !tf.hidden;
-    if (!tf.hidden) $('#crmtftitle').focus();
-  };
-  $('#crmtfx').onclick = () => { tf.hidden = true; };
-  const addTask = async () => {
-    const title = $('#crmtftitle').value.trim();
-    const due = $('#crmtfdate').value;
-    const time = $('#crmtftime').value;
-    if (!title) { $('#crmtftitle').focus(); return; }
-    if (!due) { $('#crmtfdate').focus(); return; }
-    try {
-      const task = await api(`/crm/deals/${d.id}/tasks`, {method: 'POST', body: {title, due_date: due, due_time: time || null}});
-      d.items.push({...task, created_at: task.created_at});
-      $('#crmtftitle').value = '';
-      $('#crmtftime').value = '';
-      tf.hidden = true;
-      renderItems();
-    } catch (e) { alert(e.message); }
-  };
-  $('#crmtfok').onclick = addTask;
-  $('#crmtftitle').onkeydown = e => { if (e.key === 'Enter') addTask(); if (e.key === 'Escape') tf.hidden = true; };
-
-  // сообщения
-  const ta = $('#crmmsg');
-  const send = async () => {
-    const text = ta.value.trim();
-    if (!text) return;
-    ta.value = '';
-    try {
-      const m = await api(`/crm/deals/${d.id}/messages`, {method: 'POST', body: {text}});
-      d.items.push({id: m.id, kind: 'message', text: m.text, created_at: m.created_at});
-      renderItems();
-    } catch (e) { alert(e.message); }
-    ta.focus();
-  };
-  $('#crmsend').onclick = send;
-  ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
-}
-
-function crmCloseDd() {
-  const m = $('#crmddm');
-  if (m) m.hidden = true;
-}
-
-// подсказка «сохранено» в окне сделки
-function crmSaved() {
-  const s = $('#crmsaved');
-  if (s) s.textContent = 'Сохранено';
+  crmBindFeed('deals', d.id, d.items);
 }
 
 // «Имя Фамилия» → поля контакта
@@ -434,22 +445,20 @@ function crmSplitName(text) {
   return {first_name: parts[0] || '', last_name: parts.slice(1).join(' ')};
 }
 
-/* ---------- списки: контакты и компании ---------- */
+/* ---------- списки: контакты и компании — карточки в стиле сейва ---------- */
 async function crmContactsList() {
-  crmShell('contacts', `<div class="crm-head">
-      <div class="crm-sum">Контакты</div>
-      <div class="crm-headr"><input class="crm-search" id="crmq" placeholder="Поиск контакта"><button class="crm-newbtn" id="crmnewc">${PLUS_ICON}<span>Добавить контакт</span></button></div>
-    </div>
-    <div class="crm-table" id="crmtable"></div>`);
+  crmShell('contacts', `<div class="titlerow crm-titlerow"><div class="brand">Контакты</div>
+      <div class="tr-actions"><input class="crm-search" id="crmq" placeholder="Поиск контакта"><button class="iconbtn" id="crmnewc" aria-label="Добавить контакт" title="Добавить контакт">${PLUS_ICON}</button></div></div>
+    <div class="crm-list" id="crmtable"></div>`, true);
   const paint = async () => {
     const q = $('#crmq').value.trim();
     const rows = await api('/crm/contacts?q=' + encodeURIComponent(q));
-    $('#crmtable').innerHTML = `<div class="crm-row crm-row-h crm-cols-c"><div>Наименование</div><div>Компания</div><div>Телефон</div><div>Email</div></div>`
-      + (rows.map(r => `<div class="crm-row crm-cols-c" data-go="#/crm/contact/${r.id}">
-          <div class="crm-cell-n">${esc(r.name)}</div>
-          <div class="crm-cell-m">${esc(r.companies.map(c => c.name).join(', '))}</div>
-          <div class="crm-cell-m">${esc(r.phone || '')}</div>
-          <div class="crm-cell-m">${esc(r.email || '')}</div></div>`).join('') || '<div class="empty">Контактов пока нет</div>');
+    $('#crmtable').innerHTML = rows.map(r => `<div class="crm-li" data-go="#/crm/contact/${r.id}">
+        ${crmAvatar(r.name)}
+        <div class="crm-li-main"><div class="crm-li-t">${esc(r.name)}</div>
+          <div class="crm-li-s">${esc([r.companies.map(c => c.name).join(', '), r.position].filter(Boolean).join(' · '))}</div></div>
+        <div class="crm-li-r">${esc(r.phone || r.email || '')}</div>
+      </div>`).join('') || '<div class="empty">Контактов пока нет</div>';
     document.querySelectorAll('#crmtable [data-go]').forEach(el => el.onclick = () => { location.hash = el.dataset.go; });
   };
   $('#crmq').oninput = crmDebounce(paint, 200);
@@ -461,18 +470,17 @@ async function crmContactsList() {
 }
 
 async function crmCompaniesList() {
-  crmShell('companies', `<div class="crm-head">
-      <div class="crm-sum">Компании</div>
-      <div class="crm-headr"><input class="crm-search" id="crmq" placeholder="Поиск компании"><button class="crm-newbtn" id="crmnewk">${PLUS_ICON}<span>Добавить компанию</span></button></div>
-    </div>
-    <div class="crm-table" id="crmtable"></div>`);
+  crmShell('companies', `<div class="titlerow crm-titlerow"><div class="brand">Компании</div>
+      <div class="tr-actions"><input class="crm-search" id="crmq" placeholder="Поиск компании"><button class="iconbtn" id="crmnewk" aria-label="Добавить компанию" title="Добавить компанию">${PLUS_ICON}</button></div></div>
+    <div class="crm-list" id="crmtable"></div>`, true);
   const paint = async () => {
     const q = $('#crmq').value.trim();
     const rows = await api('/crm/companies?q=' + encodeURIComponent(q));
-    $('#crmtable').innerHTML = `<div class="crm-row crm-row-h crm-cols-k"><div>Наименование</div><div>Карточка компании</div></div>`
-      + (rows.map(r => `<div class="crm-row crm-cols-k" data-go="#/crm/company/${r.id}">
-          <div class="crm-cell-n">${esc(r.name)}</div>
-          <div class="crm-cell-m">${r.card_url ? esc(r.card_url.replace(/^https?:\/\//, '')) : ''}</div></div>`).join('') || '<div class="empty">Компаний пока нет</div>');
+    $('#crmtable').innerHTML = rows.map(r => `<div class="crm-li" data-go="#/crm/company/${r.id}">
+        <span class="crm-av crm-av-ic">${CRM_ICO.building}</span>
+        <div class="crm-li-main"><div class="crm-li-t">${esc(r.name)}</div>
+          <div class="crm-li-s">${r.card_url ? esc(r.card_url.replace(/^https?:\/\//, '')) : 'Нет карточки'}</div></div>
+      </div>`).join('') || '<div class="empty">Компаний пока нет</div>';
     document.querySelectorAll('#crmtable [data-go]').forEach(el => el.onclick = () => { location.hash = el.dataset.go; });
   };
   $('#crmq').oninput = crmDebounce(paint, 200);
@@ -503,15 +511,27 @@ function crmBindDealGroups(mode) {
   });
 }
 
-/* ---------- карточка контакта: страница слева или окно поверх ---------- */
+// общий вид страницы или окна: страница — по центру, окно — поверх
+function crmShowPerson(kind, mode, title, back, left, tools = '') {
+  const inner = `<div class="crm-win-box${mode === 'page' ? ' page' : ''}">${mode === 'page' ? `<button class="crm-back" data-go="${back}">${CRM_ICO.back}<span>Назад</span></button>` : ''}${crmWin(left, mode, tools)}</div>`;
+  if (mode === 'page') {
+    crmShell(kind === 'contacts' ? 'contacts' : 'companies', inner, true);
+    document.querySelectorAll('[data-go]').forEach(el => el.onclick = () => { location.hash = el.dataset.go; });
+  } else {
+    sheet(inner, 'crm-sheet crm-dwin');
+    $('#sx').onclick = crmCloseWin;
+  }
+}
+
+/* ---------- карточка контакта ---------- */
 async function crmContactView(id, mode) {
   const c = await api('/crm/contacts/' + id);
   const refresh = () => crmContactView(id, mode);
   const field = (label, key, placeholder = '') => `<div class="crm-prop"><div class="crm-pl"><span>${label}</span></div>
       <div class="crm-pv"><input class="crm-in crm-wide" data-f="${key}" value="${esc(c[key] || '')}" placeholder="${placeholder}"></div></div>`;
-  const body = `<div class="crm-card${mode === 'sheet' ? ' crm-mini' : ''}">
-      ${mode === 'page' ? '<button class="crm-back" data-go="#/crm/contacts">← Контакты</button>' : crmSheetTop()}
-      <div class="crm-card-t" id="crmname">${esc(c.name)}</div>
+  const left = `<div class="crm-body">
+      <div class="crm-head-p">${crmAvatar(c.name, 'lg')}<div><div class="crm-card-t" id="crmname">${esc(c.name)}</div>
+        <div class="crm-sub">${esc([c.position, c.city].filter(Boolean).join(' · ')) || 'Контакт'}</div></div></div>
       <div class="crm-props">
         ${field('Имя', 'first_name')}${field('Фамилия', 'last_name')}${field('Отчество', 'middle_name')}
         ${field('Телефон', 'phone', '+7…')}${field('Почта', 'email', 'name@mail.ru')}${field('Телеграм', 'telegram', '@username')}
@@ -522,13 +542,7 @@ async function crmContactView(id, mode) {
       <div class="crm-sec-t">Сделки</div>
       <div class="crm-groups">${crmDealGroups(c.deals)}</div>
     </div>`;
-  if (mode === 'page') {
-    crmShell('contacts', body);
-    document.querySelectorAll('[data-go]').forEach(el => el.onclick = () => { location.hash = el.dataset.go; });
-  } else {
-    sheet(body, 'crm-sheet crm-miniwin');
-    $('#sx').onclick = crmCloseWin;
-  }
+  crmShowPerson('contacts', mode, c.name, '#/crm/contacts', left);
   document.querySelectorAll('[data-f]').forEach(inp => inp.onchange = async () => {
     try {
       const upd = await api('/crm/contacts/' + id, {method: 'PATCH', body: {[inp.dataset.f]: inp.value}});
@@ -548,19 +562,20 @@ async function crmContactView(id, mode) {
     kid => mode === 'sheet' ? crmOpenWin(() => crmCompanyView(kid, 'sheet')) : (location.hash = '#/crm/company/' + kid),
     refresh);
   crmBindDealGroups(mode);
+  crmBindFeed('contacts', id, c.items);
 }
 
-/* ---------- карточка компании: страница слева или окно поверх ---------- */
+/* ---------- карточка компании ---------- */
 async function crmCompanyView(id, mode) {
   const k = await api('/crm/companies/' + id);
   const refresh = () => crmCompanyView(id, mode);
-  const body = `<div class="crm-card${mode === 'sheet' ? ' crm-mini' : ''}">
-      ${mode === 'page' ? '<button class="crm-back" data-go="#/crm/companies">← Компании</button>' : crmSheetTop()}
-      <div class="crm-card-t" id="crmname">${esc(k.name)}</div>
+  const left = `<div class="crm-body">
+      <div class="crm-head-p">${`<span class="crm-av lg crm-av-ic">${CRM_ICO.building}</span>`}<div><div class="crm-card-t" id="crmname">${esc(k.name)}</div>
+        <div class="crm-sub">Компания</div></div></div>
       <div class="crm-props">
         <div class="crm-prop"><div class="crm-pl"><span>Название</span></div>
           <div class="crm-pv"><input class="crm-in crm-wide" id="crmnm" value="${esc(k.name)}"></div></div>
-        <div class="crm-prop"><div class="crm-pl"><span>Карточка компании</span></div>
+        <div class="crm-prop"><div class="crm-pl"><span>Карточка</span></div>
           <div class="crm-pv crm-docs"><input class="crm-in crm-url" id="crmcu" placeholder="Ссылка на Google Диск" value="${esc(k.card_url || '')}">${k.card_url ? `<a class="crm-open" href="${esc(k.card_url)}" target="_blank" rel="noopener">Открыть</a>` : ''}</div></div>
         <div class="crm-prop"><div class="crm-pl"><span>Контакты</span></div>
           <div class="crm-pv crm-links" id="crmlk-contacts">${crmEntChips('contacts', k.contacts)}<button class="crm-add-btn" data-add-contacts="1">+ контакт</button></div></div>
@@ -568,13 +583,7 @@ async function crmCompanyView(id, mode) {
       <div class="crm-sec-t">Сделки</div>
       <div class="crm-groups">${crmDealGroups(k.deals)}</div>
     </div>`;
-  if (mode === 'page') {
-    crmShell('companies', body);
-    document.querySelectorAll('[data-go]').forEach(el => el.onclick = () => { location.hash = el.dataset.go; });
-  } else {
-    sheet(body, 'crm-sheet crm-miniwin');
-    $('#sx').onclick = crmCloseWin;
-  }
+  crmShowPerson('companies', mode, k.name, '#/crm/companies', left);
   $('#crmnm').onchange = async () => {
     try { const u = await api('/crm/companies/' + id, {method: 'PATCH', body: {name: $('#crmnm').value}}); $('#crmname').textContent = u.name; }
     catch (e) { alert(e.message); }
@@ -603,15 +612,16 @@ async function crmCompanyView(id, mode) {
     cid => mode === 'sheet' ? crmOpenWin(() => crmContactView(cid, 'sheet')) : (location.hash = '#/crm/contact/' + cid),
     refresh);
   crmBindDealGroups(mode);
+  crmBindFeed('companies', id, k.items);
 }
 
-/* ---------- календарь: задача CRM — метка CRM и название сделки ---------- */
+/* ---------- календарь: задача CRM — метка CRM и название владельца ---------- */
 function crmCalItem(it, big) {
   const time = it.due_time ? `<span class="${big ? 'kc-tag kc-date' : 'cal-t'}">${esc(it.due_time)}</span>` : '';
   const tag = '<span class="kc-tag crm-cal-tag">CRM</span>';
   return big
-    ? `<div class="kcard cal-crm${it.done ? ' done' : ''}" data-crm="${it.deal_id}"><div class="kct">${esc(it.title)}</div><div class="kc-tags">${time}${tag}</div><div class="cal-sub">${esc(it.deal_title)}</div></div>`
-    : `<div class="cal-item cal-crm${it.done ? ' done' : ''}" data-crm="${it.deal_id}">${time}<span class="cal-title">${esc(it.title)}</span>${tag}<span class="cal-sub">${esc(it.deal_title)}</span></div>`;
+    ? `<div class="kcard cal-crm${it.done ? ' done' : ''}" data-href="${esc(it.href)}"><div class="kct">${esc(it.title)}</div><div class="kc-tags">${time}${tag}</div><div class="cal-sub">${esc(it.owner_title)}</div></div>`
+    : `<div class="cal-item cal-crm${it.done ? ' done' : ''}" data-href="${esc(it.href)}">${time}<span class="cal-title">${esc(it.title)}</span>${tag}<span class="cal-sub">${esc(it.owner_title)}</span></div>`;
 }
 
 /* ---------- маршруты CRM ---------- */

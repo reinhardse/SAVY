@@ -1627,7 +1627,7 @@ function paintCal() {
   $('#caltoday').onclick = () => { calAnchor = new Date(); calendarPage(); };
   $('#calfilter').onclick = e => { e.stopPropagation(); openCalMenu(); };
   document.querySelectorAll('.cal-card').forEach(el => { el.onclick = () => { if (!calDragging) openCard(+el.dataset.card); }; });
-  document.querySelectorAll('.cal-crm').forEach(el => { el.onclick = () => { location.hash = '#/crm/deal/' + el.dataset.crm; }; });
+  document.querySelectorAll('.cal-crm').forEach(el => { el.onclick = () => { location.hash = el.dataset.href; }; });
   bindCalDrag();
 }
 let calDragging = false;

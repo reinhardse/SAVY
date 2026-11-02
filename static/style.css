@@ -1012,3 +1012,84 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .cal-crm.done .cal-title,.cal-crm.done .kct{text-decoration:line-through}
 .crm-cal-tag{background:#efe9ff!important;color:#5b3fbf!important}
 .cal-sub{display:block;font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* CRM v3: воронка — как было вначале; окна — пополам (содержимое | лента), по центру; списки и карточки — в стиле сейва */
+.crm-col{flex:0 0 260px;width:260px;background:none;border:0;border-radius:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.crm-col-h{display:block;text-align:center;border-top:3px solid var(--sc);padding:12px 4px 14px;background:none}
+.crm-col-t{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
+.crm-col-s{font-size:13px;color:var(--muted);margin-top:4px;white-space:normal}
+.crm-col-b{display:flex;flex-direction:column;gap:10px}
+.crm-quick-btn{padding:14px;font-size:14px;border-radius:14px}
+.crm-deal{padding:12px 14px;border-radius:14px;box-shadow:var(--sh-sm)}
+.crm-deal-top{font-size:14px}
+.crm-deal-date{font-size:13px}
+.crm-deal-title{font-size:16px;margin:6px 0 8px;font-weight:500}
+.crm-deal-foot{font-size:14px}
+.crm-deal-foot .kc-tag{font-size:13px}
+
+.crm-main.narrow{max-width:960px;margin:0 auto;width:100%}
+.crm-titlerow{padding-right:0}
+.crm-back{display:inline-flex;align-items:center;gap:6px;border:0;background:none;color:var(--muted);font:inherit;font-size:13px;padding:0 0 12px;cursor:pointer}
+.crm-back:hover{color:var(--ink)}
+.crm-back svg{width:16px;height:16px}
+.crm-win-box{width:100%}
+.crm-win-box.page{padding-top:4px}
+
+.sheet.crm-dwin{max-width:1140px;width:calc(100% - 40px);height:min(86vh,800px);max-height:none;padding:0;border-radius:20px;overflow:hidden}
+.crm-win{display:flex;height:100%;min-height:0}
+.crm-win.page{height:auto;min-height:600px;border:1px solid #ececf0;border-radius:18px;background:#fff;overflow:hidden;box-shadow:var(--sh-sm)}
+.crm-left{flex:1 1 50%;min-width:0;min-height:0;overflow:auto;padding:0 40px 32px;display:flex;flex-direction:column}
+.crm-right{flex:1 1 50%;min-width:0;min-height:0;display:flex;flex-direction:column;background:#fafafb;border-left:1px solid #ececf0}
+.crm-body{max-width:520px;width:100%;margin:0 auto;padding-top:12px}
+.crm-dtop{padding:14px 0 0;display:flex;align-items:center;justify-content:space-between}
+.crm-dtitle{font-size:26px;margin:16px 0 18px;font-weight:700;line-height:1.2}
+.crm-props{gap:4px}
+.crm-prop{grid-template-columns:128px minmax(0,1fr);min-height:32px}
+.crm-pl{font-size:14px;padding-top:6px}
+.crm-pv{min-height:28px}
+.crm-in{font-size:15px}
+.crm-chip{font-size:13px;padding:4px 12px}
+.crm-add-btn{font-size:13px}
+.crm-ent-n{font-size:13px}
+.crm-head-p{display:flex;gap:14px;align-items:center;margin:14px 0 20px}
+.crm-card-t{font-size:24px;font-weight:700;line-height:1.2;outline:none}
+.crm-sub{font-size:13px;color:var(--muted);margin-top:4px}
+.crm-sec-t{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:26px 0 10px}
+.crm-groups{gap:14px}
+.crm-grp-h{font-size:12px;padding:10px 14px}
+.crm-drow{font-size:14px;padding:10px 14px}
+.crm-msgs{padding:14px 16px;gap:10px;min-height:0;flex:1}
+.crm-bub{font-size:15px;padding:8px 12px}
+.crm-msg-t{font-size:11px}
+.crm-chat-h{font-size:12px;padding:16px 18px 12px;background:#fafafb}
+
+.crm-av{width:36px;height:36px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex:none;letter-spacing:.02em}
+.crm-av.lg{width:56px;height:56px;font-size:18px}
+.crm-av-ic{background:#f1f1f4;color:#6b6b74}
+.crm-av-ic svg{width:18px;height:18px}
+.crm-av.lg.crm-av-ic svg{width:24px;height:24px}
+.crm-list{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.crm-li{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #ececf0;border-radius:16px;padding:12px 14px;cursor:pointer;box-shadow:var(--sh-sm);transition:box-shadow .15s}
+.crm-li:hover{box-shadow:var(--sh-md)}
+.crm-li-main{flex:1;min-width:0}
+.crm-li-t{font-size:15px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crm-li-s{font-size:13px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crm-li-r{font-size:13px;color:var(--muted);white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+
+.crm-compose{padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px;border-top:1px solid #ececf0;background:#fff}
+.crm-compose textarea{width:100%;border:1px solid #e3e3e8;border-radius:14px;padding:9px 12px;font:inherit;font-size:14px;resize:none;outline:none;min-height:40px;max-height:140px;background:#fff}
+.crm-compose textarea:focus{border-color:#9bb8ec}
+.crm-compose-bar{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.crm-send{height:34px;width:auto;padding:0 14px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;border:0;background:#2f6fe0;color:#fff;font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.crm-send svg{width:15px;height:15px}
+.crm-send:hover{background:#2862c9}
+
+@media (max-width:760px){
+  .crm-win{flex-direction:column;height:auto}
+  .crm-left,.crm-right{flex:none}
+  .crm-left{padding:0 18px 20px}
+  .crm-right{min-height:50vh;border-left:0;border-top:1px solid #ececf0}
+  .sheet.crm-dwin{height:auto;max-height:92vh;overflow:auto}
+}
+
+.sheet.crm-dwin > .crm-win-box{height:100%;min-height:0}
