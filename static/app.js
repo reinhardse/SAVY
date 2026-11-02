@@ -745,23 +745,28 @@ function newBoard() {
 
 // поле для ввода прямо на месте элемента: Enter сохраняет, Esc или пустое поле отменяет
 function inlineEdit(el, value, onSave, onCancel, placeholder = '') {
-  const inp = document.createElement('input');
-  inp.className = 'kin';
+  // поле растёт вниз: длинный текст переносится по словам и весь виден, ничего не уходит наверх
+  const inp = document.createElement('textarea');
+  inp.className = 'kin kin-area';
+  inp.rows = 1;
   inp.value = value;
   inp.placeholder = placeholder;
   inp.maxLength = 200;
+  const grow = () => { inp.style.height = 'auto'; inp.style.height = inp.scrollHeight + 'px'; };
   el.replaceWith(inp);
+  grow();
   inp.focus();
   inp.select();
   let done = false;
   const finish = async save => {
     if (done) return;
     done = true;
-    const v = inp.value.trim();
+    const v = inp.value.replace(/\s*\n\s*/g, ' ').trim();
     if (save && v && v !== value) await onSave(v); else onCancel();
   };
+  inp.oninput = grow;
   inp.onkeydown = e => {
-    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); finish(true); }
     else if (e.key === 'Escape') finish(false);
   };
   inp.onblur = () => finish(true);
@@ -1229,7 +1234,7 @@ async function openCard(kid) {
     clearTimeout(timer); timer = setTimeout(flush, 500);
   };
   const titleText = () => t.textContent.replace(/\s+/g, ' ').trim().slice(0, 200);
-  t.oninput = () => { if (!t.textContent) t.innerHTML = ''; queue(); };
+  t.oninput = () => { if (!t.textContent) t.innerHTML = ''; grow(t); queue(); };
   t.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); n.focus(); } });
   t.addEventListener('paste', e => { e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').replace(/\s*\n\s*/g, ' ')); });
   t.addEventListener('click', e => { const a = e.target.closest('a'); if (a) { e.preventDefault(); window.open(a.href, '_blank', 'noopener'); } });
