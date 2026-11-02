@@ -356,7 +356,7 @@ textarea.kb-title:focus,textarea.kb-note:focus{border:0;box-shadow:none}
 #app.kfull{max-width:none;padding-left:18px;padding-right:18px}
 #app.kfull .titlerow{padding-right:62px}
 #app.kfull .kcols{padding-bottom:20px}
-#app.kfull .kcol{flex:0 0 calc((100% - 42px) / 4);min-width:260px}  /* ширина фиксированная: как при четырёх колонках, не зависит от их числа */
+#app.kfull .kcol{flex:0 0 260px;min-width:260px}
 #app.kfull .kcol.kaddcol{flex:0 0 200px}
 
 /* одна линия справа вверху: домик, расширение и «Хаб» с одинаковым расстоянием 10 px */
