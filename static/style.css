@@ -723,3 +723,6 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .hl-ph{border:1px dashed #e4e4ea;background:#f6f6f8}
 .hl-img,.hl-ic{pointer-events:none;-webkit-user-drag:none;user-select:none}
 .hl-tile{-webkit-user-drag:none;user-select:none}
+/* хватаем хайлайт как карточку доски: рука при наведении, кулак при нажатии, без прокрутки жестом */
+.hl-item[data-hl-item] .hl-tile{touch-action:none;cursor:grab}
+.hl-item[data-hl-item] .hl-tile:active{cursor:grabbing}
