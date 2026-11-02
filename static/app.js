@@ -1816,15 +1816,6 @@ function bindHlDrag() {
   });
 }
 function hlIds() { return [...document.querySelectorAll('#hlstrip .hl-item[data-hl-item]')].map(x => +x.dataset.hlItem); }
-// куда встанет квадрат: перед тем, над чьей серединой прошли курсором; подписи других не двигаются
-function hlTarget(x) {
-  const items = [...document.querySelectorAll('#hlstrip .hl-item[data-hl-item]')].filter(it => it !== hlDrag.el);
-  for (let i = 0; i < items.length; i++) {
-    const r = items[i].querySelector('.hl-tile').getBoundingClientRect();
-    if (x < r.left + r.width / 2) return {idx: i, rect: r};
-  }
-  return {idx: items.length, rect: document.querySelector('#hladd').getBoundingClientRect()};
-}
 function hlMove(e) {
   if (!hlDrag) return;
   if (!hlDrag.started) {
@@ -1838,11 +1829,13 @@ function hlMove(e) {
   const r = strip.getBoundingClientRect();
   if (e.clientX > r.right - 60) strip.scrollLeft += 12;
   if (e.clientX < r.left + 60) strip.scrollLeft -= 12;
-  hlPlace(e.clientX);
+  hlPlace(e.clientX, e.clientY);
 }
 function hlStart(e) {
   const r = hlDrag.el.getBoundingClientRect();
   hlDrag.started = true;
+  const nx = hlDrag.el.nextElementSibling;
+  hlDrag.mark = nx && nx.matches('.hl-item[data-hl-item]') ? nx : null;
   hlSuppress = true;
   hlDrag.orig = hlIds();
   hlDrag.sx = e.clientX - r.left;
@@ -1871,16 +1864,25 @@ function hlStart(e) {
   };
   hlDrag.tx = hlDrag.cx; hlDrag.ty = hlDrag.cy;
   follow();
-  hlPlace(e.clientX);
+  hlPlace(e.clientX, e.clientY);
 }
-function hlPlace(x) {
-  const t = hlTarget(x);
-  hlDrag.target = t.idx;
-  const rect = t.rect;
-  hlDrag.ph.style.left = rect.left + 'px';
-  hlDrag.ph.style.top = rect.top + 'px';
-  hlDrag.ph.style.width = rect.width + 'px';
-  hlDrag.ph.style.height = rect.height + 'px';
+// метка остаётся на месте, пока курсор внутри её контура; переходит, только когда курсор вышел за контур и попал на другую карточку
+function hlPlace(x, y) {
+  const d = hlDrag;
+  const inside = r => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  const addEl = document.querySelector('#hladd');
+  const rectOf = el => (el ? el.querySelector('.hl-tile') : addEl).getBoundingClientRect();
+  if (!inside(rectOf(d.mark))) {
+    const items = [...document.querySelectorAll('#hlstrip .hl-item[data-hl-item]')].filter(it => it !== d.el);
+    const hit = items.find(it => inside(it.querySelector('.hl-tile').getBoundingClientRect()));
+    if (hit) d.mark = hit;
+    else if (inside(addEl.getBoundingClientRect())) d.mark = null;
+  }
+  const r = rectOf(d.mark);
+  d.ph.style.left = r.left + 'px';
+  d.ph.style.top = r.top + 'px';
+  d.ph.style.width = r.width + 'px';
+  d.ph.style.height = r.height + 'px';
 }
 async function hlUp() {
   window.removeEventListener('pointermove', hlMove);
@@ -1898,8 +1900,7 @@ async function hlUp() {
   d.el.style.visibility = '';
   // ставим ссылку на новое место вместе с её подписью
   const strip = $('#hlstrip');
-  const others = [...strip.querySelectorAll('.hl-item[data-hl-item]')].filter(it => it !== d.el);
-  const ref = others[d.target] || strip.querySelector('.hl-fixed');
+  const ref = d.mark || strip.querySelector('.hl-fixed');
   if (ref) strip.insertBefore(d.el, ref); else strip.appendChild(d.el);
   const ids = hlIds();
   if (ids.join() === d.orig.join()) return;

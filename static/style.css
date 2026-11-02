@@ -730,7 +730,7 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 /* призрак — единая непрозрачная карточка: квадрат и подпись переносятся вместе, без просвечивания */
 
 /* при переносе летит только квадрат; подпись стоит на месте; метка места вставки — пунктиром поверх */
-.hl-item.hl-ghost{position:fixed;left:0;top:0;margin:0;z-index:60;pointer-events:none;background:#fff;border-radius:22px;padding:6px 4px 8px;opacity:1;box-shadow:0 18px 40px rgba(0,0,0,.22);transition:none}
+.hl-item.hl-ghost{position:fixed;left:0;top:0;margin:0;z-index:60;pointer-events:none;background:#fff;border-radius:14px;padding:6px 4px 8px;opacity:1;box-shadow:0 18px 40px rgba(0,0,0,.22);transition:none}
 .hl-item.hl-ghost .hl-pen{display:none}
 .hl-ph.hl-ph-fixed{position:fixed;z-index:55;pointer-events:none;border-radius:18px;margin:0}
 .hl-strip.hl-dragging .hl-pen{display:none}
