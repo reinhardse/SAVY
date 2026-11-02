@@ -191,7 +191,7 @@ function crmWin(left, mode, tools = '') {
       <div class="crm-chat-h">Сообщения и задачи</div>
       <div class="crm-msgs" id="crmmsgs"></div>
       <div class="crm-tf" id="crmtf" hidden>
-        <input class="crm-tf-title" id="crmtftitle" placeholder="Что нужно сделать">
+        <textarea class="crm-tf-title" id="crmtftitle" rows="1" placeholder="Что нужно сделать"></textarea>
         <div class="crm-tf-row">
           <input type="date" class="crm-tf-date" id="crmtfdate" value="${crmToday()}">
           <input type="time" class="crm-tf-time" id="crmtftime" aria-label="Время">
@@ -239,7 +239,7 @@ function crmTaskHtml(t) {
       <div class="crm-task-cf-row"><button class="crm-task-save">Сохранить итог</button><button class="crm-task-cancel">Отмена</button></div>
     </div>
     <div class="crm-task-ed" data-task-ed="${t.id}" hidden>
-      <input class="crm-tf-title" data-ed-title value="${esc(t.title)}" placeholder="Что нужно сделать">
+      <textarea class="crm-tf-title" data-ed-title rows="1" placeholder="Что нужно сделать">${esc(t.title)}</textarea>
       <div class="crm-tf-row">
         <input type="date" class="crm-tf-date" data-ed-date value="${t.due_date}">
         <input type="time" class="crm-tf-time" data-ed-time value="${t.due_time || ''}" aria-label="Время">
@@ -393,7 +393,13 @@ function crmBindFeed(kind, oid, items) {
     } catch (e) { alert(e.message); }
   };
   $('#crmtfok').onclick = addTask;
-  $('#crmtftitle').onkeydown = e => { if (e.key === 'Enter') addTask(); if (e.key === 'Escape') tf.hidden = true; };
+  const crmGrow = el => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
+  $('#crmtftitle').oninput = e => crmGrow(e.target);
+  $('#crmtftitle').onkeydown = e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addTask(); return; }
+    if (e.key === 'Escape') tf.hidden = true;
+  };
+  document.querySelectorAll('[data-ed-title]').forEach(el => { el.oninput = () => crmGrow(el); });
 
   // сообщения
   const ta = $('#crmmsg');
@@ -764,7 +770,7 @@ function crmBindDealGroups(mode) {
 // формы под лентой: задача и сообщение (одинаково во всех окнах)
 function crmFormsHtml() {
   return `<div class="crm-tf" id="crmtf" hidden>
-        <input class="crm-tf-title" id="crmtftitle" placeholder="Что нужно сделать">
+        <textarea class="crm-tf-title" id="crmtftitle" rows="1" placeholder="Что нужно сделать"></textarea>
         <div class="crm-tf-row">
           <input type="date" class="crm-tf-date" id="crmtfdate" value="${crmToday()}">
           <input type="time" class="crm-tf-time" id="crmtftime" aria-label="Время">
