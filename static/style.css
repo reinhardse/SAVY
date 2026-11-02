@@ -545,6 +545,17 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .slash .sl-ic svg{width:20px;height:20px;display:block}
 .slash .sl-lb{flex:1;min-width:0}
 .slash .sl-sc{font-size:12px;color:var(--muted);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+/* меню блоков в заметке доски — компактное */
+.slash.sl-blk{width:176px;padding:4px;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.1)}
+.slash.sl-blk .sl-item{gap:8px;padding:5px 8px;border-radius:6px;font-size:13px;line-height:18px}
+.slash.sl-blk .sl-ic{width:16px;height:16px}
+.slash.sl-blk .sl-ic svg{width:16px;height:16px}
+.slash.sl-blk .sl-tx{font-size:10px;font-weight:700;letter-spacing:-.02em;color:#37352f}
+/* заголовки заметки доски: 1, 2, 3 уровня */
+.card-sheet .kb-note .kh{margin:12px 0 2px;line-height:1.35}
+.card-sheet .kb-note .kh1{font-size:22px;font-weight:700;letter-spacing:-.015em;margin-top:16px}
+.card-sheet .kb-note .kh2{font-size:18px;font-weight:600;letter-spacing:-.01em}
+.card-sheet .kb-note .kh3{font-size:15px;font-weight:600}
 
 /* свойства карточки в стиле Notion: слева иконка и название, справа значение; строки с воздухом */
 .card-sheet .kb-props{display:flex;flex-direction:column;margin:0 0 24px}
