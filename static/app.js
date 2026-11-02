@@ -1116,6 +1116,16 @@ function readNote(root) {
   }).join('\n');
 }
 
+function caretStart(el) {
+  const target = el.classList.contains('kcheck') ? el.querySelector('.kct') : el;
+  const r = document.createRange();
+  r.setStart(target, 0);
+  r.collapse(true);
+  const s = getSelection();
+  s.removeAllRanges();
+  s.addRange(r);
+}
+
 function caretEnd(el) {
   const target = el.classList.contains('kcheck') ? el.querySelector('.kct') : el;
   // ставим каретку внутрь последнего текстового узла: на границе элемента она не рисуется
@@ -1477,6 +1487,27 @@ async function openCard(kid) {
       queue();
       return;
     }
+    // Backspace / Delete на пустом пункте списка — пункт удаляется сразу, одним нажатием
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      const s0 = getSelection();
+      if (!s0.rangeCount) return;
+      let row = s0.anchorNode;
+      while (row && row.parentNode !== n) row = row.parentNode;
+      if (!row || !row.classList || !row.classList.contains('kcheck')) return;
+      if (textOf(row.querySelector('.kct')).trim() !== '') return;
+      e.preventDefault();
+      const prev = row.previousElementSibling, next = row.nextElementSibling;
+      if (!prev && !next) {
+        const plain = createLine('plain', '');
+        n.replaceChild(plain, row);
+        caretStart(plain);
+      } else {
+        row.remove();
+        caretEnd(prev || next);
+      }
+      queue();
+      return;
+    }
     if (e.key !== 'Enter' || e.shiftKey) return;
     const s = getSelection();
     if (!s.rangeCount) return;
@@ -1493,9 +1524,17 @@ async function openCard(kid) {
       n.replaceChild(plain, el);
       caretEnd(plain);
     } else {
-      const nl = createLine(isCheck ? 'check' : 'bul', '', false, isCheck ? +(el.dataset.lvl || 0) : 0);
+      // Enter делит пункт по курсору: текст справа от курсора переезжает в новый пункт
+      const body = isCheck ? el.querySelector('.kct') : el;
+      const r0 = s.getRangeAt(0);
+      const cut = document.createRange();
+      if (body.contains(r0.startContainer)) cut.setStart(r0.startContainer, r0.startOffset);
+      else cut.setStart(body, 0);
+      cut.setEnd(body, body.childNodes.length);
+      const rest = cut.extractContents().textContent.replace(/\u200b/g, '');
+      const nl = createLine(isCheck ? 'check' : 'bul', rest, false, isCheck ? +(el.dataset.lvl || 0) : 0);
       el.after(nl);
-      caretEnd(nl);
+      caretStart(nl);
     }
     queue();
   });
