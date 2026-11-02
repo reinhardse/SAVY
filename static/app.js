@@ -1736,8 +1736,10 @@ const HL_DOC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strok
 const HL_LINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>';
 const hlItem = l => {
   const k = tagColor(l.host);
-  const icon = /docs\.google|drive\.google/.test(l.url) ? HL_DOC : HL_LINK;
-  return `<div class="hl-item"><button class="hl-tile" data-hl-open="${l.id}" style="--hb:${k.bg};--ht:${k.tc}" title="${esc(l.url)}"><span class="hl-ic">${icon}</span><span class="hl-host">${esc(l.host)}</span></button><button class="hl-pen" data-hl-edit="${l.id}" aria-label="Изменить ссылку">${PEN}</button><div class="hl-name" title="${esc(l.title)}">${esc(l.title)}</div></div>`;
+  const media = l.thumb
+    ? `<img class="hl-img" src="${esc(l.thumb)}" alt="">`
+    : `<span class="hl-ic">${/docs\.google|drive\.google/.test(l.url) ? HL_DOC : HL_LINK}</span>`;
+  return `<div class="hl-item"><button class="hl-tile" data-hl-open="${l.id}" style="--hb:${k.bg};--ht:${k.tc}" title="${esc(l.url)}">${media}</button><button class="hl-pen" data-hl-edit="${l.id}" aria-label="Изменить ссылку">${PEN}</button><div class="hl-name" title="${esc(l.label)}">${esc(l.label)}</div></div>`;
 };
 
 // окно ссылки: адрес и комментарий; адрес сохраняется при выходе из поля, комментарий — по паузе в наборе
@@ -1746,15 +1748,23 @@ function openLink(l) {
   let timer = null;
   sheet(`<div class="sheet-body hl-body">
       <div class="hl-top"><button class="hl-open" id="hlopen">Открыть</button><button class="iconbtn" id="sx" aria-label="Закрыть">${XICON}</button></div>
+      ${l && l.thumb ? `<img class="hl-cover" src="${esc(l.thumb)}" alt="">` : ''}
       <label class="hl-lb" for="hlurl">Ссылка</label>
       <input class="hl-in" id="hlurl" placeholder="https://" value="${esc(l ? l.url : '')}">
+      <label class="hl-lb" for="hlname">Название</label>
+      <input class="hl-in" id="hlname" placeholder="Как назвать на доске" value="${esc(l ? l.name : '')}">
       <label class="hl-lb" for="hlcom">Комментарий</label>
       <textarea class="hl-ta" id="hlcom" placeholder="Комментарий к ссылке">${esc(l ? l.comment : '')}</textarea>
       <div class="hl-foot"><button class="hl-del" id="hldel"${lid == null ? ' hidden' : ''}>Удалить ссылку</button><span class="kb-saved" id="hlsaved"></span></div>
     </div>`, 'hl-sheet');
   $('#sx').onclick = closeSheet;
-  const urlIn = $('#hlurl'), com = $('#hlcom');
+  const urlIn = $('#hlurl'), nameIn = $('#hlname'), com = $('#hlcom');
   const setSaved = t => { const s = $('#hlsaved'); if (s) s.textContent = t; };
+  const saveName = async () => {
+    if (lid == null) return;
+    try { await api(`/links/${lid}`, {method: 'PATCH', body: {name: nameIn.value.trim()}}); setSaved('Сохранено'); }
+    catch (e) { alert(e.message); }
+  };
   $('#hlopen').onclick = () => { const u = urlIn.value.trim(); if (u) window.open(/^https?:\/\//.test(u) ? u : 'https://' + u, '_blank', 'noopener'); };
   urlIn.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); urlIn.blur(); } };
   urlIn.onchange = async () => {
@@ -1768,9 +1778,12 @@ function openLink(l) {
       lid = r.id;
       urlIn.value = r.url;
       $('#hldel').hidden = false;
-      setSaved('Сохранено');
+      if (nameIn.value.trim()) await saveName();
+      else setSaved('Сохранено');
     } catch (e) { setSaved(''); alert(e.message); }
   };
+  nameIn.onchange = saveName;
+  nameIn.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); nameIn.blur(); } };
   const saveComment = async () => {
     if (lid == null) return;
     try { await api(`/links/${lid}`, {method: 'PATCH', body: {comment: com.value}}); setSaved('Сохранено'); }
@@ -1784,7 +1797,7 @@ function openLink(l) {
     beforeClose = null;
     closeSheet();
   };
-  setTimeout(() => (lid == null ? urlIn : com).focus(), 0);
+  setTimeout(() => (lid == null ? urlIn : nameIn).focus(), 0);
 }
 
 /* ---------- старт ---------- */

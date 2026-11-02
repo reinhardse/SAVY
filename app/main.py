@@ -530,7 +530,7 @@ def board_create(body: BoardIn, db: Session = Depends(get_db), _: int = Depends(
 @app.get("/api/boards/{bid}")
 def board_read(bid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     out = board_out(_board(db, bid))
-    out["links"] = [link_out(l) for l in db.scalars(select(BoardLink).where(BoardLink.board_id == bid).order_by(BoardLink.id)).all()]
+    out["links"] = [link_out(l) for l in db.scalars(select(BoardLink).where(BoardLink.board_id == bid).order_by(BoardLink.sort, BoardLink.id)).all()]
     return out
 
 
@@ -542,11 +542,14 @@ class LinkIn(BaseModel):
 class LinkPatch(BaseModel):
     url: str | None = None
     comment: str | None = None
+    name: str | None = None
 
 
 def link_out(l: BoardLink) -> dict:
     host = (urlparse(l.url).hostname or l.url).removeprefix("www.")
-    return {"id": l.id, "url": l.url, "title": l.title or host, "host": host, "comment": l.comment or ""}
+    return {"id": l.id, "url": l.url, "host": host, "comment": l.comment or "",
+            "name": l.name or "", "title": l.title or "", "label": l.name or l.title or host,
+            "thumb": f"/thumbs/{l.thumb}" if l.thumb else None}
 
 
 def _fetch_title(url: str) -> str | None:
@@ -556,15 +559,23 @@ def _fetch_title(url: str) -> str | None:
         return None
 
 
-def _refresh_title(lid: int, url: str) -> None:
-    """Название подтягиваем в фоне: сама ссылка уже сохранена и открывается сразу."""
-    title = _fetch_title(url)
-    if not title:
+def _refresh_meta(lid: int, url: str) -> None:
+    """Название и картинку страницы подтягиваем в фоне: ссылка уже сохранена и открывается сразу."""
+    try:
+        m = meta.fetch_metadata(url, "web") or {}
+    except Exception:
         return
+    title = m.get("title") or None
+    thumb_name = None
+    if m.get("thumbnail_url"):
+        dest = DATA_DIR / "thumbs" / f"link{lid}.jpg"
+        if meta.download_thumb(m["thumbnail_url"], dest):
+            thumb_name = dest.name
     with SessionLocal() as s:
         l = s.get(BoardLink, lid)
         if l and l.url == url:
             l.title = title
+            l.thumb = thumb_name
             s.commit()
 
 
@@ -587,10 +598,11 @@ def _link(db: Session, lid: int) -> BoardLink:
 def link_create(bid: int, body: LinkIn, bg: BackgroundTasks, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     b = _board(db, bid)
     url = _norm(body.url)
-    l = BoardLink(board_id=b.id, url=url, title=None, comment="")
+    last = db.scalar(select(func.max(BoardLink.sort)).where(BoardLink.board_id == b.id)) or 0
+    l = BoardLink(board_id=b.id, url=url, title=None, comment="", sort=last + 1)
     db.add(l)
     db.commit()
-    bg.add_task(_refresh_title, l.id, url)
+    bg.add_task(_refresh_meta, l.id, url)
     return link_out(l)
 
 
@@ -602,7 +614,10 @@ def link_patch(lid: int, body: LinkPatch, bg: BackgroundTasks, db: Session = Dep
         if url != l.url:
             l.url = url
             l.title = None
-            bg.add_task(_refresh_title, l.id, url)
+            l.thumb = None
+            bg.add_task(_refresh_meta, l.id, url)
+    if body.name is not None:
+        l.name = body.name.strip()[:300] or None
     if body.comment is not None:
         l.comment = body.comment[:5000]
     db.commit()

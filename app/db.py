@@ -105,6 +105,9 @@ class BoardLink(Base):
     url = Column(Text, nullable=False)
     title = Column(String(300), nullable=True)
     comment = Column(Text, default="")
+    name = Column(String(300), nullable=True)  # название, которое пишете сами
+    thumb = Column(String(120), nullable=True)  # имя файла картинки страницы в thumbs/
+    sort = Column(Integer, default=0)  # порядок: новые — в конце
     created_at = Column(DateTime, default=now)
 
 
@@ -147,6 +150,12 @@ def init_db():
     Base.metadata.create_all(engine)
     # колонка статуса появилась позже: добавляем в уже существующую таблицу
     from sqlalchemy import inspect, text
+    if "board_links" in inspect(engine).get_table_names():
+        have = [c["name"] for c in inspect(engine).get_columns("board_links")]
+        for col, ddl in [("name", "VARCHAR(300)"), ("thumb", "VARCHAR(120)"), ("sort", "INTEGER DEFAULT 0")]:
+            if col not in have:
+                with engine.begin() as conn:
+                    conn.execute(text(f"ALTER TABLE board_links ADD COLUMN {col} {ddl}"))
     if "status" not in [c["name"] for c in inspect(engine).get_columns("boards")]:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE boards ADD COLUMN status VARCHAR(20) DEFAULT 'work'"))
