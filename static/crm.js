@@ -215,7 +215,12 @@ function crmTaskHtml(t) {
 function crmItemsHtml(items) {
   return items.map(i => i.kind === 'task'
     ? crmTaskHtml(i)
-    : `<div class="crm-msg"><div class="crm-bub">${esc(i.text).replace(/\n/g, '<br>')}</div><div class="crm-msg-t">${crmStamp(i.created_at)}</div></div>`
+    : `<div class="crm-msg" data-msg="${i.id}">
+        <div class="crm-bub">${esc(i.text).replace(/\n/g, '<br>')}</div>
+        <div class="crm-msg-t">${crmStamp(i.created_at)}<span class="crm-msg-acts"><button class="crm-msg-link" data-msg-edit="${i.id}">Изменить</button><button class="crm-msg-link danger" data-msg-del="${i.id}">Удалить</button></span></div>
+        <div class="crm-msg-ed" data-msg-ed="${i.id}" hidden><textarea rows="2">${esc(i.text)}</textarea>
+          <div class="crm-task-cf-row"><button class="crm-task-save" data-msg-save="${i.id}">Сохранить</button><button class="crm-task-cancel" data-msg-cancel="${i.id}">Отмена</button></div></div>
+      </div>`
   ).join('') || '<div class="crm-msgs-empty">Пока нет сообщений и задач</div>';
 }
 
@@ -258,6 +263,35 @@ function crmBindFeed(kind, oid, items) {
     });
     document.querySelectorAll('[data-task-edit]').forEach(b => b.onclick = () => showOnly(+b.dataset.taskEdit, 'ed'));
     document.querySelectorAll('[data-ed-cancel]').forEach(b => b.onclick = () => showOnly(+b.dataset.edCancel, 'act'));
+    const msgEl = id => document.querySelector(`[data-msg="${id}"]`);
+    const msgView = (id, editing) => {
+      const el = msgEl(id);
+      el.querySelector('.crm-bub').hidden = editing;
+      el.querySelector('.crm-msg-t').hidden = editing;
+      el.querySelector(`[data-msg-ed="${id}"]`).hidden = !editing;
+      if (editing) el.querySelector('[data-msg-ed] textarea').focus();
+    };
+    document.querySelectorAll('[data-msg-edit]').forEach(b => b.onclick = () => msgView(+b.dataset.msgEdit, true));
+    document.querySelectorAll('[data-msg-cancel]').forEach(b => b.onclick = () => msgView(+b.dataset.msgCancel, false));
+    document.querySelectorAll('[data-msg-save]').forEach(b => b.onclick = async () => {
+      const id = +b.dataset.msgSave;
+      const text = msgEl(id).querySelector('[data-msg-ed] textarea').value.trim();
+      if (!text) { msgEl(id).querySelector('[data-msg-ed] textarea').focus(); return; }
+      try {
+        const upd = await api(`/crm/messages/${id}`, {method: 'PATCH', body: {text}});
+        list = list.map(i => i.kind === 'message' && i.id === id ? upd : i);
+        render();
+      } catch (e) { alert(e.message); }
+    });
+    document.querySelectorAll('[data-msg-del]').forEach(b => b.onclick = async () => {
+      const id = +b.dataset.msgDel;
+      if (!confirm('Удалить сообщение?')) return;
+      try {
+        await api(`/crm/messages/${id}`, {method: 'DELETE'});
+        list = list.filter(i => !(i.kind === 'message' && i.id === id));
+        render();
+      } catch (e) { alert(e.message); }
+    });
     document.querySelectorAll('[data-ed-save]').forEach(b => b.onclick = async () => {
       const id = +b.dataset.edSave;
       const c = card(id);
@@ -580,18 +614,9 @@ function crmFormsHtml() {
       </div>`;
 }
 
-// контакт и компания: одно компактное окно поверх, без отдельной страницы
+// контакт и компания: то же окно, что у сделки — слева сведения, справа сообщения и задачи
 function crmShowPerson(kind, mode, title, back, left) {
-  sheet(`<div class="crm-pop">
-      <div class="crm-pop-top"><span class="kb-saved" id="crmsaved">Сохранено</span>
-        <div class="kb-tools"><button class="kb-ib" id="sx" aria-label="Закрыть">${XICON}</button></div></div>
-      <div class="crm-pop-body">
-        ${left}
-        <div class="crm-sec-t">Сообщения и задачи</div>
-        <div class="crm-msgs" id="crmmsgs"></div>
-      </div>
-      <div class="crm-pop-foot">${crmFormsHtml()}</div>
-    </div>`, 'crm-sheet crm-pop-win');
+  sheet(`<div class="crm-win-box">${crmWin(left, 'sheet')}</div>`, 'crm-sheet crm-dwin');
   $('#sx').onclick = crmCloseWin;
 }
 
@@ -657,6 +682,8 @@ async function crmCompanyView(id, mode) {
       <div class="crm-props">
         <div class="crm-prop"><div class="crm-pl"><span>Название</span></div>
           <div class="crm-pv"><input class="crm-in crm-wide" id="crmnm" value="${esc(k.name)}"></div></div>
+        <div class="crm-prop"><div class="crm-pl"><span>ИНН</span></div>
+          <div class="crm-pv"><input class="crm-in crm-wide" id="crminn" inputmode="numeric" placeholder="10 или 12 цифр" value="${esc(k.inn || '')}"></div></div>
         <div class="crm-prop"><div class="crm-pl"><span>Карточка</span></div>
           <div class="crm-pv crm-docs"><input class="crm-in crm-url" id="crmcu" placeholder="Ссылка на Google Диск" value="${esc(k.card_url || '')}">${k.card_url ? `<a class="crm-open" href="${esc(k.card_url)}" target="_blank" rel="noopener">Открыть</a>` : ''}</div></div>
         <div class="crm-prop"><div class="crm-pl"><span>Контакты</span></div>
@@ -668,6 +695,10 @@ async function crmCompanyView(id, mode) {
   crmShowPerson('companies', mode, k.name, '#/crm/companies', left);
   $('#crmnm').onchange = async () => {
     try { const u = await api('/crm/companies/' + id, {method: 'PATCH', body: {name: $('#crmnm').value}}); $('#crmname').textContent = u.name; }
+    catch (e) { alert(e.message); }
+  };
+  $('#crminn').onchange = async () => {
+    try { await api('/crm/companies/' + id, {method: 'PATCH', body: {inn: $('#crminn').value.replace(/\D/g, '')}}); refresh(); }
     catch (e) { alert(e.message); }
   };
   $('#crmcu').onchange = async () => {

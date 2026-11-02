@@ -1146,3 +1146,11 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-tc-ic{width:16px;height:16px;flex:none;color:#3f9d63;margin-top:1px}
 .crm-tc-ic svg{width:16px;height:16px}
 .crm-tc-deal.none{color:var(--muted);font-weight:400}
+.crm-msg-acts{margin-left:8px;white-space:nowrap}
+.crm-msg-link{border:0;background:none;font:inherit;font-size:11px;color:var(--muted);cursor:pointer;padding:0 4px}
+.crm-msg-link:hover{color:var(--ink)}
+.crm-msg-link.danger{color:#c64545}
+.crm-msg-ed{margin-top:4px;display:flex;flex-direction:column;gap:6px;width:100%}
+.crm-msg-ed textarea{width:100%;border:1px solid #e3e3e8;border-radius:12px;padding:7px 10px;font:inherit;font-size:14px;resize:none;outline:none;background:#fff}
+.crm-msg-ed textarea:focus{border-color:#9bb8ec}
+.crm-msg-ed[hidden],.crm-msg-t[hidden],.crm-bub[hidden]{display:none}
