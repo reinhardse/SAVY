@@ -684,26 +684,30 @@ function openStatus(bid, cur) {
   });
 }
 
-// вид досок: строки или плитки; выбор запоминается отдельно от закладок
-let boardView = (() => { try { return localStorage.getItem('kb_view') === 'tiles' ? 'tiles' : 'list'; } catch { return 'list'; } })();
+// список досок: карточки в сетке, в том же языке, что карточки колонок на доске
+const BPREV_COLS = ['#f0f0f3', '#e7f6ee', '#e6f0ff'];
 
 async function boards() {
   const list = await api('/boards');
-  const tiles = boardView === 'tiles';
-  const item = b => tiles
-    ? `<div class="tile kbt" data-open="${b.id}" style="--c:#f5f5f7;--tc:#222"><div class="ic">${KB_ICON}</div><div class="tf"><div class="n">${b.count}</div><div class="l">${esc(b.name)}</div></div><button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button><button class="bstatus kbst" data-stb="${b.id}" data-cur="${b.status || 'work'}" style="--sb:${BSTATUS[b.status || 'work'].bg};--st:${BSTATUS[b.status || 'work'].tc}">${BSTATUS[b.status || 'work'].label}</button></div>`
-    : `<div class="brow" data-open="${b.id}"><div class="bname">${esc(b.name)}</div><button class="bstatus" data-stb="${b.id}" data-cur="${b.status || 'work'}" style="--sb:${BSTATUS[b.status || 'work'].bg};--st:${BSTATUS[b.status || 'work'].tc}">${BSTATUS[b.status || 'work'].label}</button><div class="bcount">${b.count}</div><button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button></div>`;
-  // справа вверху: плюс (новая доска) и переключатель вида
+  const item = b => {
+    const st = BSTATUS[b.status || 'work'];
+    const n = b.count || 0;
+    const shown = Math.min(n, 8);
+    const chips = Array.from({length: shown}, (_, i) => `<i style="--d:${BPREV_COLS[i % BPREV_COLS.length]}"></i>`).join('');
+    const more = n > shown ? `<span class="bmore">+${n - shown}</span>` : '';
+    return `<div class="bcard" data-open="${b.id}">
+      <div class="bcard-top"><div class="bn">${esc(b.name)}</div>
+        <button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button></div>
+      <div class="bprev">${chips}${more}</div>
+      <div class="bcard-foot">
+        <button class="bstatus" data-stb="${b.id}" data-cur="${b.status || 'work'}" style="--sb:${st.bg};--st:${st.tc}">${st.label}</button>
+        <span class="bcount">${n} карт.</span></div>
+    </div>`;
+  };
   $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Доски</div>
-      <div class="tr-actions"><button class="iconbtn" id="addboard" aria-label="Новая доска" title="Новая доска">${PLUS_ICON}</button>
-      <button class="iconbtn" id="kbview" aria-label="Вид досок" title="${tiles ? 'Строки' : 'Плитки'}">${tiles ? TILES_ICON : LIST_ICON}</button></div></div>
-    <div class="${tiles ? 'blist tgrid' : 'blist'}">${list.length ? list.map(item).join('') : '<div class="empty">Пока нет досок. Нажмите + справа вверху.</div>'}</div>`;
-  $('#kbview').onclick = () => {
-    boardView = boardView === 'tiles' ? 'list' : 'tiles';
-    try { localStorage.setItem('kb_view', boardView); } catch {}
-    boards();
-  };
+      <div class="tr-actions"><button class="iconbtn" id="addboard" aria-label="Новая доска" title="Новая доска">${PLUS_ICON}</button></div></div>
+    <div class="bgrid">${list.length ? list.map(item).join('') : '<div class="empty">Пока нет досок. Нажмите + справа вверху.</div>'}</div>`;
   $('#addboard').onclick = newBoard;
   document.querySelectorAll('[data-open]').forEach(r => r.onclick = e => {
     if (e.target.closest('[data-delb], [data-stb]')) return;
