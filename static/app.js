@@ -1733,12 +1733,26 @@ function openCalMenu() {
 /* ---------- ссылки-«хайлайты» над доской ---------- */
 const HL_DOC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg>';
 const HL_LINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>';
+const HL_SHEET = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M4 15h16M10 4v16"/></svg>';
+const HL_FOLDER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
+// файлы Google: документ — синий, таблица — зелёный, папка Drive — жёлтый; картинку страницы не показываем
+const gKind = url => {
+  const u = url || '';
+  if (/^https?:\/\/docs\.google\.com\/document\//.test(u)) return {bg: '#e3eeff', tc: '#2f4bb0', icon: HL_DOC};
+  if (/^https?:\/\/docs\.google\.com\/spreadsheets\//.test(u)) return {bg: '#e3f6ea', tc: '#2f6446', icon: HL_SHEET};
+  if (/^https?:\/\/drive\.google\.com\/drive\/(u\/\d+\/)?folders\//.test(u)) return {bg: '#fff6d6', tc: '#8a6100', icon: HL_FOLDER};
+  return null;
+};
 const hlItem = l => {
   const k = tagColor(l.host);
-  const media = l.thumb
-    ? `<img class="hl-img" src="${esc(l.thumb)}" alt="">`
-    : `<span class="hl-ic">${/docs\.google|drive\.google/.test(l.url) ? HL_DOC : HL_LINK}</span>`;
-  return `<div class="hl-item" data-hl-item="${l.id}"><button class="hl-tile" data-hl-open="${l.id}" style="--hb:${k.bg};--ht:${k.tc}" title="${esc(l.url)}">${media}</button><button class="hl-pen" data-hl-edit="${l.id}" aria-label="Изменить ссылку">${PEN}</button><div class="hl-name" title="${esc(l.label)}">${esc(l.label)}</div></div>`;
+  const g = gKind(l.url);
+  const media = g
+    ? `<span class="hl-ic">${g.icon}</span>`
+    : l.thumb
+      ? `<img class="hl-img" src="${esc(l.thumb)}" alt="">`
+      : `<span class="hl-ic">${/docs\.google|drive\.google/.test(l.url) ? HL_DOC : HL_LINK}</span>`;
+  const c = g || k;
+  return `<div class="hl-item" data-hl-item="${l.id}"><button class="hl-tile" data-hl-open="${l.id}" style="--hb:${c.bg};--ht:${c.tc}" title="${esc(l.url)}">${media}</button><button class="hl-pen" data-hl-edit="${l.id}" aria-label="Изменить ссылку">${PEN}</button><div class="hl-name" title="${esc(l.label)}">${esc(l.label)}</div></div>`;
 };
 
 // окно ссылки: адрес и комментарий; адрес сохраняется при выходе из поля, комментарий — по паузе в наборе
