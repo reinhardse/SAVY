@@ -172,6 +172,7 @@ class Company(Base):
     name = Column(String(200), default="")
     card_url = Column(String(500), nullable=True)  # ссылка на карточку компании (Google Диск)
     inn = Column(String(20), nullable=True)  # ИНН
+    website = Column(String(500), nullable=True)  # сайт компании
     created_at = Column(DateTime, default=now)
     deals = relationship("Deal", secondary=deal_companies, back_populates="companies")
     contacts = relationship("Contact", secondary=contact_companies, back_populates="companies")
@@ -188,6 +189,7 @@ class Contact(Base):
     telegram = Column(String(100), default="")
     position = Column(String(200), default="")
     city = Column(String(100), default="")
+    website = Column(String(500), nullable=True)  # сайт контакта
     created_at = Column(DateTime, default=now)
     companies = relationship("Company", secondary=contact_companies, back_populates="contacts")
     deals = relationship("Deal", secondary=deal_contacts, back_populates="contacts")
@@ -272,6 +274,11 @@ def init_db():
         if "companies" in _insp(_conn).get_table_names():
             if "inn" not in [c["name"] for c in _insp(_conn).get_columns("companies")]:
                 _conn.execute(_text("ALTER TABLE companies ADD COLUMN inn VARCHAR(20)"))
+        # сайт у компании и контакта
+        for _tbl in ("companies", "contacts"):
+            if _tbl in _insp(_conn).get_table_names():
+                if "website" not in [c["name"] for c in _insp(_conn).get_columns(_tbl)]:
+                    _conn.execute(_text(f"ALTER TABLE {_tbl} ADD COLUMN website VARCHAR(500)"))
     # колонка статуса появилась позже: добавляем в уже существующую таблицу
     from sqlalchemy import inspect, text
     if "board_links" in inspect(engine).get_table_names():

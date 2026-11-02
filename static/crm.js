@@ -806,16 +806,21 @@ function crmOpenHref(h) {
 }
 
 /* ---------- карточка контакта ---------- */
+// ссылка для «Открыть»: без протокола добавляем https://
+const crmHref = v => (/^https?:\/\//i.test(v) ? v : 'https://' + v);
+
 async function crmContactView(id, mode) {
   const c = await api('/crm/contacts/' + id);
   const refresh = () => crmContactView(id, mode);
   const field = (label, key, placeholder = '') => `<div class="crm-prop"><div class="crm-pl"><span>${label}</span></div>
       <div class="crm-pv"><input class="crm-in crm-wide" data-f="${key}" value="${esc(c[key] || '')}" placeholder="${placeholder}"></div></div>`;
+  const siteRow = `<div class="crm-prop"><div class="crm-pl"><span>Сайт</span></div>
+      <div class="crm-pv crm-docs"><input class="crm-in crm-url" data-f="website" placeholder="example.ru" value="${esc(c.website || '')}">${c.website ? `<a class="crm-open" href="${esc(crmHref(c.website))}" target="_blank" rel="noopener">Открыть</a>` : ''}</div></div>`;
   const left = `<div class="crm-body">
       <div class="crm-head-p">${crmAvatar(c.name, 'lg')}<div><div class="crm-card-t" id="crmname">${esc(c.name)}</div>
         <div class="crm-sub">${esc([c.position, c.city].filter(Boolean).join(' · ')) || 'Контакт'}</div></div></div>
       <div class="crm-props">
-        ${field('Имя', 'first_name')}${field('Фамилия', 'last_name')}${field('Отчество', 'middle_name')}
+        ${field('Имя', 'first_name')}${field('Фамилия', 'last_name')}${field('Отчество', 'middle_name')}${siteRow}
         ${field('Телефон', 'phone', '+7…')}${field('Почта', 'email', 'name@mail.ru')}${field('Телеграм', 'telegram', '@username')}
         ${field('Должность', 'position')}${field('Город', 'city')}
         <div class="crm-prop"><div class="crm-pl"><span>Компании</span></div>
@@ -829,6 +834,7 @@ async function crmContactView(id, mode) {
     try {
       const upd = await api('/crm/contacts/' + id, {method: 'PATCH', body: {[inp.dataset.f]: inp.value}});
       if (['first_name', 'last_name'].includes(inp.dataset.f)) $('#crmname').textContent = upd.name;
+      if (inp.dataset.f === 'website') refresh();
     } catch (e) { alert(e.message); }
   });
   const relink = async ids => {
@@ -859,6 +865,8 @@ async function crmCompanyView(id, mode) {
           <div class="crm-pv"><input class="crm-in crm-wide" id="crmnm" value="${esc(k.name)}"></div></div>
         <div class="crm-prop"><div class="crm-pl"><span>ИНН</span></div>
           <div class="crm-pv"><input class="crm-in crm-wide" id="crminn" inputmode="numeric" placeholder="10 или 12 цифр" value="${esc(k.inn || '')}"></div></div>
+        <div class="crm-prop"><div class="crm-pl"><span>Сайт</span></div>
+          <div class="crm-pv crm-docs"><input class="crm-in crm-url" id="crmsite" placeholder="example.ru" value="${esc(k.website || '')}">${k.website ? `<a class="crm-open" href="${esc(crmHref(k.website))}" target="_blank" rel="noopener">Открыть</a>` : ''}</div></div>
         <div class="crm-prop"><div class="crm-pl"><span>Карточка</span></div>
           <div class="crm-pv crm-docs"><input class="crm-in crm-url" id="crmcu" placeholder="Ссылка на Google Диск" value="${esc(k.card_url || '')}">${k.card_url ? `<a class="crm-open" href="${esc(k.card_url)}" target="_blank" rel="noopener">Открыть</a>` : ''}</div></div>
         <div class="crm-prop"><div class="crm-pl"><span>Контакты</span></div>
@@ -874,6 +882,10 @@ async function crmCompanyView(id, mode) {
   };
   $('#crminn').onchange = async () => {
     try { await api('/crm/companies/' + id, {method: 'PATCH', body: {inn: $('#crminn').value.replace(/\D/g, '')}}); refresh(); }
+    catch (e) { alert(e.message); }
+  };
+  $('#crmsite').onchange = async () => {
+    try { await api('/crm/companies/' + id, {method: 'PATCH', body: {website: $('#crmsite').value}}); refresh(); }
     catch (e) { alert(e.message); }
   };
   $('#crmcu').onchange = async () => {

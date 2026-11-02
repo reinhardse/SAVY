@@ -928,6 +928,7 @@ class CrmContactIn(BaseModel):
     telegram: str = ""
     position: str = ""
     city: str = ""
+    website: str = ""
 
 
 class CrmContactPatch(CrmContactIn):
@@ -939,6 +940,7 @@ class CrmContactPatch(CrmContactIn):
     telegram: str | None = None
     position: str | None = None
     city: str | None = None
+    website: str | None = None
     company_ids: list[int] | None = None
 
 
@@ -946,12 +948,14 @@ class CrmCompanyIn(BaseModel):
     name: str = ""
     card_url: str | None = None
     inn: str | None = None
+    website: str | None = None
 
 
 class CrmCompanyPatch(BaseModel):
     name: str | None = None
     card_url: str | None = None
     inn: str | None = None
+    website: str | None = None
 
 
 def _crm_name(c: Contact) -> str:
@@ -1029,14 +1033,14 @@ def _crm_feed(db: Session, kind: str, obj) -> list[dict]:
 def _crm_contact_full(db: Session, c: Contact) -> dict:
     return {"id": c.id, "name": _crm_name(c), "first_name": c.first_name, "last_name": c.last_name,
             "middle_name": c.middle_name, "phone": c.phone, "email": c.email, "telegram": c.telegram,
-            "position": c.position, "city": c.city,
+            "position": c.position, "city": c.city, "website": c.website or "",
             "companies": [_crm_company_brief(x) for x in c.companies],
             "deals": _crm_group_deals(c.deals),
             "items": _crm_feed(db, "contacts", c)}
 
 
 def _crm_company_full(db: Session, c: Company) -> dict:
-    return {"id": c.id, "name": c.name or "Без названия", "card_url": c.card_url, "inn": c.inn or "",
+    return {"id": c.id, "name": c.name or "Без названия", "card_url": c.card_url, "inn": c.inn or "", "website": c.website or "",
             "contacts": [_crm_contact_brief(x) for x in c.contacts],
             "deals": _crm_group_deals(c.deals),
             "items": _crm_feed(db, "companies", c)}
@@ -1052,7 +1056,7 @@ def _crm_group_deals(deals) -> dict:
 
 
 def _crm_contact_fields(c: Contact, body) -> None:
-    for f in ("first_name", "last_name", "middle_name", "phone", "email", "telegram", "position", "city"):
+    for f in ("first_name", "last_name", "middle_name", "phone", "email", "telegram", "position", "city", "website"):
         v = getattr(body, f, None)
         if v is not None:
             setattr(c, f, v.strip()[:200])
@@ -1395,7 +1399,8 @@ def crm_companies(q: str = "", db: Session = Depends(get_db), _: int = Depends(r
 @app.post("/api/crm/companies")
 def crm_company_create(body: CrmCompanyIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     c = Company(name=body.name.strip()[:200], card_url=(body.card_url or "").strip()[:500] or None,
-                inn=(body.inn or "").strip()[:20] or None)
+                inn=(body.inn or "").strip()[:20] or None,
+                website=(body.website or "").strip()[:500] or None)
     db.add(c)
     db.commit()
     return _crm_company_full(db, c)
@@ -1421,6 +1426,8 @@ def crm_company_patch(kid: int, body: CrmCompanyPatch, db: Session = Depends(get
         c.card_url = (body.card_url or "").strip()[:500] or None
     if "inn" in f:
         c.inn = (body.inn or "").strip()[:20] or None
+    if "website" in f:
+        c.website = (body.website or "").strip()[:500] or None
     db.commit()
     return _crm_company_full(db, c)
 
