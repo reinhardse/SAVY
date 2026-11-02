@@ -1834,8 +1834,7 @@ function hlMove(e) {
 function hlStart(e) {
   const r = hlDrag.el.getBoundingClientRect();
   hlDrag.started = true;
-  const nx = hlDrag.el.nextElementSibling;
-  hlDrag.mark = nx && nx.matches('.hl-item[data-hl-item]') ? nx : null;
+  hlDrag.mark = hlDrag.el; // исходное место
   hlSuppress = true;
   hlDrag.orig = hlIds();
   hlDrag.sx = e.clientX - r.left;
@@ -1873,7 +1872,7 @@ function hlPlace(x, y) {
   const addEl = document.querySelector('#hladd');
   const rectOf = el => (el ? el.querySelector('.hl-tile') : addEl).getBoundingClientRect();
   if (!inside(rectOf(d.mark))) {
-    const items = [...document.querySelectorAll('#hlstrip .hl-item[data-hl-item]')].filter(it => it !== d.el);
+    const items = [...document.querySelectorAll('#hlstrip .hl-item[data-hl-item]')];
     const hit = items.find(it => inside(it.querySelector('.hl-tile').getBoundingClientRect()));
     if (hit) d.mark = hit;
     else if (inside(addEl.getBoundingClientRect())) d.mark = null;
@@ -1900,8 +1899,13 @@ async function hlUp() {
   d.el.style.visibility = '';
   // ставим ссылку на новое место вместе с её подписью
   const strip = $('#hlstrip');
-  const ref = d.mark || strip.querySelector('.hl-fixed');
-  if (ref) strip.insertBefore(d.el, ref); else strip.appendChild(d.el);
+  if (d.mark !== d.el) {
+    // карточка садится на место, где стоит метка: при переносе вправо — после метки, влево — перед ней
+    const all = [...strip.querySelectorAll('.hl-item[data-hl-item]')];
+    if (!d.mark) strip.insertBefore(d.el, strip.querySelector('.hl-fixed'));
+    else if (all.indexOf(d.mark) > all.indexOf(d.el)) strip.insertBefore(d.el, d.mark.nextSibling);
+    else strip.insertBefore(d.el, d.mark);
+  }
   const ids = hlIds();
   if (ids.join() === d.orig.join()) return;
   try { await api(`/boards/${curBoard}/links/order`, {method: 'POST', body: {ids}}); }
