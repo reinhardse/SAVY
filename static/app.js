@@ -1116,6 +1116,17 @@ function readNote(root) {
   }).join('\n');
 }
 
+// текст, попавший в пункт мимо его текста (курсор стоял на уровне строки), переносим в текст пункта
+function fixStrayText(root) {
+  root.querySelectorAll('.kcheck').forEach(row => {
+    const stray = [...row.childNodes].filter(x => x.nodeType === 3 && x.textContent.length);
+    const kct = row.querySelector('.kct');
+    if (!stray.length || !kct) return;
+    stray.forEach(x => kct.appendChild(x));
+    caretEnd(row);
+  });
+}
+
 function caretStart(el) {
   const target = el.classList.contains('kcheck') ? el.querySelector('.kct') : el;
   const r = document.createRange();
@@ -1449,6 +1460,7 @@ async function openCard(kid) {
   };
 
   n.oninput = () => {
+    fixStrayText(n);
     queue();
     const s = getSelection();
     if (!s.rangeCount || !s.getRangeAt(0).collapsed) { closeSlash(); return; }
@@ -1468,6 +1480,16 @@ async function openCard(kid) {
     closeSlash();
   };
   n.addEventListener('keydown', e => {
+    // печать в пункте списка всегда идёт в его текст: курсор, стоявший на уровне строки, переводим внутрь
+    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+      const sc = getSelection();
+      let rowEl = sc.rangeCount ? sc.anchorNode : null;
+      while (rowEl && rowEl.parentNode !== n) rowEl = rowEl.parentNode;
+      if (rowEl && rowEl.classList && rowEl.classList.contains('kcheck')) {
+        const kct = rowEl.querySelector('.kct');
+        if (kct && !kct.contains(sc.anchorNode)) caretEnd(rowEl);
+      }
+    }
     if (menu) {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); slashSel = (slashSel + (e.key === 'ArrowDown' ? 1 : -1) + slashItems.length) % slashItems.length; paintSlash(); return; }
       if (e.key === 'Enter') { e.preventDefault(); chooseSlash(slashItems[slashSel].kind); return; }
