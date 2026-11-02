@@ -15,6 +15,9 @@ UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.
 TRACKING = {"fbclid", "igsh", "igshid", "gclid", "yclid", "si", "feature", "ref", "ref_src", "mc_cid", "mc_eid"}
 MAX_BYTES = 1_500_000
 TIMEOUT = 15.0
+DESKTOP_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+              "(KHTML, like Gecko) Chrome/124.0 Safari/537.36")
+THUMB_MAX = 8_000_000  # обложка больше этого размера не сохраняется: обрезанная картинка битая
 ATTEMPTS = 3  # сайты иногда отвечают медленно или с ошибкой; повторяем, прежде чем сдаться
 
 MAPS_HOSTS = ("maps.google.", "google.com/maps", "maps.app.goo.gl", "yandex.ru/maps", "yandex.com/maps", "2gis.", "maps.apple.com")
@@ -128,7 +131,7 @@ def is_public_host(host: str) -> bool:
     return bool(infos) and all(ipaddress.ip_address(i[4][0]).is_global for i in infos)
 
 
-def _get(client: httpx.Client, url: str, **kw) -> httpx.Response | None:
+def _get(client: httpx.Client, url: str, limit: int = MAX_BYTES, **kw) -> httpx.Response | None:
     """GET с ручными редиректами (каждый переход проверяется), читает не больше MAX_BYTES."""
     for _ in range(5):
         host = urlsplit(url).hostname or ""
@@ -141,7 +144,7 @@ def _get(client: httpx.Client, url: str, **kw) -> httpx.Response | None:
             body = b""
             for chunk in r.iter_bytes():
                 body += chunk
-                if len(body) > MAX_BYTES:
+                if len(body) > limit:
                     break
             # Тело уже распаковано клиентом, поэтому заголовки кодирования убираем,
             # иначе httpx попробует распаковать его второй раз (DecodingError).
@@ -206,6 +209,15 @@ def _get_retry(client: httpx.Client, url: str, **kw) -> httpx.Response | None:
     return last if isinstance(last, httpx.Response) else None
 
 
+def _icon(soup) -> str | None:
+    """Иконка сайта: apple-touch-icon обычно крупная, годится как запасная картинка."""
+    for rel in ("apple-touch-icon", "apple-touch-icon-precomposed", "image_src"):
+        tag = soup.find("link", attrs={"rel": rel})
+        if tag and tag.get("href"):
+            return tag["href"].strip()
+    return None
+
+
 def _og(html: str, base: str) -> dict:
     soup = BeautifulSoup(html, "html.parser")
 
@@ -219,12 +231,14 @@ def _og(html: str, base: str) -> dict:
     title = meta("og:title", "twitter:title") or (soup.title.string.strip() if soup.title and soup.title.string else None)
     if title:
         title = TITLE_TAIL.sub("", title).strip() or title
-    img = meta("og:image", "twitter:image") or _ld_image(soup)
+    img = meta("og:image", "og:image:secure_url", "twitter:image", "twitter:image:src") or _ld_image(soup)
+    icon = _icon(soup)
     return {
         "title": title,
         "description": meta("og:description", "description", "twitter:description"),
         "author": meta("author", "article:author", "og:site_name"),
         "thumbnail_url": urljoin(base, img) if img else None,
+        "icon_url": urljoin(base, icon) if icon else None,
     }
 
 
@@ -355,6 +369,27 @@ def fetch_metadata(url: str, source: str) -> dict:
                 out["tried"].append(info)
             except Exception as e:  # noqa: BLE001
                 out["tried"].append({"method": "open_graph", "error": type(e).__name__})
+    if not out["thumbnail_url"] and source == "web":
+        # мобильная версия сайта иногда отдаёт страницу без картинки: пробуем как десктоп
+        try:
+            with httpx.Client(timeout=TIMEOUT, headers={"User-Agent": DESKTOP_UA, "Accept-Language": "ru,en;q=0.8"}) as dc:
+                r = _get_retry(dc, url)
+                info = {"method": "open_graph_desktop", "status": r.status_code if r else None}
+                if r is not None and r.status_code == 200:
+                    og = _og(r.text, url)
+                    info["image"] = bool(og.get("thumbnail_url"))
+                    if og.get("thumbnail_url"):
+                        out["thumbnail_url"] = og["thumbnail_url"]
+                    if og.get("icon_url") and not out.get("icon_url"):
+                        out["icon_url"] = og["icon_url"]
+                    if not out["title"] and og.get("title"):
+                        out["title"] = og["title"]
+                out["tried"].append(info)
+        except Exception as e:  # noqa: BLE001
+            out["tried"].append({"method": "open_graph_desktop", "error": type(e).__name__})
+    if not out["thumbnail_url"] and out.get("icon_url"):
+        out["thumbnail_url"] = out["icon_url"]
+        out["tried"].append({"method": "site_icon"})
     if source == "kinopoisk":
         m = re.search(r"/(?:film|series)/(\d+)", url)
         if m:
@@ -382,9 +417,15 @@ def fetch_metadata(url: str, source: str) -> dict:
 
 def download_thumb(url: str, dest) -> bool:
     try:
-        with httpx.Client(timeout=TIMEOUT, headers={"User-Agent": UA}) as client:
-            r = _get_retry(client, url)
-        if r is None or r.status_code != 200 or not r.headers.get("content-type", "").startswith("image/"):
+        with httpx.Client(timeout=TIMEOUT, headers={"User-Agent": UA, "Accept": "image/*,*/*;q=0.8"}) as client:
+            r = _get_retry(client, url, limit=THUMB_MAX)
+        if r is None or r.status_code != 200:
+            return False
+        ctype = r.headers.get("content-type", "")
+        by_ext = urlsplit(url).path.lower().endswith((".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif"))
+        if not (ctype.startswith("image/") or (by_ext and ctype.startswith("application/octet-stream"))):
+            return False
+        if len(r.content) > THUMB_MAX or not r.content:
             return False
         dest.write_bytes(r.content)
         return True
