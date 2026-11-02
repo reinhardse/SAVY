@@ -1093,3 +1093,56 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 }
 
 .sheet.crm-dwin > .crm-win-box{height:100%;min-height:0}
+
+/* CRM v4: контакт и компания — одно компактное окно; задачи — правка и удаление; раздел «Задачи» */
+.sheet.crm-pop-win{max-width:580px;width:calc(100% - 32px);height:min(82vh,780px);max-height:none;padding:0;border-radius:18px;overflow:hidden;display:flex;flex-direction:column}
+.crm-pop{display:flex;flex-direction:column;height:100%;min-height:0}
+.crm-pop-top{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 0 22px;flex:none}
+.crm-pop-body{flex:1;min-height:0;overflow:auto;padding:4px 24px 14px}
+.crm-pop-body .crm-body{max-width:none;padding-top:0}
+.crm-pop-body .crm-msgs{padding:4px 0 0;min-height:0;flex:none;overflow:visible;background:none}
+.crm-pop-body .crm-msg{max-width:90%}
+.crm-pop-body .crm-prop{grid-template-columns:110px minmax(0,1fr)}
+.crm-pop-body .crm-card-t{font-size:20px}
+.crm-pop-foot{flex:none;border-top:1px solid #ececf0;background:#fff}
+.crm-pop-foot .crm-tf{border-top:0}
+.crm-pop-foot .crm-compose{border-top:0}
+.crm-pop .crm-sec-t{margin-top:18px}
+.crm-pop-body .crm-task{margin-bottom:0}
+.crm-pop-body .crm-task-cf,.crm-pop-body .crm-task-ed{margin-top:8px}
+
+.crm-task-act{display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap;margin-top:8px}
+.crm-task-act[hidden]{display:none}
+.crm-task-link{border:0;background:none;font:inherit;font-size:12px;color:var(--muted);cursor:pointer;padding:4px 6px;border-radius:8px}
+.crm-task-link:hover{background:#f1f1f4;color:var(--ink)}
+.crm-task-link.danger{color:#c64545}
+.crm-task-link.danger:hover{background:#fbeeee}
+.crm-task-m.red{color:#d13b3b}
+.crm-task.overdue{border-color:#f0c4c0}
+.crm-task-cf[hidden],.crm-task-ed[hidden]{display:none}
+.crm-task-ed{display:flex;flex-direction:column;gap:6px}
+.crm-task-ed .crm-tf-title{border:1px solid #e3e3e8;border-radius:10px;padding:7px 10px;font:inherit;font-size:14px;outline:none;width:100%}
+.crm-task-ed textarea{width:100%;border:1px solid #e3e3e8;border-radius:10px;padding:7px 9px;font:inherit;font-size:13px;resize:none;outline:none}
+.crm-task-ed .crm-task-cf-row{display:flex;gap:6px;margin-top:4px}
+
+.crm-tcols{display:flex;gap:16px;overflow-x:auto;scrollbar-width:none;align-items:flex-start;padding-bottom:16px}
+.crm-tcols::-webkit-scrollbar{display:none}
+.crm-tcol{flex:0 0 260px;width:260px}
+.crm-tcol .crm-col-h{border-top:3px solid var(--tc,#c7cdd8)}
+.crm-tcol.overdue{--tc:#e8746f}
+.crm-tcol.today{--tc:#7fc39a}
+.crm-tcol.tomorrow,.crm-tcol.week,.crm-tcol.month,.crm-tcol.future{--tc:#c7cdd8}
+.crm-tcol-b{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.crm-tcol-empty{color:var(--muted);font-size:13px;text-align:center;padding:14px 0}
+.crm-tc{background:#fff;border:1px solid #ececf0;border-radius:14px;padding:12px 14px;cursor:pointer;box-shadow:var(--sh-sm);transition:box-shadow .15s}
+.crm-tc:hover{box-shadow:var(--sh-md)}
+.crm-tc.overdue{border-color:#f0c4c0}
+.crm-tc-who{font-size:14px;color:var(--ink);line-height:1.35}
+.crm-tc-comp{color:var(--muted)}
+.crm-tc-deal{font-size:15px;color:#2a5ca8;font-weight:500;margin:4px 0 4px;line-height:1.3}
+.crm-tc-when{font-size:13px;color:var(--muted)}
+.crm-tc-when.red{color:#d13b3b}
+.crm-tc-what{display:flex;gap:7px;align-items:flex-start;margin-top:8px;font-size:14px;line-height:1.35}
+.crm-tc-ic{width:16px;height:16px;flex:none;color:#3f9d63;margin-top:1px}
+.crm-tc-ic svg{width:16px;height:16px}
+.crm-tc-deal.none{color:var(--muted);font-weight:400}
