@@ -559,6 +559,9 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .slash.sl-blk .sl-sep{height:1px;background:#ececf0;margin:4px 6px}
 .card-sheet .kb-note .kdiv{margin:14px 0;user-select:none}
 .card-sheet .kb-note .kdiv .kb-hr{margin:0}
+/* список: перенесённая строка начинается там же, где текст пункта, как у чекбокса */
+.card-sheet .kb-note .kbul{position:relative;padding-left:26px}
+.card-sheet .kb-note .kbul::before{position:absolute;left:4px;top:0;margin-right:0}
 
 /* свойства карточки в стиле Notion: слева иконка и название, справа значение; строки с воздухом */
 .card-sheet .kb-props{display:flex;flex-direction:column;margin:0 0 24px}
