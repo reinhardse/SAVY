@@ -213,7 +213,9 @@ class CrmTask(Base):
     """Задача по сделке: попадает в календарь (метка CRM) и в Google Календарь."""
     __tablename__ = "crm_tasks"
     id = Column(Integer, primary_key=True)
-    deal_id = Column(Integer, ForeignKey("deals.id", ondelete="CASCADE"), nullable=False, index=True)
+    deal_id = Column(Integer, ForeignKey("deals.id", ondelete="CASCADE"), nullable=True, index=True)
+    contact_id = Column(Integer, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=True, index=True)
     title = Column(String(300), default="")
     due_date = Column(String(10), nullable=False)  # YYYY-MM-DD
     due_time = Column(String(5), nullable=True)  # HH:MM
@@ -228,14 +230,39 @@ class CrmTask(Base):
 class DealMessage(Base):
     __tablename__ = "deal_messages"
     id = Column(Integer, primary_key=True)
-    deal_id = Column(Integer, ForeignKey("deals.id", ondelete="CASCADE"), nullable=False, index=True)
+    deal_id = Column(Integer, ForeignKey("deals.id", ondelete="CASCADE"), nullable=True, index=True)
+    contact_id = Column(Integer, ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True)
+    company_id = Column(Integer, ForeignKey("companies.id", ondelete="CASCADE"), nullable=True, index=True)
     text = Column(Text, default="")
     created_at = Column(DateTime, default=now)
     deal = relationship("Deal", back_populates="messages")
 
 
+def _migrate_crm(conn) -> None:
+    """Таблицы задач и сообщений получили владельцев (контакт, компания) и стали допускать пустую сделку.
+    SQLite не умеет менять ограничения колонок, поэтому таблицу пересоздаём с сохранением данных."""
+    from sqlalchemy import inspect as sa_inspect, text
+    insp = sa_inspect(conn)
+    for table in ("crm_tasks", "deal_messages"):
+        if table not in insp.get_table_names():
+            continue
+        cols = {c["name"]: c for c in insp.get_columns(table)}
+        if "contact_id" in cols and cols["deal_id"]["nullable"]:
+            continue
+        for ix in insp.get_indexes(table):
+            conn.execute(text(f'DROP INDEX IF EXISTS "{ix["name"]}"'))
+        conn.execute(text(f"ALTER TABLE {table} RENAME TO {table}__old"))
+        Base.metadata.tables[table].create(conn)
+        new_cols = set(Base.metadata.tables[table].c.keys())
+        common = ", ".join(c for c in cols if c in new_cols)
+        conn.execute(text(f"INSERT INTO {table} ({common}) SELECT {common} FROM {table}__old"))
+        conn.execute(text(f"DROP TABLE {table}__old"))
+
+
 def init_db():
     Base.metadata.create_all(engine)
+    with engine.begin() as _conn:
+        _migrate_crm(_conn)
     # колонка статуса появилась позже: добавляем в уже существующую таблицу
     from sqlalchemy import inspect, text
     if "board_links" in inspect(engine).get_table_names():

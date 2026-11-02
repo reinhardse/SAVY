@@ -513,10 +513,11 @@ def calendar_items(frm: str, to: str, db: Session = Depends(get_db), _: int = De
     # задачи CRM: метка CRM и название сделки; открываются сделкой
     tasks = db.scalars(select(CrmTask).where(CrmTask.due_date >= a, CrmTask.due_date <= b)
                        .order_by(CrmTask.due_date, CrmTask.due_time)).all()
-    out += [{"id": t.id, "kind": "crm", "title": t.title, "due_date": t.due_date, "due_time": t.due_time,
-             "duration_min": None, "board_id": None, "board_name": "CRM", "deal_id": t.deal_id,
-             "deal_title": (t.deal.title if t.deal and t.deal.title else "Без названия"),
-             "done": t.status == "done"} for t in tasks]
+    for t in tasks:
+        kind_name, owner_title, href = _crm_task_owner(db, t)
+        out.append({"id": t.id, "kind": "crm", "title": t.title, "due_date": t.due_date, "due_time": t.due_time,
+                    "duration_min": None, "board_id": None, "board_name": "CRM", "owner_title": owner_title,
+                    "owner_kind": kind_name, "href": href, "done": t.status == "done"})
     return out
 
 
@@ -977,12 +978,24 @@ def _crm_task_out(t: CrmTask) -> dict:
             "created_at": t.created_at.isoformat()}
 
 
-def _crm_deal_full(d: Deal) -> dict:
-    items = [{"id": m.id, "kind": "message", "text": m.text, "created_at": m.created_at.isoformat()} for m in d.messages]
-    items += [_crm_task_out(t) for t in d.tasks]
-    items.sort(key=lambda x: x["created_at"])
-    return {**_crm_deal_brief(d), "format": d.format, "documents_url": d.documents_url,
-            "messages": [i for i in items if i["kind"] == "message"], "items": items}
+def _crm_deal_full(d: Deal, db: Session | None = None) -> dict:
+    items = _crm_feed(db, "deals", d) if db is not None else []
+    return {**_crm_deal_brief(d), "format": d.format, "documents_url": d.documents_url, "items": items}
+
+
+CRM_OWNER_COL = {"deals": "deal_id", "contacts": "contact_id", "companies": "company_id"}
+
+
+def _crm_task_owner(db: Session, t: CrmTask) -> tuple[str, str, str]:
+    """Кто владелец задачи: (вид, название, ссылка в приложении)."""
+    if t.deal_id:
+        d = db.get(Deal, t.deal_id)
+        return "сделка", (d.title if d and d.title else "Без названия") if d else "Без названия", f"#/crm/deal/{t.deal_id}"
+    if t.contact_id:
+        c = db.get(Contact, t.contact_id)
+        return "контакт", _crm_name(c) if c else "Без имени", f"#/crm/contact/{t.contact_id}"
+    k = db.get(Company, t.company_id) if t.company_id else None
+    return "компания", (k.name if k else "Без названия"), f"#/crm/company/{t.company_id}"
 
 
 def _crm_sync_task(db: Session, t: CrmTask) -> None:
@@ -990,24 +1003,40 @@ def _crm_sync_task(db: Session, t: CrmTask) -> None:
     ns = SimpleNamespace(id=t.id, title=("✓ " if t.status == "done" else "") + (t.title or "Задача"),
                          due_date=t.due_date, due_time=t.due_time, duration_min=None,
                          gcal_event_id=t.gcal_event_id)
-    deal_title = t.deal.title if t.deal and t.deal.title else "Без названия"
-    gcal.sync_card(db, ns, f"CRM · {deal_title}", USER_ID)
+    _, owner_title, _ = _crm_task_owner(db, t)
+    gcal.sync_card(db, ns, f"CRM · {owner_title}", USER_ID)
     t.gcal_event_id = ns.gcal_event_id
     db.commit()
 
 
-def _crm_contact_full(c: Contact) -> dict:
+def _crm_feed(db: Session, kind: str, obj) -> list[dict]:
+    """Лента владельца: сообщения и задачи в хронологическом порядке."""
+    if kind == "deals":
+        msgs, tasks = obj.messages, obj.tasks
+    else:
+        col = CRM_OWNER_COL[kind]
+        msgs = db.scalars(select(DealMessage).where(getattr(DealMessage, col) == obj.id)).all()
+        tasks = db.scalars(select(CrmTask).where(getattr(CrmTask, col) == obj.id)).all()
+    items = [{"id": m.id, "kind": "message", "text": m.text, "created_at": m.created_at.isoformat()} for m in msgs]
+    items += [_crm_task_out(t) for t in tasks]
+    items.sort(key=lambda x: x["created_at"])
+    return items
+
+
+def _crm_contact_full(db: Session, c: Contact) -> dict:
     return {"id": c.id, "name": _crm_name(c), "first_name": c.first_name, "last_name": c.last_name,
             "middle_name": c.middle_name, "phone": c.phone, "email": c.email, "telegram": c.telegram,
             "position": c.position, "city": c.city,
             "companies": [_crm_company_brief(x) for x in c.companies],
-            "deals": _crm_group_deals(c.deals)}
+            "deals": _crm_group_deals(c.deals),
+            "items": _crm_feed(db, "contacts", c)}
 
 
-def _crm_company_full(c: Company) -> dict:
+def _crm_company_full(db: Session, c: Company) -> dict:
     return {"id": c.id, "name": c.name or "Без названия", "card_url": c.card_url,
             "contacts": [_crm_contact_brief(x) for x in c.contacts],
-            "deals": _crm_group_deals(c.deals)}
+            "deals": _crm_group_deals(c.deals),
+            "items": _crm_feed(db, "companies", c)}
 
 
 def _crm_group_deals(deals) -> dict:
@@ -1054,7 +1083,7 @@ def crm_deal_get(did: int, db: Session = Depends(get_db), _: int = Depends(requi
     d = db.get(Deal, did)
     if not d:
         raise HTTPException(404, "Сделка не найдена")
-    return _crm_deal_full(d)
+    return _crm_deal_full(d, db)
 
 
 @app.patch("/api/crm/deals/{did}")
@@ -1078,7 +1107,7 @@ def crm_deal_patch(did: int, body: CrmDealPatch, db: Session = Depends(get_db), 
     if "documents_url" in f:
         d.documents_url = (body.documents_url or "").strip()[:500] or None
     db.commit()
-    return _crm_deal_full(d)
+    return _crm_deal_full(d, db)
 
 
 @app.delete("/api/crm/deals/{did}")
@@ -1103,11 +1132,9 @@ class CrmTaskDone(BaseModel):
     result: str
 
 
-@app.post("/api/crm/deals/{did}/tasks")
-def crm_task_create(did: int, body: CrmTaskIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
-    d = db.get(Deal, did)
-    if not d:
-        raise HTTPException(404, "Сделка не найдена")
+@app.post("/api/crm/{kind}/{oid}/tasks")
+def crm_task_create(kind: str, oid: int, body: CrmTaskIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    obj = _crm_owner(db, kind, oid)
     title = body.title.strip()[:300]
     if not title:
         raise HTTPException(400, "Напишите, что нужно сделать")
@@ -1118,7 +1145,7 @@ def crm_task_create(did: int, body: CrmTaskIn, db: Session = Depends(get_db), _:
     tm = (body.due_time or "").strip() or None
     if tm and not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", tm):
         raise HTTPException(400, "Неверное время")
-    t = CrmTask(deal_id=d.id, title=title, due_date=due, due_time=tm)
+    t = CrmTask(**{CRM_OWNER_COL[kind]: obj.id}, title=title, due_date=due, due_time=tm)
     db.add(t)
     db.commit()
     _crm_sync_task(db, t)
@@ -1149,7 +1176,7 @@ def crm_deal_add_contact(did: int, body: CrmIdIn, db: Session = Depends(get_db),
     if c not in d.contacts:
         d.contacts.append(c)
         db.commit()
-    return _crm_deal_full(d)
+    return _crm_deal_full(d, db)
 
 
 @app.delete("/api/crm/deals/{did}/contacts/{cid}")
@@ -1158,7 +1185,7 @@ def crm_deal_remove_contact(did: int, cid: int, db: Session = Depends(get_db), _
     if d and c and c in d.contacts:
         d.contacts.remove(c)
         db.commit()
-    return _crm_deal_full(d) if d else {"ok": True}
+    return _crm_deal_full(d, db) if d else {"ok": True}
 
 
 @app.post("/api/crm/deals/{did}/companies")
@@ -1169,7 +1196,7 @@ def crm_deal_add_company(did: int, body: CrmIdIn, db: Session = Depends(get_db),
     if c not in d.companies:
         d.companies.append(c)
         db.commit()
-    return _crm_deal_full(d)
+    return _crm_deal_full(d, db)
 
 
 @app.delete("/api/crm/deals/{did}/companies/{cid}")
@@ -1178,21 +1205,29 @@ def crm_deal_remove_company(did: int, cid: int, db: Session = Depends(get_db), _
     if d and c and c in d.companies:
         d.companies.remove(c)
         db.commit()
-    return _crm_deal_full(d) if d else {"ok": True}
+    return _crm_deal_full(d, db) if d else {"ok": True}
 
 
-@app.post("/api/crm/deals/{did}/messages")
-def crm_message_add(did: int, body: CrmMessageIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
-    d = db.get(Deal, did)
-    if not d:
-        raise HTTPException(404, "Сделка не найдена")
+def _crm_owner(db: Session, kind: str, oid: int):
+    model = {"deals": Deal, "contacts": Contact, "companies": Company}.get(kind)
+    if model is None:
+        raise HTTPException(404, "Неизвестный раздел")
+    obj = db.get(model, oid)
+    if not obj:
+        raise HTTPException(404, "Не найдено")
+    return obj
+
+
+@app.post("/api/crm/{kind}/{oid}/messages")
+def crm_message_add(kind: str, oid: int, body: CrmMessageIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    obj = _crm_owner(db, kind, oid)
     text = body.text.strip()
     if not text:
         raise HTTPException(400, "Пустое сообщение")
-    m = DealMessage(deal_id=d.id, text=text[:5000])
+    m = DealMessage(**{CRM_OWNER_COL[kind]: obj.id}, text=text[:5000])
     db.add(m)
     db.commit()
-    return {"id": m.id, "text": m.text, "created_at": m.created_at.isoformat()}
+    return {"id": m.id, "kind": "message", "text": m.text, "created_at": m.created_at.isoformat()}
 
 
 @app.get("/api/crm/contacts")
@@ -1215,7 +1250,7 @@ def crm_contact_create(body: CrmContactIn, db: Session = Depends(get_db), _: int
     _crm_contact_fields(c, body)
     db.add(c)
     db.commit()
-    return _crm_contact_full(c)
+    return _crm_contact_full(db, c)
 
 
 @app.get("/api/crm/contacts/{cid}")
@@ -1223,7 +1258,7 @@ def crm_contact_get(cid: int, db: Session = Depends(get_db), _: int = Depends(re
     c = db.get(Contact, cid)
     if not c:
         raise HTTPException(404, "Контакт не найден")
-    return _crm_contact_full(c)
+    return _crm_contact_full(db, c)
 
 
 @app.patch("/api/crm/contacts/{cid}")
@@ -1235,7 +1270,7 @@ def crm_contact_patch(cid: int, body: CrmContactPatch, db: Session = Depends(get
     if body.company_ids is not None:
         c.companies = [x for x in (db.get(Company, i) for i in set(body.company_ids)) if x]
     db.commit()
-    return _crm_contact_full(c)
+    return _crm_contact_full(db, c)
 
 
 @app.delete("/api/crm/contacts/{cid}")
@@ -1261,7 +1296,7 @@ def crm_company_create(body: CrmCompanyIn, db: Session = Depends(get_db), _: int
     c = Company(name=body.name.strip()[:200], card_url=(body.card_url or "").strip()[:500] or None)
     db.add(c)
     db.commit()
-    return _crm_company_full(c)
+    return _crm_company_full(db, c)
 
 
 @app.get("/api/crm/companies/{kid}")
@@ -1269,7 +1304,7 @@ def crm_company_get(kid: int, db: Session = Depends(get_db), _: int = Depends(re
     c = db.get(Company, kid)
     if not c:
         raise HTTPException(404, "Компания не найдена")
-    return _crm_company_full(c)
+    return _crm_company_full(db, c)
 
 
 @app.patch("/api/crm/companies/{kid}")
@@ -1283,7 +1318,7 @@ def crm_company_patch(kid: int, body: CrmCompanyPatch, db: Session = Depends(get
     if "card_url" in f:
         c.card_url = (body.card_url or "").strip()[:500] or None
     db.commit()
-    return _crm_company_full(c)
+    return _crm_company_full(db, c)
 
 
 @app.delete("/api/crm/companies/{kid}")
