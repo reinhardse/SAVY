@@ -1808,7 +1808,7 @@ function bindHlDrag() {
     el.ondragstart = e => e.preventDefault(); // иначе браузер запускает своё перетаскивание картинки и отменяет наше
     el.onpointerdown = e => {
       if (e.button !== 0 && e.pointerType === 'mouse') return;
-      hlDrag = {el: el.closest('.hl-item'), x0: e.clientX, y0: e.clientY, started: false, ph: null, ghost: null, sx: 0, sy: 0, cx: 0, cy: 0, tx: 0, ty: 0, raf: 0, orig: []};
+      hlDrag = {el: el.closest('.hl-item'), x0: e.clientX, y0: e.clientY, started: false, ph: null, ghost: null, sx: 0, sy: 0, cx: 0, cy: 0, tx: 0, ty: 0, raf: 0, orig: [], target: 0};
       window.addEventListener('pointermove', hlMove);
       window.addEventListener('pointerup', hlUp);
       window.addEventListener('pointercancel', hlUp);
@@ -1816,6 +1816,15 @@ function bindHlDrag() {
   });
 }
 function hlIds() { return [...document.querySelectorAll('#hlstrip .hl-item[data-hl-item]')].map(x => +x.dataset.hlItem); }
+// куда встанет квадрат: перед тем, над чьей серединой прошли курсором; подписи других не двигаются
+function hlTarget(x) {
+  const items = [...document.querySelectorAll('#hlstrip .hl-item[data-hl-item]')].filter(it => it !== hlDrag.el);
+  for (let i = 0; i < items.length; i++) {
+    const r = items[i].querySelector('.hl-tile').getBoundingClientRect();
+    if (x < r.left + r.width / 2) return {idx: i, rect: r};
+  }
+  return {idx: items.length, rect: document.querySelector('#hladd').getBoundingClientRect()};
+}
 function hlMove(e) {
   if (!hlDrag) return;
   if (!hlDrag.started) {
@@ -1832,26 +1841,28 @@ function hlMove(e) {
   hlPlace(e.clientX);
 }
 function hlStart(e) {
-  const r = hlDrag.el.getBoundingClientRect();
+  const tile = hlDrag.el.querySelector('.hl-tile');
+  const r = tile.getBoundingClientRect();
   hlDrag.started = true;
   hlSuppress = true;
   hlDrag.orig = hlIds();
   hlDrag.sx = e.clientX - r.left;
   hlDrag.sy = e.clientY - r.top;
   hlDrag.cx = r.left; hlDrag.cy = r.top;
-  const ph = document.createElement('div');
-  ph.className = 'hl-ph';
-  ph.style.flex = `0 0 ${r.width}px`;
-  ph.style.width = r.width + 'px';
-  ph.style.height = r.height + 'px';
-  hlDrag.el.replaceWith(ph);
-  hlDrag.ph = ph;
-  const g = hlDrag.el.cloneNode(true);
-  g.classList.add('kghost');
+  tile.style.visibility = 'hidden'; // на месте остаётся только подпись
+  const g = tile.cloneNode(true);
+  g.classList.add('hl-ghost');
+  g.style.visibility = 'visible';
   g.style.width = r.width + 'px';
+  g.style.height = r.height + 'px';
   document.body.appendChild(g);
   hlDrag.ghost = g;
+  const ph = document.createElement('div');
+  ph.className = 'hl-ph hl-ph-fixed';
+  document.body.appendChild(ph);
+  hlDrag.ph = ph;
   document.body.classList.add('kdragging');
+  $('#hlstrip').classList.add('hl-dragging');
   const follow = () => {
     if (!hlDrag || !hlDrag.ghost) return;
     hlDrag.cx += (hlDrag.tx - hlDrag.cx) * 0.35;
@@ -1861,22 +1872,16 @@ function hlStart(e) {
   };
   hlDrag.tx = hlDrag.cx; hlDrag.ty = hlDrag.cy;
   follow();
+  hlPlace(e.clientX);
 }
-// место ссылки: слева от той, над серединой которой прошли курсором; «+» всегда последний
 function hlPlace(x) {
-  const strip = $('#hlstrip');
-  let before = null;
-  for (const it of strip.querySelectorAll('.hl-item[data-hl-item]')) {
-    if (it === hlDrag.el) continue;
-    const r = it.getBoundingClientRect();
-    if (x < r.left + r.width / 2) { before = it; break; }
-  }
-  if (before) {
-    if (hlDrag.ph.nextElementSibling !== before) strip.insertBefore(hlDrag.ph, before);
-  } else {
-    const add = strip.querySelector('.hl-fixed');
-    if (hlDrag.ph.nextElementSibling !== add) strip.insertBefore(hlDrag.ph, add);
-  }
+  const t = hlTarget(x);
+  hlDrag.target = t.idx;
+  const rect = t.rect;
+  hlDrag.ph.style.left = rect.left + 'px';
+  hlDrag.ph.style.top = rect.top + 'px';
+  hlDrag.ph.style.width = rect.width + 'px';
+  hlDrag.ph.style.height = rect.height + 'px';
 }
 async function hlUp() {
   window.removeEventListener('pointermove', hlMove);
@@ -1888,8 +1893,15 @@ async function hlUp() {
   cancelAnimationFrame(d.raf);
   setTimeout(() => { hlSuppress = false; }, 300);
   d.ghost.remove();
+  d.ph.remove();
   document.body.classList.remove('kdragging');
-  d.ph.replaceWith(d.el);
+  $('#hlstrip').classList.remove('hl-dragging');
+  d.el.querySelector('.hl-tile').style.visibility = '';
+  // ставим ссылку на новое место вместе с её подписью
+  const strip = $('#hlstrip');
+  const others = [...strip.querySelectorAll('.hl-item[data-hl-item]')].filter(it => it !== d.el);
+  const ref = others[d.target] || strip.querySelector('.hl-fixed');
+  if (ref) strip.insertBefore(d.el, ref); else strip.appendChild(d.el);
   const ids = hlIds();
   if (ids.join() === d.orig.join()) return;
   try { await api(`/boards/${curBoard}/links/order`, {method: 'POST', body: {ids}}); }

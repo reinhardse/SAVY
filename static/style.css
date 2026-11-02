@@ -727,5 +727,9 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .hl-item[data-hl-item] .hl-tile{touch-action:none;cursor:grab}
 .hl-item[data-hl-item] .hl-tile:active{cursor:grabbing}
 /* призрак перетаскиваемого хайлайта — поверх всего, у курсора (класс hl-item иначе делал бы его относительным) */
-.hl-item.kghost{position:fixed;left:0;top:0;margin:0;z-index:60;pointer-events:none}
-.hl-item.kghost .hl-pen{display:none}
+/* призрак — единая непрозрачная карточка: квадрат и подпись переносятся вместе, без просвечивания */
+
+/* при переносе летит только квадрат; подпись стоит на месте; метка места вставки — пунктиром поверх */
+.hl-tile.hl-ghost{position:fixed;left:0;top:0;margin:0;z-index:60;pointer-events:none;box-shadow:0 18px 40px rgba(0,0,0,.22);transition:none}
+.hl-ph.hl-ph-fixed{position:fixed;z-index:55;pointer-events:none;border-radius:18px;margin:0}
+.hl-strip.hl-dragging .hl-pen{display:none}
