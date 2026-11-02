@@ -521,7 +521,7 @@ def boards_list(db: Session = Depends(get_db), _: int = Depends(require_auth)):
 @app.post("/api/boards")
 def board_create(body: BoardIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     b = Board(user_id=USER_ID, name=(body.name.strip()[:120] or "Доска"))
-    b.columns = [KColumn(name=n, sort=i) for i, n in enumerate(["К выполнению", "В работе", "Готово"])]
+    b.columns = [KColumn(name=n, sort=i) for i, n in enumerate(["Открыто", "В работе", "Готово"])]
     db.add(b)
     db.commit()
     return {"id": b.id, "name": b.name}
