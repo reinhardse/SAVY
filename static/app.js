@@ -1127,6 +1127,7 @@ function renderNoteEdit(text) {
 
 // текст строки с разметкой: жирный, курсив, подчёркнутый — обратно в **, *, __
 function fmtOf(node) {
+  if (!node) return '';
   if (node.nodeType === 3) return (node.textContent || '').replace(/​/g, '').replace(/ /g, ' ');
   if (node.nodeType !== 1 || node.classList.contains('kcb')) return '';
   const inner = [...node.childNodes].map(fmtOf).join('');
@@ -1147,7 +1148,7 @@ function readNote(root) {
   return [...root.childNodes].map(node => {
     if (node.nodeType === 3) return node.textContent;
     const el = node;
-    if (el.classList && el.classList.contains('kcheck')) return '  '.repeat(+(el.dataset.lvl || 0)) + `[${el.classList.contains('done') ? 'x' : ' '}] ${fmtOf(el.querySelector('.kct'))}`;
+    if (el.classList && el.classList.contains('kcheck')) return '  '.repeat(+(el.dataset.lvl || 0)) + `[${el.classList.contains('done') ? 'x' : ' '}] ${fmtOf(el.querySelector('.kct') || el)}`;
     if (el.classList && el.classList.contains('kh')) return '#'.repeat(el.classList.contains('kh1') ? 1 : el.classList.contains('kh3') ? 3 : 2) + ' ' + fmtOf(el);
     if (el.classList && el.classList.contains('kbul')) return '  '.repeat(+(el.dataset.lvl || 0)) + '- ' + fmtOf(el);
     return fmtOf(el);
