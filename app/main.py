@@ -19,7 +19,8 @@ from sqlalchemy.orm import Session
 
 from . import gcal, meta
 from urllib.parse import urlparse
-from .db import BASE_DIR, DATA_DIR, STATUSES, Board, BoardLink, Card, Category, GCalToken, Item, KColumn, SessionLocal, Tag, init_db
+from .db import (BASE_DIR, DATA_DIR, STATUSES, Board, BoardLink, Card, Category, Company, Contact, Deal, DealMessage,
+                 GCalToken, Item, KColumn, SessionLocal, Tag, init_db)
 
 PASSWORD = os.environ.get("LIBRARY_PASSWORD")
 API_TOKEN = os.environ.get("LIBRARY_API_TOKEN")  # для бота и «Быстрых команд» iOS
@@ -876,3 +877,338 @@ app.mount("/static", StaticFiles(directory=BASE_DIR / "static"), name="static")
 @app.get("/")
 def index():
     return FileResponse(BASE_DIR / "static" / "index.html")
+
+
+
+# ---------- CRM: воронка сделок, контакты и компании ----------
+# этапы воронки: ключ, название; «won» — успешные, «lost» — потерянные, остальные — в работе
+CRM_STAGES = [("new", "Новая заявка"), ("later", "Когда-нибудь"), ("talks", "Переговоры"),
+              ("work", "В работе"), ("won", "Успешно"), ("lost", "Закрыто и не реализовано")]
+CRM_STAGE_KEYS = {k for k, _ in CRM_STAGES}
+CRM_FORMATS = ("white", "black")
+
+
+class CrmDealIn(BaseModel):
+    title: str = ""
+    stage: str = "new"
+
+
+class CrmDealPatch(BaseModel):
+    title: str | None = None
+    amount: int | None = None
+    stage: str | None = None
+    format: str | None = None
+    documents_url: str | None = None
+
+
+class CrmIdIn(BaseModel):
+    id: int
+
+
+class CrmMessageIn(BaseModel):
+    text: str
+
+
+class CrmContactIn(BaseModel):
+    first_name: str = ""
+    last_name: str = ""
+    middle_name: str = ""
+    phone: str = ""
+    email: str = ""
+    telegram: str = ""
+    position: str = ""
+    city: str = ""
+
+
+class CrmContactPatch(CrmContactIn):
+    first_name: str | None = None
+    last_name: str | None = None
+    middle_name: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    telegram: str | None = None
+    position: str | None = None
+    city: str | None = None
+    company_ids: list[int] | None = None
+
+
+class CrmCompanyIn(BaseModel):
+    name: str = ""
+    card_url: str | None = None
+
+
+class CrmCompanyPatch(BaseModel):
+    name: str | None = None
+    card_url: str | None = None
+
+
+def _crm_name(c: Contact) -> str:
+    return " ".join(x for x in [c.first_name, c.last_name] if x) or "Без имени"
+
+
+def _crm_company_brief(c: Company) -> dict:
+    return {"id": c.id, "name": c.name or "Без названия"}
+
+
+def _crm_contact_brief(c: Contact) -> dict:
+    return {"id": c.id, "name": _crm_name(c), "companies": [_crm_company_brief(x) for x in c.companies]}
+
+
+def _crm_deal_brief(d: Deal) -> dict:
+    return {"id": d.id, "title": d.title or "Без названия", "amount": d.amount or 0, "stage": d.stage,
+            "created_at": d.created_at.date().isoformat() if d.created_at else None,
+            "contacts": [_crm_contact_brief(c) for c in d.contacts],
+            "companies": [_crm_company_brief(c) for c in d.companies]}
+
+
+def _crm_deal_full(d: Deal) -> dict:
+    return {**_crm_deal_brief(d), "format": d.format, "documents_url": d.documents_url,
+            "messages": [{"id": m.id, "text": m.text, "created_at": m.created_at.isoformat()} for m in d.messages]}
+
+
+def _crm_contact_full(c: Contact) -> dict:
+    return {"id": c.id, "name": _crm_name(c), "first_name": c.first_name, "last_name": c.last_name,
+            "middle_name": c.middle_name, "phone": c.phone, "email": c.email, "telegram": c.telegram,
+            "position": c.position, "city": c.city,
+            "companies": [_crm_company_brief(x) for x in c.companies],
+            "deals": _crm_group_deals(c.deals)}
+
+
+def _crm_company_full(c: Company) -> dict:
+    return {"id": c.id, "name": c.name or "Без названия", "card_url": c.card_url,
+            "contacts": [_crm_contact_brief(x) for x in c.contacts],
+            "deals": _crm_group_deals(c.deals)}
+
+
+def _crm_group_deals(deals) -> dict:
+    g = {"won": [], "lost": [], "active": []}
+    for d in sorted(deals, key=lambda x: x.id, reverse=True):
+        key = "won" if d.stage == "won" else "lost" if d.stage == "lost" else "active"
+        g[key].append(_crm_deal_brief(d))
+    g["sums"] = {k: sum(x["amount"] for x in g[k]) for k in ("won", "lost", "active")}
+    return g
+
+
+def _crm_contact_fields(c: Contact, body) -> None:
+    for f in ("first_name", "last_name", "middle_name", "phone", "email", "telegram", "position", "city"):
+        v = getattr(body, f, None)
+        if v is not None:
+            setattr(c, f, v.strip()[:200])
+
+
+@app.get("/api/crm/pipeline")
+def crm_pipeline(db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    deals = db.scalars(select(Deal).order_by(Deal.created_at.desc(), Deal.id.desc())).all()
+    stages = [{"key": k, "name": n, "deals": []} for k, n in CRM_STAGES]
+    by_key = {s["key"]: s for s in stages}
+    for d in deals:
+        if d.stage in by_key:
+            by_key[d.stage]["deals"].append(_crm_deal_brief(d))
+    for s in stages:
+        s["sum"] = sum(x["amount"] for x in s["deals"])
+    return {"stages": stages}
+
+
+@app.post("/api/crm/deals")
+def crm_deal_create(body: CrmDealIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    if body.stage not in CRM_STAGE_KEYS:
+        raise HTTPException(400, "Неизвестный этап")
+    d = Deal(title=body.title.strip()[:200], stage=body.stage)
+    db.add(d)
+    db.commit()
+    return _crm_deal_brief(d)
+
+
+@app.get("/api/crm/deals/{did}")
+def crm_deal_get(did: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    d = db.get(Deal, did)
+    if not d:
+        raise HTTPException(404, "Сделка не найдена")
+    return _crm_deal_full(d)
+
+
+@app.patch("/api/crm/deals/{did}")
+def crm_deal_patch(did: int, body: CrmDealPatch, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    d = db.get(Deal, did)
+    if not d:
+        raise HTTPException(404, "Сделка не найдена")
+    f = body.model_fields_set
+    if "title" in f and body.title is not None:
+        d.title = body.title.strip()[:200]
+    if "amount" in f:
+        if body.amount is not None and body.amount < 0:
+            raise HTTPException(400, "Бюджет не может быть отрицательным")
+        d.amount = body.amount
+    if "stage" in f and body.stage is not None:
+        if body.stage not in CRM_STAGE_KEYS:
+            raise HTTPException(400, "Неизвестный этап")
+        d.stage = body.stage
+    if "format" in f:
+        d.format = body.format if body.format in CRM_FORMATS else None
+    if "documents_url" in f:
+        d.documents_url = (body.documents_url or "").strip()[:500] or None
+    db.commit()
+    return _crm_deal_full(d)
+
+
+@app.delete("/api/crm/deals/{did}")
+def crm_deal_delete(did: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    d = db.get(Deal, did)
+    if d:
+        db.delete(d)
+        db.commit()
+    return {"ok": True}
+
+
+@app.post("/api/crm/deals/{did}/contacts")
+def crm_deal_add_contact(did: int, body: CrmIdIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    d, c = db.get(Deal, did), db.get(Contact, body.id)
+    if not d or not c:
+        raise HTTPException(404, "Не найдено")
+    if c not in d.contacts:
+        d.contacts.append(c)
+        db.commit()
+    return _crm_deal_full(d)
+
+
+@app.delete("/api/crm/deals/{did}/contacts/{cid}")
+def crm_deal_remove_contact(did: int, cid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    d, c = db.get(Deal, did), db.get(Contact, cid)
+    if d and c and c in d.contacts:
+        d.contacts.remove(c)
+        db.commit()
+    return _crm_deal_full(d) if d else {"ok": True}
+
+
+@app.post("/api/crm/deals/{did}/companies")
+def crm_deal_add_company(did: int, body: CrmIdIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    d, c = db.get(Deal, did), db.get(Company, body.id)
+    if not d or not c:
+        raise HTTPException(404, "Не найдено")
+    if c not in d.companies:
+        d.companies.append(c)
+        db.commit()
+    return _crm_deal_full(d)
+
+
+@app.delete("/api/crm/deals/{did}/companies/{cid}")
+def crm_deal_remove_company(did: int, cid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    d, c = db.get(Deal, did), db.get(Company, cid)
+    if d and c and c in d.companies:
+        d.companies.remove(c)
+        db.commit()
+    return _crm_deal_full(d) if d else {"ok": True}
+
+
+@app.post("/api/crm/deals/{did}/messages")
+def crm_message_add(did: int, body: CrmMessageIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    d = db.get(Deal, did)
+    if not d:
+        raise HTTPException(404, "Сделка не найдена")
+    text = body.text.strip()
+    if not text:
+        raise HTTPException(400, "Пустое сообщение")
+    m = DealMessage(deal_id=d.id, text=text[:5000])
+    db.add(m)
+    db.commit()
+    return {"id": m.id, "text": m.text, "created_at": m.created_at.isoformat()}
+
+
+@app.get("/api/crm/contacts")
+def crm_contacts(q: str = "", db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    rows = db.scalars(select(Contact)).all()
+    q = q.strip().lower()
+    out = []
+    for c in rows:
+        hay = " ".join([c.first_name, c.last_name, c.middle_name, c.phone, c.email, c.position, c.city]
+                       + [x.name for x in c.companies]).lower()
+        if not q or q in hay:
+            out.append(_crm_contact_brief(c) | {"phone": c.phone, "email": c.email, "position": c.position})
+    out.sort(key=lambda x: x["name"].lower())
+    return out
+
+
+@app.post("/api/crm/contacts")
+def crm_contact_create(body: CrmContactIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    c = Contact()
+    _crm_contact_fields(c, body)
+    db.add(c)
+    db.commit()
+    return _crm_contact_full(c)
+
+
+@app.get("/api/crm/contacts/{cid}")
+def crm_contact_get(cid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    c = db.get(Contact, cid)
+    if not c:
+        raise HTTPException(404, "Контакт не найден")
+    return _crm_contact_full(c)
+
+
+@app.patch("/api/crm/contacts/{cid}")
+def crm_contact_patch(cid: int, body: CrmContactPatch, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    c = db.get(Contact, cid)
+    if not c:
+        raise HTTPException(404, "Контакт не найден")
+    _crm_contact_fields(c, body)
+    if body.company_ids is not None:
+        c.companies = [x for x in (db.get(Company, i) for i in set(body.company_ids)) if x]
+    db.commit()
+    return _crm_contact_full(c)
+
+
+@app.delete("/api/crm/contacts/{cid}")
+def crm_contact_delete(cid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    c = db.get(Contact, cid)
+    if c:
+        db.delete(c)
+        db.commit()
+    return {"ok": True}
+
+
+@app.get("/api/crm/companies")
+def crm_companies(q: str = "", db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    q = q.strip().lower()
+    out = [_crm_company_brief(c) | {"card_url": c.card_url} for c in db.scalars(select(Company)).all()
+           if not q or q in c.name.lower()]
+    out.sort(key=lambda x: x["name"].lower())
+    return out
+
+
+@app.post("/api/crm/companies")
+def crm_company_create(body: CrmCompanyIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    c = Company(name=body.name.strip()[:200], card_url=(body.card_url or "").strip()[:500] or None)
+    db.add(c)
+    db.commit()
+    return _crm_company_full(c)
+
+
+@app.get("/api/crm/companies/{kid}")
+def crm_company_get(kid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    c = db.get(Company, kid)
+    if not c:
+        raise HTTPException(404, "Компания не найдена")
+    return _crm_company_full(c)
+
+
+@app.patch("/api/crm/companies/{kid}")
+def crm_company_patch(kid: int, body: CrmCompanyPatch, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    c = db.get(Company, kid)
+    if not c:
+        raise HTTPException(404, "Компания не найдена")
+    f = body.model_fields_set
+    if "name" in f and body.name is not None:
+        c.name = body.name.strip()[:200]
+    if "card_url" in f:
+        c.card_url = (body.card_url or "").strip()[:500] or None
+    db.commit()
+    return _crm_company_full(c)
+
+
+@app.delete("/api/crm/companies/{kid}")
+def crm_company_delete(kid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    c = db.get(Company, kid)
+    if c:
+        db.delete(c)
+        db.commit()
+    return {"ok": True}

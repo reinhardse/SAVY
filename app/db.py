@@ -147,6 +147,75 @@ class Card(Base):
     column = relationship("KColumn", back_populates="cards")
 
 
+
+# ---------- CRM: воронка сделок, контакты, компании ----------
+deal_contacts = Table(
+    "deal_contacts", Base.metadata,
+    Column("deal_id", ForeignKey("deals.id", ondelete="CASCADE"), primary_key=True),
+    Column("contact_id", ForeignKey("contacts.id", ondelete="CASCADE"), primary_key=True),
+)
+deal_companies = Table(
+    "deal_companies", Base.metadata,
+    Column("deal_id", ForeignKey("deals.id", ondelete="CASCADE"), primary_key=True),
+    Column("company_id", ForeignKey("companies.id", ondelete="CASCADE"), primary_key=True),
+)
+contact_companies = Table(
+    "contact_companies", Base.metadata,
+    Column("contact_id", ForeignKey("contacts.id", ondelete="CASCADE"), primary_key=True),
+    Column("company_id", ForeignKey("companies.id", ondelete="CASCADE"), primary_key=True),
+)
+
+
+class Company(Base):
+    __tablename__ = "companies"
+    id = Column(Integer, primary_key=True)
+    name = Column(String(200), default="")
+    card_url = Column(String(500), nullable=True)  # ссылка на карточку компании (Google Диск)
+    created_at = Column(DateTime, default=now)
+    deals = relationship("Deal", secondary=deal_companies, back_populates="companies")
+    contacts = relationship("Contact", secondary=contact_companies, back_populates="companies")
+
+
+class Contact(Base):
+    __tablename__ = "contacts"
+    id = Column(Integer, primary_key=True)
+    first_name = Column(String(100), default="")
+    last_name = Column(String(100), default="")
+    middle_name = Column(String(100), default="")
+    phone = Column(String(50), default="")
+    email = Column(String(200), default="")
+    telegram = Column(String(100), default="")
+    position = Column(String(200), default="")
+    city = Column(String(100), default="")
+    created_at = Column(DateTime, default=now)
+    companies = relationship("Company", secondary=contact_companies, back_populates="contacts")
+    deals = relationship("Deal", secondary=deal_contacts, back_populates="contacts")
+
+
+class Deal(Base):
+    __tablename__ = "deals"
+    id = Column(Integer, primary_key=True)
+    title = Column(String(200), default="")
+    amount = Column(Integer, nullable=True)  # бюджет, рублей
+    stage = Column(String(20), default="new")  # ключ этапа воронки
+    format = Column(String(10), nullable=True)  # white / black
+    documents_url = Column(String(500), nullable=True)  # ссылка на Google Диск
+    created_at = Column(DateTime, default=now)
+    contacts = relationship("Contact", secondary=deal_contacts, back_populates="deals")
+    companies = relationship("Company", secondary=deal_companies, back_populates="deals")
+    messages = relationship("DealMessage", back_populates="deal", cascade="all, delete-orphan",
+                            order_by="DealMessage.created_at")
+
+
+class DealMessage(Base):
+    __tablename__ = "deal_messages"
+    id = Column(Integer, primary_key=True)
+    deal_id = Column(Integer, ForeignKey("deals.id", ondelete="CASCADE"), nullable=False, index=True)
+    text = Column(Text, default="")
+    created_at = Column(DateTime, default=now)
+    deal = relationship("Deal", back_populates="messages")
+
+
 def init_db():
     Base.metadata.create_all(engine)
     # колонка статуса появилась позже: добавляем в уже существующую таблицу
