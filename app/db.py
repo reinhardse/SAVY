@@ -97,6 +97,17 @@ class Board(Base):
     columns = relationship("KColumn", back_populates="board", cascade="all, delete-orphan", order_by="KColumn.sort")
 
 
+class BoardLink(Base):
+    """Ссылка-«хайлайт» над доской: документ или сайт проекта, с комментарием."""
+    __tablename__ = "board_links"
+    id = Column(Integer, primary_key=True)
+    board_id = Column(Integer, ForeignKey("boards.id", ondelete="CASCADE"), nullable=False, index=True)
+    url = Column(Text, nullable=False)
+    title = Column(String(300), nullable=True)
+    comment = Column(Text, default="")
+    created_at = Column(DateTime, default=now)
+
+
 class KColumn(Base):
     __tablename__ = "kcolumns"
     id = Column(Integer, primary_key=True)

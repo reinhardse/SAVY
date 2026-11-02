@@ -806,11 +806,17 @@ async function board(bid) {
       <button class="kadd" data-addcard="${col.id}">+ Добавить карточку</button>
     </div>`).join('');
   $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
+  const hlStrip = `<div class="hl-strip" id="hlstrip"><div class="hl-item"><button class="hl-tile hl-add" id="hladd" aria-label="Добавить ссылку">${PLUS_ICON}</button><div class="hl-name">Добавить</div></div>${(b.links || []).map(hlItem).join('')}</div>`;
   $('#app').innerHTML = `<div class="titlerow"><div class="kbtitle" id="kbname" title="Нажмите, чтобы переименовать">${esc(b.name)}</div>
       <div class="tr-actions"><button class="iconbtn" id="kball" aria-label="Все доски" title="Все доски">${HOME_ICON}</button>
       <button class="iconbtn" id="kfull" aria-label="Во всю ширину" title="${isFull(bid) ? 'Вернуть' : 'Во всю ширину'}">${isFull(bid) ? RESTORE_ICON : FULL_ICON}</button></div></div>
+    ${hlStrip}
     <div class="kcols">${cols}<div class="kcol kaddcol"><button class="kadd" id="addcol">+ Колонка</button></div></div>`;
   $('#kball').onclick = () => { location.hash = '#/kanban'; };
+  const linkById = id => (b.links || []).find(x => x.id === id);
+  $('#hladd').onclick = () => openLink(null);
+  document.querySelectorAll('[data-hl-open]').forEach(el => el.onclick = () => { const l = linkById(+el.dataset.hlOpen); if (l) window.open(l.url, '_blank', 'noopener'); });
+  document.querySelectorAll('[data-hl-edit]').forEach(el => el.onclick = e => { e.stopPropagation(); openLink(linkById(+el.dataset.hlEdit)); });
   $('#app').classList.toggle('kfull', isFull(bid));
   $('#kfull').onclick = () => {
     const v = !isFull(bid);
@@ -1723,6 +1729,62 @@ function openCalMenu() {
     if (!calMenu) { document.removeEventListener('mousedown', off); return; }
     if (!calMenu.contains(e.target) && !(e.target.closest && e.target.closest('#calfilter'))) { closeCalMenu(); document.removeEventListener('mousedown', off); }
   });
+}
+
+/* ---------- ссылки-«хайлайты» над доской ---------- */
+const HL_DOC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg>';
+const HL_LINK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>';
+const hlItem = l => {
+  const k = tagColor(l.host);
+  const icon = /docs\.google|drive\.google/.test(l.url) ? HL_DOC : HL_LINK;
+  return `<div class="hl-item"><button class="hl-tile" data-hl-open="${l.id}" style="--hb:${k.bg};--ht:${k.tc}" title="${esc(l.url)}"><span class="hl-ic">${icon}</span><span class="hl-host">${esc(l.host)}</span></button><button class="hl-pen" data-hl-edit="${l.id}" aria-label="Изменить ссылку">${PEN}</button><div class="hl-name" title="${esc(l.title)}">${esc(l.title)}</div></div>`;
+};
+
+// окно ссылки: адрес и комментарий; адрес сохраняется при выходе из поля, комментарий — по паузе в наборе
+function openLink(l) {
+  let lid = l ? l.id : null;
+  let timer = null;
+  sheet(`<div class="sheet-body hl-body">
+      <div class="hl-top"><button class="hl-open" id="hlopen">Открыть</button><button class="iconbtn" id="sx" aria-label="Закрыть">${XICON}</button></div>
+      <label class="hl-lb" for="hlurl">Ссылка</label>
+      <input class="hl-in" id="hlurl" placeholder="https://" value="${esc(l ? l.url : '')}">
+      <label class="hl-lb" for="hlcom">Комментарий</label>
+      <textarea class="hl-ta" id="hlcom" placeholder="Комментарий к ссылке">${esc(l ? l.comment : '')}</textarea>
+      <div class="hl-foot"><button class="hl-del" id="hldel"${lid == null ? ' hidden' : ''}>Удалить ссылку</button><span class="kb-saved" id="hlsaved"></span></div>
+    </div>`, 'hl-sheet');
+  $('#sx').onclick = closeSheet;
+  const urlIn = $('#hlurl'), com = $('#hlcom');
+  const setSaved = t => { const s = $('#hlsaved'); if (s) s.textContent = t; };
+  $('#hlopen').onclick = () => { const u = urlIn.value.trim(); if (u) window.open(/^https?:\/\//.test(u) ? u : 'https://' + u, '_blank', 'noopener'); };
+  urlIn.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); urlIn.blur(); } };
+  urlIn.onchange = async () => {
+    const u = urlIn.value.trim();
+    if (!u) return;
+    setSaved('Сохраняю…');
+    try {
+      const r = lid == null
+        ? await api(`/boards/${curBoard}/links`, {method: 'POST', body: {url: u}})
+        : await api(`/links/${lid}`, {method: 'PATCH', body: {url: u}});
+      lid = r.id;
+      urlIn.value = r.url;
+      $('#hldel').hidden = false;
+      setSaved('Сохранено');
+    } catch (e) { setSaved(''); alert(e.message); }
+  };
+  const saveComment = async () => {
+    if (lid == null) return;
+    try { await api(`/links/${lid}`, {method: 'PATCH', body: {comment: com.value}}); setSaved('Сохранено'); }
+    catch (e) { alert(e.message); }
+  };
+  com.oninput = () => { setSaved('Сохраняю…'); clearTimeout(timer); timer = setTimeout(saveComment, 500); };
+  beforeClose = async () => { clearTimeout(timer); await saveComment(); };
+  $('#hldel').onclick = async () => {
+    if (lid == null || !confirm('Удалить ссылку?')) return;
+    try { await api(`/links/${lid}`, {method: 'DELETE'}); } catch (e) { alert(e.message); return; }
+    beforeClose = null;
+    closeSheet();
+  };
+  setTimeout(() => (lid == null ? urlIn : com).focus(), 0);
 }
 
 /* ---------- старт ---------- */

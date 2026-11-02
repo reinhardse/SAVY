@@ -18,7 +18,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from . import gcal, meta
-from .db import BASE_DIR, DATA_DIR, STATUSES, Board, Card, Category, GCalToken, Item, KColumn, SessionLocal, Tag, init_db
+from urllib.parse import urlparse
+from .db import BASE_DIR, DATA_DIR, STATUSES, Board, BoardLink, Card, Category, GCalToken, Item, KColumn, SessionLocal, Tag, init_db
 
 PASSWORD = os.environ.get("LIBRARY_PASSWORD")
 API_TOKEN = os.environ.get("LIBRARY_API_TOKEN")  # для бота и «Быстрых команд» iOS
@@ -528,7 +529,91 @@ def board_create(body: BoardIn, db: Session = Depends(get_db), _: int = Depends(
 
 @app.get("/api/boards/{bid}")
 def board_read(bid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
-    return board_out(_board(db, bid))
+    out = board_out(_board(db, bid))
+    out["links"] = [link_out(l) for l in db.scalars(select(BoardLink).where(BoardLink.board_id == bid).order_by(BoardLink.id)).all()]
+    return out
+
+
+# ----- ссылки-«хайлайты» над доской -----
+class LinkIn(BaseModel):
+    url: str
+
+
+class LinkPatch(BaseModel):
+    url: str | None = None
+    comment: str | None = None
+
+
+def link_out(l: BoardLink) -> dict:
+    host = (urlparse(l.url).hostname or l.url).removeprefix("www.")
+    return {"id": l.id, "url": l.url, "title": l.title or host, "host": host, "comment": l.comment or ""}
+
+
+def _fetch_title(url: str) -> str | None:
+    try:
+        return (meta.fetch_metadata(url, "web") or {}).get("title") or None
+    except Exception:
+        return None
+
+
+def _refresh_title(lid: int, url: str) -> None:
+    """Название подтягиваем в фоне: сама ссылка уже сохранена и открывается сразу."""
+    title = _fetch_title(url)
+    if not title:
+        return
+    with SessionLocal() as s:
+        l = s.get(BoardLink, lid)
+        if l and l.url == url:
+            l.title = title
+            s.commit()
+
+
+def _norm(url: str) -> str:
+    try:
+        return meta.normalize_url(url)[:2000]
+    except Exception:
+        raise HTTPException(400, "Не похоже на ссылку")
+
+
+def _link(db: Session, lid: int) -> BoardLink:
+    l = db.scalars(select(BoardLink).join(Board, BoardLink.board_id == Board.id)
+                   .where(BoardLink.id == lid, Board.user_id == USER_ID)).first()
+    if not l:
+        raise HTTPException(404, "Ссылка не найдена")
+    return l
+
+
+@app.post("/api/boards/{bid}/links")
+def link_create(bid: int, body: LinkIn, bg: BackgroundTasks, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    b = _board(db, bid)
+    url = _norm(body.url)
+    l = BoardLink(board_id=b.id, url=url, title=None, comment="")
+    db.add(l)
+    db.commit()
+    bg.add_task(_refresh_title, l.id, url)
+    return link_out(l)
+
+
+@app.patch("/api/links/{lid}")
+def link_patch(lid: int, body: LinkPatch, bg: BackgroundTasks, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    l = _link(db, lid)
+    if body.url is not None and body.url.strip():
+        url = _norm(body.url)
+        if url != l.url:
+            l.url = url
+            l.title = None
+            bg.add_task(_refresh_title, l.id, url)
+    if body.comment is not None:
+        l.comment = body.comment[:5000]
+    db.commit()
+    return link_out(l)
+
+
+@app.delete("/api/links/{lid}")
+def link_delete(lid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    db.delete(_link(db, lid))
+    db.commit()
+    return {"ok": True}
 
 
 class BoardPatch(BaseModel):
