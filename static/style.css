@@ -745,3 +745,5 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .bgrid .bcard-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto}
 .bgrid .bcount{font-size:13px;color:var(--muted)}
 @media (max-width:520px){.bgrid{grid-template-columns:1fr}}
+
+.kb-prio:not(.on){opacity:.7}

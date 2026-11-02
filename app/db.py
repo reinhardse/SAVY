@@ -140,6 +140,7 @@ class Card(Base):
     due_date = Column(String(10), nullable=True)  # дата YYYY-MM-DD
     due_time = Column(String(5), nullable=True)  # время начала HH:MM
     duration_min = Column(Integer, nullable=True)  # длительность, минут
+    priority = Column(Integer, nullable=True)  # приоритет: 3 — высокий, 2 — средний, 1 — низкий, None — не задан
     gcal_event_id = Column(String(255), nullable=True)  # событие в Google Календаре
     sort = Column(Integer, default=0)
     created_at = Column(DateTime, default=now)
@@ -172,6 +173,9 @@ def init_db():
     if "due_time" not in [c["name"] for c in cols("cards")]:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE cards ADD COLUMN due_time VARCHAR(5)"))
+    if "priority" not in [c["name"] for c in cols("cards")]:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE cards ADD COLUMN priority INTEGER"))
     if "duration_min" not in [c["name"] for c in cols("cards")]:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE cards ADD COLUMN duration_min INTEGER"))

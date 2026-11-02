@@ -1129,6 +1129,7 @@ async function openCard(kid) {
   const bd = await api('/boards/' + c.board_id);
   let boardTags = bd.tags || [], cardTags = c.tags || [], cols = bd.columns || [], curCol = c.column_id;
   let timer = null, dirty = false;
+  let prio = c.priority || null;
   const DOTS = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';
   sheet(`<div class="sheet-body kb-card">
       <div class="kb-top">
@@ -1141,8 +1142,9 @@ async function openCard(kid) {
       </div>
       <div class="kb-body"><div class="kb-title" id="kbt" contenteditable="true" spellcheck="false" data-ph="Заголовок">${linkify((c.title || '').replace(/\s+/g, ' '))}</div>
       <div class="kb-props">
-        <div class="kb-prop"><div class="kb-pl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9-9-9z"/><circle cx="8" cy="8" r="1.4"/></svg><span>Теги</span></div><div class="kb-pv" id="kbtags"></div></div>
         <div class="kb-prop"><div class="kb-pl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg><span>Статус</span></div><div class="kb-pv" id="kbcols"></div></div>
+        <div class="kb-prop"><div class="kb-pl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4M5 4h11l-2 4 2 4H5"/></svg><span>Приоритет</span></div><div class="kb-pv" id="kbprio"></div></div>
+        <div class="kb-prop"><div class="kb-pl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9-9-9z"/><circle cx="8" cy="8" r="1.4"/></svg><span>Теги</span></div><div class="kb-pv" id="kbtags"></div></div>
         <div class="kb-prop"><div class="kb-pl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span>Дата</span></div><div class="kb-pv" id="kbdate"></div></div>
       </div>
       <hr class="kb-hr">
@@ -1227,6 +1229,21 @@ async function openCard(kid) {
     });
   };
   renderCols();
+
+  // приоритет: три значка как у тегов; выбранный — цветной, остальные полупрозрачные; повторный клик снимает
+  const KB_PRIO = {3: {t: '!!!', bg: '#ffe1e1', tc: '#b42318', bd: '#f5b5b5'}, 2: {t: '!!', bg: '#fff3c4', tc: '#8a6100', bd: '#f3dc85'}, 1: {t: '!', bg: '#dfeafe', tc: '#2f4bb0', bd: '#b5ccf5'}};
+  const renderPrio = () => {
+    const box = $('#kbprio');
+    box.innerHTML = [3, 2, 1].map(p => `<button class="kb-tag kb-prio${prio === p ? ' on' : ''}" style="--tb:${KB_PRIO[p].bg};--tt:${KB_PRIO[p].tc};--tbd:${KB_PRIO[p].bd}" data-prio="${p}">${KB_PRIO[p].t}</button>`).join('');
+    box.querySelectorAll('[data-prio]').forEach(b => b.onclick = async () => {
+      const p = +b.dataset.prio;
+      prio = prio === p ? null : p;
+      renderPrio();
+      try { await api('/cards/' + kid, {method: 'PATCH', body: {priority: prio}}); }
+      catch (e) { alert(e.message); }
+    });
+  };
+  renderPrio();
 
   // дата: мини-календарь, неделя с понедельника, дни по-русски
   const MONTHS_RU = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];

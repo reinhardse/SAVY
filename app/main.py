@@ -440,6 +440,7 @@ class CardPatch(BaseModel):
     due_date: str | None = None
     due_time: str | None = None
     duration_min: int | None = None
+    priority: int | None = None
 
 
 def _board(db: Session, bid: int) -> Board:
@@ -484,7 +485,7 @@ def _clean_tags(items) -> list[str]:
 
 def card_out(c: Card) -> dict:
     return {"id": c.id, "title": c.title or "", "note": c.note or "", "column_id": c.column_id,
-            "board_id": c.board_id, "tags": _tags(c.tags), "due_date": c.due_date, "due_time": c.due_time, "duration_min": c.duration_min}
+            "board_id": c.board_id, "tags": _tags(c.tags), "due_date": c.due_date, "due_time": c.due_time, "duration_min": c.duration_min, "priority": c.priority}
 
 
 def board_out(b: Board) -> dict:
@@ -762,6 +763,8 @@ def card_patch(kid: int, body: CardPatch, db: Session = Depends(get_db), _: int 
             k.duration_min = body.duration_min
         else:
             raise HTTPException(400, "Слишком длинная задача")
+    if "priority" in fields:
+        k.priority = body.priority if body.priority in (1, 2, 3) else None
     if "tags" in fields and body.tags is not None:
         allowed = set(_tags(_board(db, k.board_id).tags))
         k.tags = json.dumps([t for t in _clean_tags(body.tags) if t in allowed], ensure_ascii=False)
