@@ -1152,6 +1152,80 @@ def crm_task_create(kind: str, oid: int, body: CrmTaskIn, db: Session = Depends(
     return _crm_task_out(t)
 
 
+class CrmTaskPatch(BaseModel):
+    title: str | None = None
+    due_date: str | None = None
+    due_time: str | None = None
+    result: str | None = None
+
+
+@app.patch("/api/crm/tasks/{tid}")
+def crm_task_patch(tid: int, body: CrmTaskPatch, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    t = db.get(CrmTask, tid)
+    if not t:
+        raise HTTPException(404, "Задача не найдена")
+    f = body.model_fields_set
+    if "title" in f and body.title is not None:
+        title = body.title.strip()[:300]
+        if not title:
+            raise HTTPException(400, "Напишите, что нужно сделать")
+        t.title = title
+    if "due_date" in f and body.due_date is not None:
+        try:
+            t.due_date = _date.fromisoformat(body.due_date).isoformat()
+        except ValueError:
+            raise HTTPException(400, "Неверная дата")
+    if "due_time" in f:
+        tm = (body.due_time or "").strip() or None
+        if tm and not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", tm):
+            raise HTTPException(400, "Неверное время")
+        t.due_time = tm
+    if "result" in f and body.result is not None:
+        if t.status != "done":
+            raise HTTPException(400, "Итог есть только у выполненной задачи")
+        result = body.result.strip()
+        if not result:
+            raise HTTPException(400, "Напишите итог задачи")
+        t.result = result[:5000]
+    db.commit()
+    _crm_sync_task(db, t)
+    return _crm_task_out(t)
+
+
+@app.delete("/api/crm/tasks/{tid}")
+def crm_task_delete(tid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    t = db.get(CrmTask, tid)
+    if t:
+        if t.gcal_event_id:
+            gcal.delete_event(db, t.gcal_event_id, USER_ID)
+        db.delete(t)
+        db.commit()
+    return {"ok": True}
+
+
+@app.get("/api/crm/tasks")
+def crm_tasks_all(db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    """Все задачи CRM для раздела «Задачи»: кто, какая компания, какая сделка, когда и что сделать."""
+    out = []
+    for t in db.scalars(select(CrmTask).order_by(CrmTask.due_date, CrmTask.due_time, CrmTask.id)).all():
+        kind, owner_title, href = _crm_task_owner(db, t)
+        names, comps, deal_title = [], [], None
+        if t.deal_id and db.get(Deal, t.deal_id):
+            d = db.get(Deal, t.deal_id)
+            deal_title = d.title or "Без названия"
+            names = [_crm_name(c) for c in d.contacts]
+            comps = [k.name for k in d.companies]
+        elif t.contact_id and db.get(Contact, t.contact_id):
+            c = db.get(Contact, t.contact_id)
+            names = [_crm_name(c)]
+            comps = [k.name for k in c.companies]
+        elif t.company_id and db.get(Company, t.company_id):
+            comps = [db.get(Company, t.company_id).name]
+        out.append({**_crm_task_out(t), "owner_kind": kind, "owner_title": owner_title, "href": href,
+                    "deal_title": deal_title, "names": names, "companies": comps})
+    return out
+
+
 @app.post("/api/crm/tasks/{tid}/complete")
 def crm_task_complete(tid: int, body: CrmTaskDone, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     t = db.get(CrmTask, tid)
