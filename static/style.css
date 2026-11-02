@@ -495,8 +495,8 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 /* окно карточки в стиле Notion: верхняя строка с серыми кнопками, меню «···» с удалением */
 .card-sheet .kb-card{padding:0}
 .kb-top{display:flex;align-items:center;justify-content:space-between;min-height:32px;margin:0 -8px 14px}
-.card-sheet .kb-top{position:sticky;top:0;z-index:4;background:#fff;padding:14px 14px 0 40px;margin:0}
-.kb-top .kb-saved{padding-left:8px}
+.card-sheet .kb-top{position:sticky;top:0;z-index:4;background:#fff;padding:14px 14px 0 14px;margin:0}
+.kb-top .kb-saved{padding-left:7px}
 .kb-tools{display:flex;align-items:center;gap:2px;position:relative}
 .kb-ib{width:32px;height:32px;border:0;border-radius:6px;background:transparent;color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:background-color .15s,color .15s}
 .kb-ib:hover{background:#efefef;color:var(--ink)}
