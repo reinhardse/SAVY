@@ -1841,16 +1841,15 @@ function hlMove(e) {
   hlPlace(e.clientX);
 }
 function hlStart(e) {
-  const tile = hlDrag.el.querySelector('.hl-tile');
-  const r = tile.getBoundingClientRect();
+  const r = hlDrag.el.getBoundingClientRect();
   hlDrag.started = true;
   hlSuppress = true;
   hlDrag.orig = hlIds();
   hlDrag.sx = e.clientX - r.left;
   hlDrag.sy = e.clientY - r.top;
   hlDrag.cx = r.left; hlDrag.cy = r.top;
-  tile.style.visibility = 'hidden'; // на месте остаётся только подпись
-  const g = tile.cloneNode(true);
+  hlDrag.el.style.visibility = 'hidden'; // на месте остаётся пустое место, карточка летит целиком
+  const g = hlDrag.el.cloneNode(true);
   g.classList.add('hl-ghost');
   g.style.visibility = 'visible';
   g.style.width = r.width + 'px';
@@ -1896,7 +1895,7 @@ async function hlUp() {
   d.ph.remove();
   document.body.classList.remove('kdragging');
   $('#hlstrip').classList.remove('hl-dragging');
-  d.el.querySelector('.hl-tile').style.visibility = '';
+  d.el.style.visibility = '';
   // ставим ссылку на новое место вместе с её подписью
   const strip = $('#hlstrip');
   const others = [...strip.querySelectorAll('.hl-item[data-hl-item]')].filter(it => it !== d.el);
