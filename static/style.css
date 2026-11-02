@@ -1154,3 +1154,5 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-msg-ed textarea{width:100%;border:1px solid #e3e3e8;border-radius:12px;padding:7px 10px;font:inherit;font-size:14px;resize:none;outline:none;background:#fff}
 .crm-msg-ed textarea:focus{border-color:#9bb8ec}
 .crm-msg-ed[hidden],.crm-msg-t[hidden],.crm-bub[hidden]{display:none}
+.crm-task-badge{display:inline-flex;align-items:center;gap:4px;background:#fff3c4;color:#8a6100;border:1px solid #f3dc85;border-radius:999px;padding:1px 8px 1px 6px;font-size:12px;font-weight:600}
+.crm-task-badge svg{width:13px;height:13px}

@@ -970,7 +970,8 @@ def _crm_deal_brief(d: Deal) -> dict:
     return {"id": d.id, "title": d.title or "Без названия", "amount": d.amount or 0, "stage": d.stage,
             "created_at": d.created_at.date().isoformat() if d.created_at else None,
             "contacts": [_crm_contact_brief(c) for c in d.contacts],
-            "companies": [_crm_company_brief(c) for c in d.companies]}
+            "companies": [_crm_company_brief(c) for c in d.companies],
+            "open_tasks": sum(1 for t in d.tasks if t.status == "open")}
 
 
 def _crm_task_out(t: CrmTask) -> dict:

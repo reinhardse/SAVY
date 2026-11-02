@@ -21,6 +21,7 @@ const CRM_ICO = {
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>',
   send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l16-8-6 16-2-6z"/></svg>',
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
   chev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>',
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
 };
@@ -88,7 +89,7 @@ function crmDealCard(d) {
   return `<div class="crm-deal" data-deal="${d.id}">
     <div class="crm-deal-top"><span class="crm-deal-who">${esc(who)}${comp ? `<span class="crm-deal-comp">${who ? ', ' : ''}${esc(comp)}</span>` : ''}</span><span class="crm-deal-date">${crmDate(d.created_at)}</span></div>
     <div class="crm-deal-title">${esc(d.title)}</div>
-    ${d.amount ? `<div class="crm-deal-foot"><span class="kc-tag">${crmMoney(d.amount)}</span></div>` : ''}
+    ${d.amount || d.open_tasks ? `<div class="crm-deal-foot">${d.amount ? `<span class="kc-tag">${crmMoney(d.amount)}</span>` : ''}${d.open_tasks ? `<span class="crm-task-badge" title="Незакрытых задач: ${d.open_tasks}">${CRM_ICO.clock}${d.open_tasks}</span>` : ''}</div>` : ''}
   </div>`;
 }
 
