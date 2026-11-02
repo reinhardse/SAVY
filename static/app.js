@@ -1458,8 +1458,12 @@ async function openCard(kid) {
   ];
   // сколько раз выбран каждый блок — по нему выбираются «часто используемые»
   const slUse = () => { try { return JSON.parse(localStorage.getItem('sl_use') || '{}'); } catch (e) { return {}; } };
-  let menu = null, slashNode = null, slashStart = 0, slashEnd = 0, slashItems = [], slashSel = 0, slashRect = null;
-  const closeSlash = () => { if (menu) menu.remove(); menu = null; slashNode = null; slashItems = []; slashRect = null; };
+  let menu = null, slashNode = null, slashStart = 0, slashEnd = 0, slashItems = [], slashSel = 0, slashRect = null, slashOut = null;
+  const closeSlash = () => {
+    if (menu) menu.remove();
+    if (slashOut) document.removeEventListener('mousedown', slashOut, true);
+    slashOut = null; menu = null; slashNode = null; slashItems = []; slashRect = null;
+  };
   const paintSlash = () => {
     if (!menu) return;
     [...menu.querySelectorAll('.sl-item')].forEach((b, i) => b.classList.toggle('on', i === slashSel));
@@ -1517,6 +1521,9 @@ async function openCard(kid) {
       slashSel = +btn.dataset.i; paintSlash();
     };
     document.body.appendChild(menu);
+    // клик вне меню закрывает его, как всплывающее окно
+    slashOut = e => { if (menu && !menu.contains(e.target)) closeSlash(); };
+    document.addEventListener('mousedown', slashOut, true);
     renderSlash(q);
   };
   const chooseSlash = kind => {
