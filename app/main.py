@@ -6,7 +6,7 @@ import os
 import re
 import secrets
 from contextlib import asynccontextmanager
-from datetime import date as _date
+from datetime import date as _date, datetime, timezone
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
@@ -18,8 +18,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from . import gcal, meta
+from types import SimpleNamespace
 from urllib.parse import urlparse
-from .db import (BASE_DIR, DATA_DIR, STATUSES, Board, BoardLink, Card, Category, Company, Contact, Deal, DealMessage,
+from .db import (BASE_DIR, DATA_DIR, STATUSES, Board, BoardLink, Card, Category, Company, Contact, CrmTask, Deal, DealMessage,
                  GCalToken, Item, KColumn, SessionLocal, Tag, init_db)
 
 PASSWORD = os.environ.get("LIBRARY_PASSWORD")
@@ -506,9 +507,17 @@ def calendar_items(frm: str, to: str, db: Session = Depends(get_db), _: int = De
     rows = db.scalars(select(Card).join(Board, Card.board_id == Board.id)
                       .where(Board.user_id == USER_ID, Card.due_date >= a, Card.due_date <= b)
                       .order_by(Card.due_date, Card.due_time)).all()
-    return [{"id": c.id, "title": c.title or "", "due_date": c.due_date, "due_time": c.due_time,
-             "duration_min": c.duration_min, "board_id": c.board_id, "board_name": names.get(c.board_id, "")}
-            for c in rows]
+    out = [{"id": c.id, "title": c.title or "", "due_date": c.due_date, "due_time": c.due_time,
+            "duration_min": c.duration_min, "board_id": c.board_id, "board_name": names.get(c.board_id, "")}
+           for c in rows]
+    # задачи CRM: метка CRM и название сделки; открываются сделкой
+    tasks = db.scalars(select(CrmTask).where(CrmTask.due_date >= a, CrmTask.due_date <= b)
+                       .order_by(CrmTask.due_date, CrmTask.due_time)).all()
+    out += [{"id": t.id, "kind": "crm", "title": t.title, "due_date": t.due_date, "due_time": t.due_time,
+             "duration_min": None, "board_id": None, "board_name": "CRM", "deal_id": t.deal_id,
+             "deal_title": (t.deal.title if t.deal and t.deal.title else "Без названия"),
+             "done": t.status == "done"} for t in tasks]
+    return out
 
 
 @app.get("/api/boards")
@@ -961,9 +970,30 @@ def _crm_deal_brief(d: Deal) -> dict:
             "companies": [_crm_company_brief(c) for c in d.companies]}
 
 
+def _crm_task_out(t: CrmTask) -> dict:
+    return {"id": t.id, "kind": "task", "title": t.title, "due_date": t.due_date, "due_time": t.due_time,
+            "status": t.status, "result": t.result or "",
+            "done_at": t.done_at.isoformat() if t.done_at else None,
+            "created_at": t.created_at.isoformat()}
+
+
 def _crm_deal_full(d: Deal) -> dict:
+    items = [{"id": m.id, "kind": "message", "text": m.text, "created_at": m.created_at.isoformat()} for m in d.messages]
+    items += [_crm_task_out(t) for t in d.tasks]
+    items.sort(key=lambda x: x["created_at"])
     return {**_crm_deal_brief(d), "format": d.format, "documents_url": d.documents_url,
-            "messages": [{"id": m.id, "text": m.text, "created_at": m.created_at.isoformat()} for m in d.messages]}
+            "messages": [i for i in items if i["kind"] == "message"], "items": items}
+
+
+def _crm_sync_task(db: Session, t: CrmTask) -> None:
+    """Задача уходит в Google Календарь; у выполненной в названии стоит галочка."""
+    ns = SimpleNamespace(id=t.id, title=("✓ " if t.status == "done" else "") + (t.title or "Задача"),
+                         due_date=t.due_date, due_time=t.due_time, duration_min=None,
+                         gcal_event_id=t.gcal_event_id)
+    deal_title = t.deal.title if t.deal and t.deal.title else "Без названия"
+    gcal.sync_card(db, ns, f"CRM · {deal_title}", USER_ID)
+    t.gcal_event_id = ns.gcal_event_id
+    db.commit()
 
 
 def _crm_contact_full(c: Contact) -> dict:
@@ -1055,9 +1085,60 @@ def crm_deal_patch(did: int, body: CrmDealPatch, db: Session = Depends(get_db), 
 def crm_deal_delete(did: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     d = db.get(Deal, did)
     if d:
+        for t in d.tasks:
+            if t.gcal_event_id:
+                gcal.delete_event(db, t.gcal_event_id, USER_ID)
         db.delete(d)
         db.commit()
     return {"ok": True}
+
+
+class CrmTaskIn(BaseModel):
+    title: str
+    due_date: str
+    due_time: str | None = None
+
+
+class CrmTaskDone(BaseModel):
+    result: str
+
+
+@app.post("/api/crm/deals/{did}/tasks")
+def crm_task_create(did: int, body: CrmTaskIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    d = db.get(Deal, did)
+    if not d:
+        raise HTTPException(404, "Сделка не найдена")
+    title = body.title.strip()[:300]
+    if not title:
+        raise HTTPException(400, "Напишите, что нужно сделать")
+    try:
+        due = _date.fromisoformat(body.due_date).isoformat()
+    except ValueError:
+        raise HTTPException(400, "Неверная дата")
+    tm = (body.due_time or "").strip() or None
+    if tm and not re.fullmatch(r"([01]\d|2[0-3]):[0-5]\d", tm):
+        raise HTTPException(400, "Неверное время")
+    t = CrmTask(deal_id=d.id, title=title, due_date=due, due_time=tm)
+    db.add(t)
+    db.commit()
+    _crm_sync_task(db, t)
+    return _crm_task_out(t)
+
+
+@app.post("/api/crm/tasks/{tid}/complete")
+def crm_task_complete(tid: int, body: CrmTaskDone, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    t = db.get(CrmTask, tid)
+    if not t:
+        raise HTTPException(404, "Задача не найдена")
+    result = body.result.strip()
+    if not result:
+        raise HTTPException(400, "Напишите итог задачи")
+    t.status = "done"
+    t.result = result[:5000]
+    t.done_at = datetime.now(timezone.utc)
+    db.commit()
+    _crm_sync_task(db, t)
+    return _crm_task_out(t)
 
 
 @app.post("/api/crm/deals/{did}/contacts")

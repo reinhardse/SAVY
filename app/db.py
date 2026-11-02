@@ -205,6 +205,24 @@ class Deal(Base):
     companies = relationship("Company", secondary=deal_companies, back_populates="deals")
     messages = relationship("DealMessage", back_populates="deal", cascade="all, delete-orphan",
                             order_by="DealMessage.created_at")
+    tasks = relationship("CrmTask", back_populates="deal", cascade="all, delete-orphan",
+                         order_by="CrmTask.id")
+
+
+class CrmTask(Base):
+    """Задача по сделке: попадает в календарь (метка CRM) и в Google Календарь."""
+    __tablename__ = "crm_tasks"
+    id = Column(Integer, primary_key=True)
+    deal_id = Column(Integer, ForeignKey("deals.id", ondelete="CASCADE"), nullable=False, index=True)
+    title = Column(String(300), default="")
+    due_date = Column(String(10), nullable=False)  # YYYY-MM-DD
+    due_time = Column(String(5), nullable=True)  # HH:MM
+    status = Column(String(10), default="open")  # open / done
+    result = Column(Text, default="")  # итог, которым закрыта задача
+    done_at = Column(DateTime, nullable=True)
+    gcal_event_id = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=now)
+    deal = relationship("Deal", back_populates="tasks")
 
 
 class DealMessage(Base):
