@@ -677,7 +677,7 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .hl-item{position:relative;flex:0 0 76px;width:76px;display:flex;flex-direction:column;align-items:center;gap:6px}
 .hl-tile{width:68px;height:68px;border-radius:18px;border:1px solid rgba(0,0,0,.06);background:var(--hb,#f2f2f4);color:var(--ht,var(--ink));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;padding:6px;cursor:pointer;transition:box-shadow .15s}
 .hl-tile:hover{box-shadow:0 2px 8px rgba(0,0,0,.06)}
-.hl-add{background:#f6f6f8;border:1px dashed #cfcfd6;color:var(--muted)}
+.hl-add{background:transparent;border:1px dashed #cfcfd6;color:var(--muted)}
 .hl-add svg{width:22px;height:22px;display:block}
 .hl-ic svg{width:22px;height:22px;display:block}
 .hl-host{font-size:10px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.8}
@@ -717,7 +717,7 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .hl-tile:hover{border-color:#8f8f99}
 
 /* контуры светлее; «Добавить» — пунктир как был; картинка не перехватывает перетаскивание */
-.hl-add{background:#f6f6f8;border:1px dashed #cfcfd6;color:var(--muted)}
+.hl-add{background:transparent;border:1px dashed #cfcfd6;color:var(--muted)}
 .hl-tile{border:1px solid #ececf2}
 .hl-tile:hover{border-color:#dedee6}
 .hl-ph{border:1px dashed #e4e4ea;background:#f6f6f8}
@@ -726,3 +726,6 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 /* хватаем хайлайт как карточку доски: рука при наведении, кулак при нажатии, без прокрутки жестом */
 .hl-item[data-hl-item] .hl-tile{touch-action:none;cursor:grab}
 .hl-item[data-hl-item] .hl-tile:active{cursor:grabbing}
+/* призрак перетаскиваемого хайлайта — поверх всего, у курсора (класс hl-item иначе делал бы его относительным) */
+.hl-item.kghost{position:fixed;left:0;top:0;margin:0;z-index:60;pointer-events:none}
+.hl-item.kghost .hl-pen{display:none}
