@@ -712,3 +712,6 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .hl-add{background:#fff;border:1px dashed #bcbcc4;color:var(--muted)}
 .hl-ph{flex:0 0 96px;border-radius:18px;background:#e7e7eb;border:1px dashed #cfcfd6;transition:none}
 .hl-strip .hl-item{transition:none}
+/* контур хайлайта: сплошная рамка того же цвета, что у пунктира «Добавить» — видна и на белой картинке */
+.hl-tile{border:1px solid #bcbcc4}
+.hl-tile:hover{border-color:#8f8f99}
