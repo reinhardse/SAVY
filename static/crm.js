@@ -87,6 +87,11 @@ const crmBackBtn = () => {
   const top = crmStack[crmStack.length - 1];
   return `<button class="crm-backwin" id="crmback" aria-label="${CRM_KIND_BACK[top.kind] || 'Назад'}">${CRM_ICO.back}<span>${CRM_KIND_BACK[top.kind] || 'Назад'}</span></button>`;
 };
+// клик за пределами окна: закрывается только текущее окно, остальные остаются
+function crmOverlay() {
+  const ov = $('#ov');
+  if (ov) ov.onclick = e => { if (e.target.id === 'ov') crmCloseWin(); };
+}
 // клик мимо меню сообщения — меню закрывается
 document.addEventListener('click', e => {
   if (!e.target.closest('.crm-msg-acts')) document.querySelectorAll('[data-msg-menu]').forEach(m => { m.hidden = true; });
@@ -113,7 +118,7 @@ const crmWho = d => [d.contacts.map(c => c.name).join(', '), d.companies.map(c =
 
 function crmDealCard(d) {
   const [who, comp] = crmWho(d);
-  return `<div class="crm-deal" data-deal="${d.id}">
+  return `<div class="crm-deal" data-deal="${d.id}" data-amount="${d.amount || 0}">
     <div class="crm-deal-top"><span class="crm-deal-who">${esc(who)}${comp ? `<span class="crm-deal-comp">${who ? ', ' : ''}${esc(comp)}</span>` : ''}</span><span class="crm-deal-date">${crmDate(d.created_at)}</span></div>
     <div class="crm-deal-title">${esc(d.title)}</div>
     ${d.amount || d.open_tasks ? `<div class="crm-deal-foot">${d.amount ? `<span class="kc-tag">${crmMoney(d.amount)}</span>` : ''}${d.open_tasks ? `<span class="crm-task-badge" title="Незакрытых задач: ${d.open_tasks}">${CRM_ICO.clock}${d.open_tasks}</span>` : ''}</div>` : ''}
@@ -144,7 +149,12 @@ async function crmPipeline() {
       <button class="crm-newbtn" id="crmnew">${PLUS_ICON}<span>Новая сделка</span></button>
     </div>
     <div class="crm-cols">${data.stages.map(crmStageCol).join('')}</div>`);
-  document.querySelectorAll('[data-deal]').forEach(el => el.onclick = () => { crmReturn = null; location.hash = '#/crm/deal/' + el.dataset.deal; });
+  document.querySelectorAll('[data-deal]').forEach(el => el.onclick = () => {
+    if (crmSuppress) return;
+    crmReturn = null;
+    location.hash = '#/crm/deal/' + el.dataset.deal;
+  });
+  crmBindDrag();
   document.querySelectorAll('[data-quick]').forEach(box => {
     box.querySelector('.crm-quick-btn').onclick = () => {
       box.innerHTML = '<input class="crm-quick-in" placeholder="Название сделки" maxlength="200">';
@@ -437,6 +447,123 @@ function crmBindPicker(box, kind, onLink, onUnlink, onOpen, repaint) {
   };
 }
 
+/* ---------- перенос сделок между этапами: как карточки на досках ---------- */
+let crmDrag = null, crmSuppress = false;
+
+function crmBindDrag() {
+  document.querySelectorAll('.crm-deal').forEach(el => el.onpointerdown = e => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    crmDrag = {el, x0: e.clientX, y0: e.clientY, started: false, ph: null, ghost: null, sx: 0, sy: 0, cx: 0, cy: 0, tx: 0, ty: 0, raf: 0};
+    window.addEventListener('pointermove', crmDragMove);
+    window.addEventListener('pointerup', crmDragUp);
+    window.addEventListener('pointercancel', crmDragUp);
+  });
+}
+
+function crmDragMove(e) {
+  if (!crmDrag) return;
+  if (!crmDrag.started) {
+    if (Math.hypot(e.clientX - crmDrag.x0, e.clientY - crmDrag.y0) < 6) return;
+    crmDragStart(e);
+  }
+  e.preventDefault();
+  crmDrag.tx = e.clientX - crmDrag.sx;
+  crmDrag.ty = e.clientY - crmDrag.sy;
+  // край экрана — прокрутка колонок и страницы
+  const cols = document.querySelector('.crm-cols');
+  if (cols) {
+    const r = cols.getBoundingClientRect();
+    if (e.clientX > r.right - 70) cols.scrollLeft += 14;
+    if (e.clientX < r.left + 70) cols.scrollLeft -= 14;
+  }
+  if (e.clientY < 90) window.scrollBy(0, -12);
+  if (e.clientY > window.innerHeight - 90) window.scrollBy(0, 12);
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  const col = under && under.closest('.crm-col[data-stage]');
+  if (col) crmPlaceInCol(col, e.clientY);
+}
+
+function crmDragStart(e) {
+  const r = crmDrag.el.getBoundingClientRect();
+  crmDrag.started = true;
+  crmDrag.sx = e.clientX - r.left;
+  crmDrag.sy = e.clientY - r.top;
+  crmDrag.cx = r.left; crmDrag.cy = r.top;
+  const ph = document.createElement('div');
+  ph.className = 'kph';
+  ph.style.height = r.height + 'px';
+  crmDrag.el.replaceWith(ph);
+  crmDrag.ph = ph;
+  const g = crmDrag.el.cloneNode(true);
+  g.classList.add('kghost');
+  g.style.width = r.width + 'px';
+  document.body.appendChild(g);
+  crmDrag.ghost = g;
+  document.body.classList.add('kdragging');
+  const follow = () => {
+    if (!crmDrag || !crmDrag.ghost) return;
+    crmDrag.cx += (crmDrag.tx - crmDrag.cx) * 0.35;   // мягкое следование за курсором
+    crmDrag.cy += (crmDrag.ty - crmDrag.cy) * 0.35;
+    crmDrag.ghost.style.transform = `translate(${crmDrag.cx}px, ${crmDrag.cy}px) rotate(2deg)`;
+    crmDrag.raf = requestAnimationFrame(follow);
+  };
+  crmDrag.tx = crmDrag.cx; crmDrag.ty = crmDrag.cy;
+  follow();
+}
+
+// место карточки: между карточками колонки, по их середине
+function crmPlaceInCol(col, y) {
+  const box = col.querySelector('.crm-col-b');
+  if (!box) return;
+  const cards = [...box.querySelectorAll('.crm-deal')];
+  let before = null;
+  for (const c of cards) {
+    const r = c.getBoundingClientRect();
+    if (y < r.top + r.height / 2) { before = c; break; }
+  }
+  if (before) {
+    if (crmDrag.ph.nextElementSibling !== before) box.insertBefore(crmDrag.ph, before);
+  } else if (box.lastElementChild !== crmDrag.ph) {
+    box.appendChild(crmDrag.ph);
+  }
+}
+
+// счётчики и суммы колонок и всей воронки — по карточкам на экране
+function crmRefreshCounts() {
+  let all = 0, total = 0;
+  document.querySelectorAll('.crm-col[data-stage]').forEach(c => {
+    const cards = [...c.querySelectorAll('.crm-deal')];
+    const sum = cards.reduce((a, x) => a + (+x.dataset.amount || 0), 0);
+    all += cards.length; total += sum;
+    const sEl = c.querySelector('.crm-col-s');
+    if (sEl) sEl.textContent = `${cards.length} ${crmPlural(cards.length, 'сделка', 'сделки', 'сделок')}: ${crmMoney(sum)}`;
+  });
+  const head = document.querySelector('.crm-sum');
+  if (head) head.innerHTML = `${all} ${crmPlural(all, 'сделка', 'сделки', 'сделок')}: <b>${crmMoney(total)}</b>`;
+}
+
+async function crmDragUp() {
+  window.removeEventListener('pointermove', crmDragMove);
+  window.removeEventListener('pointerup', crmDragUp);
+  window.removeEventListener('pointercancel', crmDragUp);
+  const d = crmDrag;
+  crmDrag = null;
+  if (!d || !d.started) return;
+  cancelAnimationFrame(d.raf);
+  crmSuppress = true;
+  setTimeout(() => { crmSuppress = false; }, 300);
+  d.ghost.remove();
+  document.body.classList.remove('kdragging');
+  d.ph.replaceWith(d.el);
+  crmRefreshCounts();
+  const columns = [...document.querySelectorAll('.crm-col[data-stage]')].map(c => ({
+    key: c.dataset.stage,
+    ids: [...c.querySelectorAll('.crm-deal')].map(x => +x.dataset.deal),
+  }));
+  try { await api('/crm/pipeline/order', {method: 'POST', body: {columns}}); }
+  catch (err) { alert(err.message); crmPipeline(); }
+}
+
 /* ---------- окно сделки ---------- */
 async function crmOpenDeal(id) {
   let d;
@@ -533,6 +660,7 @@ async function crmOpenDeal(id) {
     </div>`;
   sheet(`<div class="crm-win-box">${crmWin(left, 'sheet', `<button class="kb-ib" id="crmdel" aria-label="Удалить сделку">${CRM_ICO.trash}</button>`)}</div>`,
     'crm-sheet crm-dwin');
+  crmOverlay();
 
   $('#sx').onclick = crmCloseAll;
   if ($('#crmback')) $('#crmback').onclick = crmCloseWin;
@@ -656,6 +784,7 @@ function crmFormsHtml() {
 // контакт и компания: то же окно, что у сделки — слева сведения, справа сообщения и задачи
 function crmShowPerson(kind, mode, title, back, left) {
   sheet(`<div class="crm-win-box">${crmWin(left, 'sheet')}</div>`, 'crm-sheet crm-dwin');
+  crmOverlay();
   $('#sx').onclick = crmCloseAll;
   if ($('#crmback')) $('#crmback').onclick = crmCloseWin;
 }

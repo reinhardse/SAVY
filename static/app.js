@@ -391,6 +391,7 @@ function sheet(html, cls = '') {
     ov = $('#ov');
     ov.onclick = e => { if (e.target.id === 'ov') closeSheet(); };
   }
+  ov.onclick = e => { if (e.target.id === 'ov') closeSheet(); }; // каждое окно сбрасывает прежний обработчик
   const box = ov.querySelector('.sheet');
   box.className = 'sheet ' + cls;
   box.innerHTML = html;
