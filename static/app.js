@@ -1804,12 +1804,15 @@ function openLink(l) {
 /* ---------- перетаскивание ссылок-«хайлайтов» влево и вправо ---------- */
 let hlDrag = null, hlSuppress = false;
 function bindHlDrag() {
-  document.querySelectorAll('.hl-item[data-hl-item] .hl-tile').forEach(el => el.onpointerdown = e => {
-    if (e.button !== 0 && e.pointerType === 'mouse') return;
-    hlDrag = {el: el.closest('.hl-item'), x0: e.clientX, y0: e.clientY, started: false, ph: null, ghost: null, sx: 0, sy: 0, cx: 0, cy: 0, tx: 0, ty: 0, raf: 0, orig: []};
-    window.addEventListener('pointermove', hlMove);
-    window.addEventListener('pointerup', hlUp);
-    window.addEventListener('pointercancel', hlUp);
+  document.querySelectorAll('.hl-item[data-hl-item] .hl-tile').forEach(el => {
+    el.ondragstart = e => e.preventDefault(); // иначе браузер запускает своё перетаскивание картинки и отменяет наше
+    el.onpointerdown = e => {
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
+      hlDrag = {el: el.closest('.hl-item'), x0: e.clientX, y0: e.clientY, started: false, ph: null, ghost: null, sx: 0, sy: 0, cx: 0, cy: 0, tx: 0, ty: 0, raf: 0, orig: []};
+      window.addEventListener('pointermove', hlMove);
+      window.addEventListener('pointerup', hlUp);
+      window.addEventListener('pointercancel', hlUp);
+    };
   });
 }
 function hlIds() { return [...document.querySelectorAll('#hlstrip .hl-item[data-hl-item]')].map(x => +x.dataset.hlItem); }
