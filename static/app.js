@@ -1679,6 +1679,122 @@ async function openCard(kid) {
     n.scrollTop = pos;
   };
 
+  // копирование и вставка внутри заметки сохраняют заголовки, чекбоксы, списки и уровни вложенности
+  const noteClip = (e, cut) => {
+    const s = getSelection();
+    if (!s.rangeCount || s.isCollapsed || !n.contains(s.anchorNode)) return;
+    const wrap = document.createElement('div');
+    wrap.appendChild(s.getRangeAt(0).cloneContents());
+    const txt = readNote(wrap);
+    e.clipboardData.setData('application/x-save-note', txt);
+    e.clipboardData.setData('text/plain', txt);
+    e.preventDefault();
+    if (cut) { s.deleteFromDocument(); queue(); }
+  };
+  n.addEventListener('copy', e => noteClip(e, false));
+  n.addEventListener('cut', e => noteClip(e, true));
+  const pasteNote = (text, structured) => {
+    const s0 = getSelection();
+    if (s0.rangeCount && !s0.isCollapsed) s0.deleteFromDocument();
+    const tpl = document.createElement('template');
+    tpl.innerHTML = structured ? renderNoteEdit(text) : text.split('\n').map(l => lineHtml('plain', l)).join('');
+    const nodes = [...tpl.content.childNodes];
+    if (!nodes.length) return;
+    const s = getSelection();
+    let anchor = s.rangeCount ? s.anchorNode : null;
+    while (anchor && anchor.parentNode !== n) anchor = anchor.parentNode;
+    if (!anchor || anchor.parentNode !== n) anchor = null;
+    // текст строки справа от каретки уходит в отдельную строку под вставкой
+    let tail = '';
+    if (anchor && s.rangeCount && anchor.contains(s.getRangeAt(0).endContainer)) {
+      const rr = s.getRangeAt(0), tr = document.createRange();
+      tr.setStart(rr.endContainer, rr.endOffset);
+      tr.setEnd(anchor, anchor.childNodes.length);
+      tail = [...tr.extractContents().childNodes].map(fmtOf).join('');
+    }
+    const seq = [...nodes];
+    let focusNode = nodes[nodes.length - 1];
+    if (focusNode.classList.contains('kdiv')) { focusNode = createLine('plain', ''); seq.push(focusNode); }
+    if (tail) seq.push(createLine('plain', tail));
+    if (anchor && textOf(anchor).trim() === '' && !anchor.classList.contains('kdiv')) anchor.replaceWith(...seq);
+    else if (anchor) { let p = anchor; seq.forEach(x => { p.after(x); p = x; }); }
+    else n.append(...seq);
+    queue();
+    caretEnd(focusNode);
+  };
+  n.addEventListener('paste', e => {
+    const dt = e.clipboardData;
+    if (!dt) return;
+    const own = dt.getData('application/x-save-note');
+    e.preventDefault();
+    if (own) pasteNote(own, true);
+    else pasteNote(dt.getData('text/plain') || '', false);
+  });
+
+  // «+» и ручка слева от строки: «+» добавляет строку под ней, ручкой строку переносят
+  const GRIP = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
+  const gut = document.createElement('div');
+  gut.className = 'kgut';
+  gut.innerHTML = `<button class="kg-add" title="Добавить строку" aria-label="Добавить строку">+</button><button class="kg-grip" title="Перетащить" aria-label="Перетащить">${GRIP}</button>`;
+  n.parentNode.appendChild(gut);
+  let gutLine = null, drag = null;
+  const showGut = line => {
+    gutLine = line;
+    const br = n.parentNode.getBoundingClientRect(), lr = line.getBoundingClientRect();
+    gut.style.top = (lr.top - br.top + 3) + 'px';
+    gut.classList.add('on');
+  };
+  const lineAt = el => { let x = el; while (x && x.parentNode !== n) x = x.parentNode; return x && x.nodeType === 1 ? x : null; };
+  n.addEventListener('mousemove', e => {
+    if (drag) return;
+    const l = lineAt(e.target);
+    if (l && l !== gutLine) showGut(l);
+  });
+  n.parentNode.addEventListener('mouseleave', () => { if (!drag) gut.classList.remove('on'); });
+  // кнопки не должны уводить фокус из заметки: иначе она перерисуется и строка пропадёт
+  gut.addEventListener('mousedown', e => e.preventDefault());
+  gut.querySelector('.kg-add').onclick = () => {
+    if (!gutLine) return;
+    const nl = createLine('plain', '');
+    gutLine.after(nl);
+    caretStart(nl); queue(); showGut(nl);
+  };
+  // соседние строки плавно сдвигаются на место, освобождённое перетаскиваемой
+  const flipMove = mutate => {
+    const kids = [...n.children];
+    const before = new Map(kids.map(k => [k, k.getBoundingClientRect().top]));
+    mutate();
+    kids.forEach(k => {
+      const dy = before.get(k) - k.getBoundingClientRect().top;
+      if (dy && k.animate) k.animate([{transform: `translateY(${dy}px)`}, {transform: 'translateY(0)'}], {duration: 180, easing: 'cubic-bezier(.2,.7,.2,1)'});
+    });
+  };
+  gut.querySelector('.kg-grip').addEventListener('pointerdown', e => {
+    if (!gutLine) return;
+    e.preventDefault();
+    drag = gutLine;
+    drag.classList.add('kdrag');
+    document.body.style.userSelect = 'none';
+    const onMove = ev => {
+      const others = [...n.children].filter(c => c !== drag);
+      let ref = null;
+      for (const c of others) { const r = c.getBoundingClientRect(); if (ev.clientY < r.top + r.height / 2) { ref = c; break; } }
+      const cur = drag.nextElementSibling;
+      if (ref ? cur === ref : !cur) return;
+      flipMove(() => { if (ref) n.insertBefore(drag, ref); else n.appendChild(drag); });
+      showGut(drag);
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      drag.classList.remove('kdrag');
+      document.body.style.userSelect = '';
+      showGut(drag); drag = null; queue();
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  });
+
   beforeClose = async () => { closeCal(); await flush(); };
   $('#sx').onclick = closeSheet;
   const actMenu = $('#kbmenu');
