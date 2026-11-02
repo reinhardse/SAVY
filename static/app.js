@@ -685,20 +685,14 @@ function openStatus(bid, cur) {
 }
 
 // список досок: карточки в сетке, в том же языке, что карточки колонок на доске
-const BPREV_COLS = ['#f0f0f3', '#e7f6ee', '#e6f0ff'];
-
 async function boards() {
   const list = await api('/boards');
   const item = b => {
     const st = BSTATUS[b.status || 'work'];
     const n = b.count || 0;
-    const shown = Math.min(n, 8);
-    const chips = Array.from({length: shown}, (_, i) => `<i style="--d:${BPREV_COLS[i % BPREV_COLS.length]}"></i>`).join('');
-    const more = n > shown ? `<span class="bmore">+${n - shown}</span>` : '';
     return `<div class="bcard" data-open="${b.id}">
       <div class="bcard-top"><div class="bn">${esc(b.name)}</div>
         <button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button></div>
-      <div class="bprev">${chips}${more}</div>
       <div class="bcard-foot">
         <button class="bstatus" data-stb="${b.id}" data-cur="${b.status || 'work'}" style="--sb:${st.bg};--st:${st.tc}">${st.label}</button>
         <span class="bcount">${n} карт.</span></div>
