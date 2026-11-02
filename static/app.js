@@ -364,6 +364,7 @@ async function route() {
   if (view === 'hub') return hub();
   if (view === 'kanban') return boards();
   if (view === 'calendar') return calendarPage();
+  if (view === 'crm') return crmRoute(rest);
   if (view === 'board') return board(+arg);
   const map = {inbox: ['Входящие', {inbox: 1}], all: ['Все материалы', {}]};
   if (view === 'cat') {
@@ -594,7 +595,7 @@ const openHubMenu = async () => {
   const app = (go, icon, label) => `<button class="hm-app" data-go="${go}"><span class="hm-ic">${icon}</span><span class="hm-lb">${esc(label)}</span></button>`;
   const m = document.createElement('div');
   m.className = 'hubmenu';
-  m.innerHTML = `<div class="hm-grid">${app('#/hub', GRID_ICON, 'Хаб')}${app('#/calendar', CAL_SVG, 'Календарь')}${app('#/home', APP_ICON_SAVE, 'Сейв')}${app('#/kanban', KB_ICON, 'Доски')}</div>`
+  m.innerHTML = `<div class="hm-grid">${app('#/hub', GRID_ICON, 'Хаб')}${app('#/calendar', CAL_SVG, 'Календарь')}${app('#/home', APP_ICON_SAVE, 'Сейв')}${app('#/kanban', KB_ICON, 'Доски')}${app('#/crm', CRM_ICO.funnel, 'CRM')}</div>`
     + (boards.length ? `<div class="hm-head">Проекты</div><div class="hm-grid">${boards.map(b => app('#/board/' + b.id, KB_ICON, b.name)).join('')}</div>` : '');
   const gcTxt = !gc.configured ? 'Google Календарь · не настроен' : gc.connected ? 'Google Календарь · подключён, отключить' : 'Подключить Google Календарь';
   m.innerHTML += `<div class="hm-foot"><button class="hm-gc" id="hmgc">${gcTxt}</button></div>`;
@@ -641,6 +642,7 @@ function openHub() {
     <div class="sheet-body hub-body">
       <div class="kp-title">Хаб</div>
       <button class="hubrow" data-go="#/home"><span class="hubic">${APP_ICON_SAVE}</span><span class="hubtxt"><b>Сейв</b><i>Закладки</i></span></button>
+      <button class="hubrow" data-go="#/crm"><span class="hubic">${CRM_ICO.funnel}</span><span class="hubtxt"><b>CRM</b><i>Воронка и контакты</i></span></button>
       <button class="hubrow" data-go="#/kanban"><span class="hubic">${KB_ICON}</span><span class="hubtxt"><b>Доски</b><i>Доски и задачи</i></span></button>
     </div>`, 'hub-sheet');
   $('#sx').onclick = closeSheet;
@@ -658,6 +660,7 @@ function hub() {
       <button class="tile" style="--c:#eef3ff;--tc:#2f4bb0" data-go="#/calendar"><div class="ic">${CAL_SVG}</div><div class="tf"><div class="l2">Календарь</div><div class="l">Все задачи по дням</div></div></button>
       <button class="tile" style="--c:#e7f6ee;--tc:#2f6446" data-go="#/kanban"><div class="ic">${KB_ICON}</div><div class="tf"><div class="l2">Доски</div><div class="l">Доски и задачи</div></div></button>
       <button class="tile" style="--c:#fff0f3;--tc:#c1173f" data-go="#/home"><div class="ic">${APP_ICON_SAVE}</div><div class="tf"><div class="l2">Сейв</div><div class="l">Закладки</div></div></button>
+      <button class="tile" style="--c:#f3f0ff;--tc:#5b3fbf" data-go="#/crm"><div class="ic">${CRM_ICO.funnel}</div><div class="tf"><div class="l2">CRM</div><div class="l">Воронка и контакты</div></div></button>
     </div>`;
   document.querySelectorAll('[data-go]').forEach(t => t.onclick = () => { location.hash = t.dataset.go; });
 }
