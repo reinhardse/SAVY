@@ -1575,12 +1575,14 @@ function paintCal() {
   calItems.filter(it => !calHidden.has(it.board_id)).forEach(it => { (byDay[it.due_date] ||= []).push(it); });
   // карточка задачи — как карточка доски: заголовок, время и метка доски
   const cardHtml = it => {
+    if (it.kind === 'crm') return crmCalItem(it, true);
     const k = tagColor(it.board_name);
     const time = it.due_time ? `<span class="kc-tag kc-date">${esc(it.due_time)}</span>` : '';
     return `<div class="kcard cal-card" data-card="${it.id}"><div class="kct">${esc(it.title || 'Без названия')}</div><div class="kc-tags">${time}<span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(it.board_name)}</span></div></div>`;
   };
   const wd = d => (d.getDay() + 6) % 7;
   const cardMini = it => {
+    if (it.kind === 'crm') return crmCalItem(it, false);
     const k = tagColor(it.board_name);
     const time = it.due_time ? `<span class="cal-t">${esc(it.due_time)}</span>` : '';
     return `<div class="cal-item cal-card" data-card="${it.id}">${time}<span class="cal-title">${esc(it.title || 'Без названия')}</span><span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(it.board_name)}</span></div>`;
@@ -1625,6 +1627,7 @@ function paintCal() {
   $('#caltoday').onclick = () => { calAnchor = new Date(); calendarPage(); };
   $('#calfilter').onclick = e => { e.stopPropagation(); openCalMenu(); };
   document.querySelectorAll('.cal-card').forEach(el => { el.onclick = () => { if (!calDragging) openCard(+el.dataset.card); }; });
+  document.querySelectorAll('.cal-crm').forEach(el => { el.onclick = () => { location.hash = '#/crm/deal/' + el.dataset.crm; }; });
   bindCalDrag();
 }
 let calDragging = false;
