@@ -199,6 +199,7 @@ class Deal(Base):
     title = Column(String(200), default="")
     amount = Column(Integer, nullable=True)  # бюджет, рублей
     stage = Column(String(20), default="new")  # ключ этапа воронки
+    sort = Column(Integer, default=0)  # порядок карточки внутри этапа
     format = Column(String(10), nullable=True)  # white / black
     documents_url = Column(String(500), nullable=True)  # ссылка на Google Диск
     created_at = Column(DateTime, default=now)
@@ -265,6 +266,9 @@ def init_db():
     with engine.begin() as _conn:
         _migrate_crm(_conn)
         from sqlalchemy import inspect as _insp, text as _text
+        if "deals" in _insp(_conn).get_table_names():
+            if "sort" not in [c["name"] for c in _insp(_conn).get_columns("deals")]:
+                _conn.execute(_text("ALTER TABLE deals ADD COLUMN sort INTEGER DEFAULT 0"))
         if "companies" in _insp(_conn).get_table_names():
             if "inn" not in [c["name"] for c in _insp(_conn).get_columns("companies")]:
                 _conn.execute(_text("ALTER TABLE companies ADD COLUMN inn VARCHAR(20)"))

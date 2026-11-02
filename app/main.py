@@ -1060,7 +1060,7 @@ def _crm_contact_fields(c: Contact, body) -> None:
 
 @app.get("/api/crm/pipeline")
 def crm_pipeline(db: Session = Depends(get_db), _: int = Depends(require_auth)):
-    deals = db.scalars(select(Deal).order_by(Deal.created_at.desc(), Deal.id.desc())).all()
+    deals = db.scalars(select(Deal).order_by(Deal.sort, Deal.id.desc())).all()
     stages = [{"key": k, "name": n, "deals": []} for k, n in CRM_STAGES]
     by_key = {s["key"]: s for s in stages}
     for d in deals:
@@ -1069,6 +1069,30 @@ def crm_pipeline(db: Session = Depends(get_db), _: int = Depends(require_auth)):
     for s in stages:
         s["sum"] = sum(x["amount"] for x in s["deals"])
     return {"stages": stages}
+
+
+class CrmColumn(BaseModel):
+    key: str
+    ids: list[int]
+
+
+class CrmOrder(BaseModel):
+    columns: list[CrmColumn]
+
+
+@app.post("/api/crm/pipeline/order")
+def crm_pipeline_order(body: CrmOrder, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    """Перенос карточек: этап и порядок внутри этапа, как на досках."""
+    for col in body.columns:
+        if col.key not in CRM_STAGE_KEYS:
+            raise HTTPException(400, "Неизвестный этап")
+        for i, did in enumerate(col.ids):
+            d = db.get(Deal, did)
+            if d:
+                d.stage = col.key
+                d.sort = i + 1
+    db.commit()
+    return {"ok": True}
 
 
 @app.post("/api/crm/deals")
