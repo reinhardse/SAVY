@@ -718,14 +718,14 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 
 /* контуры светлее; «Добавить» — пунктир как был; картинка не перехватывает перетаскивание */
 .hl-add{background:transparent;border:1px dashed #cfcfd6;color:var(--muted)}
-.hl-item[data-hl-item] .hl-tile{border:0;box-shadow:0 2px 4px rgba(0,0,0,.07),0 6px 16px rgba(0,0,0,.11)}
-.hl-item[data-hl-item] .hl-tile:hover{box-shadow:0 3px 6px rgba(0,0,0,.08),0 10px 22px rgba(0,0,0,.14)}
+.hl-item[data-hl-item] .hl-tile{border:1px solid #ececf2;box-shadow:none}
+.hl-item[data-hl-item] .hl-tile:hover{border-color:#dedee6;box-shadow:none}
+.hl-item.hl-fixed .hl-add{border:2px dashed #b4b4be}
 .hl-ph{border:1px dashed #e4e4ea;background:#f6f6f8}
 .hl-img,.hl-ic{pointer-events:none;-webkit-user-drag:none;user-select:none}
 .hl-tile{-webkit-user-drag:none;user-select:none}
 /* хватаем хайлайт как карточку доски: рука при наведении, кулак при нажатии, без прокрутки жестом */
-.hl-item[data-hl-item] .hl-tile{touch-action:none;cursor:grab}
-.hl-item[data-hl-item] .hl-tile:active{cursor:grabbing}
+.hl-item[data-hl-item] .hl-tile{touch-action:none;cursor:pointer}
 /* призрак перетаскиваемого хайлайта — поверх всего, у курсора (класс hl-item иначе делал бы его относительным) */
 /* призрак — единая непрозрачная карточка: квадрат и подпись переносятся вместе, без просвечивания */
 
