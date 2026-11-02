@@ -1100,10 +1100,11 @@ function fmtHtml(s) {
 
 function lineHtml(kind, text, checked, level = 0) {
   // пустая строка держит каретку: нулевой символ вместо <br>
-  const body = fmtHtml(text) || '​';
+  const body = fmtHtml(text || '') || '​';
   if (kind === 'check') return `<div class="kline kcheck${checked ? ' done' : ''}" data-lvl="${level}" style="margin-left:${level * 24}px"><span class="kcb" contenteditable="false" role="checkbox" aria-checked="${checked ? 'true' : 'false'}"></span><span class="kct">${body}</span></div>`;
   if (kind === 'h' || kind === 'h1' || kind === 'h2' || kind === 'h3') return `<div class="kh kh${kind === 'h1' ? 1 : kind === 'h3' ? 3 : 2}">${body}</div>`;
   if (kind === 'bul') return `<div class="kline kbul" data-lvl="${level}" style="margin-left:${level * 24}px">${body}</div>`;
+  if (kind === 'hr') return '<div class="kdiv" contenteditable="false"><hr class="kb-hr"></div>';
   return `<div class="kline">${body}</div>`;
 }
 
@@ -1121,6 +1122,7 @@ function renderNoteEdit(text) {
     if (b) return lineHtml('bul', b[2], false, Math.min(6, Math.floor(b[1].length / 2)));
     const h = line.match(/^(#{1,3}) (.*)$/);
     if (h) return lineHtml(h[1].length === 1 ? 'h1' : h[1].length === 3 ? 'h3' : 'h2', h[2]);
+    if (line === '---') return lineHtml('hr');
     return lineHtml('plain', line);
   }).join('');
 }
@@ -1151,6 +1153,7 @@ function readNote(root) {
     if (el.classList && el.classList.contains('kcheck')) return '  '.repeat(+(el.dataset.lvl || 0)) + `[${el.classList.contains('done') ? 'x' : ' '}] ${fmtOf(el.querySelector('.kct') || el)}`;
     if (el.classList && el.classList.contains('kh')) return '#'.repeat(el.classList.contains('kh1') ? 1 : el.classList.contains('kh3') ? 3 : 2) + ' ' + fmtOf(el);
     if (el.classList && el.classList.contains('kbul')) return '  '.repeat(+(el.dataset.lvl || 0)) + '- ' + fmtOf(el);
+    if (el.classList && el.classList.contains('kdiv')) return '---';
     return fmtOf(el);
   }).join('\n');
 }
@@ -1437,6 +1440,7 @@ async function openCard(kid) {
   // порядок — как в меню: текст, заголовки 1–3, чекбокс, список; первые три — самые частые
   const SL_ICON = {
     text: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>',
+    hr: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 12h16"/></svg>',
     h1: '<span class="sl-tx">H1</span>',
     h2: '<span class="sl-tx">H2</span>',
     h3: '<span class="sl-tx">H3</span>',
@@ -1450,21 +1454,45 @@ async function openCard(kid) {
     {label: 'Заголовок 3', kind: 'h3', kw: 'h3 заголовок'},
     {label: 'Чекбокс', kind: 'check', kw: 'чекбокс check задача'},
     {label: 'Список', kind: 'bul', kw: 'список bullet'},
+    {label: 'Разделитель', kind: 'hr', kw: 'разделитель линия hr ---'},
   ];
-  let menu = null, slashNode = null, slashStart = 0, slashEnd = 0, slashItems = [], slashSel = 0;
-  const closeSlash = () => { if (menu) menu.remove(); menu = null; slashNode = null; slashItems = []; };
+  // сколько раз выбран каждый блок — по нему выбираются «часто используемые»
+  const slUse = () => { try { return JSON.parse(localStorage.getItem('sl_use') || '{}'); } catch (e) { return {}; } };
+  let menu = null, slashNode = null, slashStart = 0, slashEnd = 0, slashItems = [], slashSel = 0, slashRect = null;
+  const closeSlash = () => { if (menu) menu.remove(); menu = null; slashNode = null; slashItems = []; slashRect = null; };
   const paintSlash = () => {
     if (!menu) return;
     [...menu.querySelectorAll('.sl-item')].forEach((b, i) => b.classList.toggle('on', i === slashSel));
   };
+  // меню открывается под строкой; если снизу не влезает — над строкой
+  const placeSlash = () => {
+    if (!menu || !slashRect) return;
+    const h = menu.offsetHeight, below = slashRect.bottom + 6;
+    const top = below + h > window.innerHeight - 8 ? Math.max(8, slashRect.top - h - 6) : below;
+    menu.style.top = top + 'px';
+  };
+  const slBtn = (it, i) => `<button class="sl-item" data-i="${i}"><span class="sl-ic">${SL_ICON[it.kind]}</span><span class="sl-lb">${it.label}</span></button>`;
   const renderSlash = q => {
     const ql = q.toLowerCase();
-    slashItems = SLASH.filter(it => (it.label + ' ' + it.kw).toLowerCase().includes(ql));
+    const found = SLASH.filter(it => (it.label + ' ' + it.kw).toLowerCase().includes(ql));
     slashSel = 0;
-    if (!slashItems.length) { closeSlash(); return; }
-    menu.innerHTML = slashItems.map((it, i) =>
-      `<button class="sl-item" data-i="${i}"><span class="sl-ic">${SL_ICON[it.kind]}</span><span class="sl-lb">${it.label}</span></button>`).join('');
+    if (!found.length) { closeSlash(); return; }
+    let html;
+    if (ql) {
+      slashItems = found;
+      html = found.map((it, i) => slBtn(it, i)).join('');
+    } else {
+      // сверху до трёх самых частых, линия, затем все блоки
+      const u = slUse();
+      const freq = SLASH.map((it, i) => ({it, i, c: u[it.kind] || 0}))
+        .sort((a, b) => b.c - a.c || a.i - b.i).slice(0, 3).map(x => x.it);
+      slashItems = [...freq, ...SLASH];
+      html = freq.map((it, i) => slBtn(it, i)).join('') + '<div class="sl-sep"></div>'
+        + SLASH.map((it, i) => slBtn(it, freq.length + i)).join('');
+    }
+    menu.innerHTML = html;
     paintSlash();
+    placeSlash();
   };
   const openSlash = (node, start, end, q) => {
     closeSlash();
@@ -1472,6 +1500,7 @@ async function openCard(kid) {
     let ln = node;
     while (ln && ln.parentNode !== n) ln = ln.parentNode;
     const rc = (ln || node.parentNode).getBoundingClientRect();
+    slashRect = rc;
     menu = document.createElement('div');
     menu.className = 'slash sl-blk';
     menu.style.left = Math.max(8, rc.left) + 'px';
@@ -1492,6 +1521,8 @@ async function openCard(kid) {
   };
   const chooseSlash = kind => {
     if (!slashNode || !slashNode.isConnected) { closeSlash(); return; }
+    const u = slUse(); u[kind] = (u[kind] || 0) + 1;
+    try { localStorage.setItem('sl_use', JSON.stringify(u)); } catch (e) {}
     const txt = slashNode.textContent;
     slashNode.textContent = txt.slice(0, slashStart) + txt.slice(slashEnd);
     let el = slashNode;
@@ -1499,6 +1530,13 @@ async function openCard(kid) {
     closeSlash();
     if (!el) return;
     const text = textOf(el.classList.contains('kcheck') ? el.querySelector('.kct') : el).trim();
+    if (kind === 'hr') {
+      // разделитель: строка с текстом остаётся ниже него, каретка — в ней
+      const hr = createLine('hr'), p = createLine('plain', text);
+      n.replaceChild(hr, el); hr.after(p);
+      caretEnd(p); queue();
+      return;
+    }
     const nl = createLine(kind === 'text' ? 'plain' : kind, text);
     n.replaceChild(nl, el);
     caretEnd(nl);

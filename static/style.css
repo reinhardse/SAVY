@@ -556,6 +556,9 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .card-sheet .kb-note .kh1{font-size:22px;font-weight:700;letter-spacing:-.015em;margin-top:16px}
 .card-sheet .kb-note .kh2{font-size:18px;font-weight:600;letter-spacing:-.01em}
 .card-sheet .kb-note .kh3{font-size:15px;font-weight:600}
+.slash.sl-blk .sl-sep{height:1px;background:#ececf0;margin:4px 6px}
+.card-sheet .kb-note .kdiv{margin:14px 0;user-select:none}
+.card-sheet .kb-note .kdiv .kb-hr{margin:0}
 
 /* свойства карточки в стиле Notion: слева иконка и название, справа значение; строки с воздухом */
 .card-sheet .kb-props{display:flex;flex-direction:column;margin:0 0 24px}
