@@ -1735,13 +1735,17 @@ async function openCard(kid) {
   const GRIP = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>';
   const gut = document.createElement('div');
   gut.className = 'kgut';
-  gut.innerHTML = `<button class="kg-add" title="Добавить строку" aria-label="Добавить строку">+</button><button class="kg-grip" title="Перетащить" aria-label="Перетащить">${GRIP}</button>`;
+  const PLUS = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
+  gut.innerHTML = `<button class="kg-add" title="Добавить строку" aria-label="Добавить строку">${PLUS}</button><button class="kg-grip" title="Перетащить" aria-label="Перетащить">${GRIP}</button>`;
   n.parentNode.appendChild(gut);
   let gutLine = null, drag = null;
+  // кнопки стоят слева от самой строки (с её отступом), по центру первой строки
   const showGut = line => {
     gutLine = line;
     const br = n.parentNode.getBoundingClientRect(), lr = line.getBoundingClientRect();
-    gut.style.top = (lr.top - br.top + 3) + 'px';
+    const lh = Math.min(lr.height, 24);
+    gut.style.left = (lr.left - br.left - 46) + 'px';
+    gut.style.top = (lr.top - br.top + lh / 2 - 10) + 'px';
     gut.classList.add('on');
   };
   const lineAt = el => { let x = el; while (x && x.parentNode !== n) x = x.parentNode; return x && x.nodeType === 1 ? x : null; };

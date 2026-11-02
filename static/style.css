@@ -564,13 +564,13 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .card-sheet .kb-note .kbul::before{position:absolute;left:4px;top:0;margin-right:0}
 /* «+» и ручка слева от строки заметки */
 .card-sheet .kb-body{position:relative}
-.kgut{position:absolute;left:-38px;display:flex;gap:2px;opacity:0;pointer-events:none;transition:opacity .12s,top .14s cubic-bezier(.2,.7,.2,1)}
+.kgut{position:absolute;display:flex;gap:0;opacity:0;pointer-events:none;transition:opacity .12s,top .14s cubic-bezier(.2,.7,.2,1),left .14s cubic-bezier(.2,.7,.2,1)}
 .kgut.on{opacity:1;pointer-events:auto}
-.kgut button{width:18px;height:20px;padding:0;border:0;border-radius:5px;background:transparent;color:#b4b4bb;display:flex;align-items:center;justify-content:center;font:inherit;font-size:18px;line-height:1;cursor:pointer}
+.kgut button{width:20px;height:20px;padding:0;margin:0;border:0;border-radius:5px;background:transparent;color:#b4b4bb;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .kgut button:hover{background:#f1f1f4;color:var(--ink)}
+.kgut svg{width:16px;height:16px;display:block}
 .kgut .kg-grip{cursor:grab}
 .kgut .kg-grip:active{cursor:grabbing}
-.kgut .kg-grip svg{width:14px;height:14px}
 .card-sheet .kb-note .kdrag{opacity:.45}
 
 /* свойства карточки в стиле Notion: слева иконка и название, справа значение; строки с воздухом */
