@@ -539,6 +539,10 @@ class LinkIn(BaseModel):
     url: str
 
 
+class LinkOrder(BaseModel):
+    ids: list[int]
+
+
 class LinkPatch(BaseModel):
     url: str | None = None
     comment: str | None = None
@@ -604,6 +608,17 @@ def link_create(bid: int, body: LinkIn, bg: BackgroundTasks, db: Session = Depen
     db.commit()
     bg.add_task(_refresh_meta, l.id, url)
     return link_out(l)
+
+
+@app.post("/api/boards/{bid}/links/order")
+def link_order(bid: int, body: LinkOrder, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    _board(db, bid)
+    rows = {l.id: l for l in db.scalars(select(BoardLink).where(BoardLink.board_id == bid)).all()}
+    for i, lid in enumerate(body.ids):
+        if lid in rows:
+            rows[lid].sort = i
+    db.commit()
+    return {"ok": True}
 
 
 @app.patch("/api/links/{lid}")

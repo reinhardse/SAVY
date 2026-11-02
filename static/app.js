@@ -806,7 +806,7 @@ async function board(bid) {
       <button class="kadd" data-addcard="${col.id}">+ Добавить карточку</button>
     </div>`).join('');
   $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
-  const hlStrip = `<div class="hl-strip" id="hlstrip"><div class="hl-item"><button class="hl-tile hl-add" id="hladd" aria-label="Добавить ссылку">${PLUS_ICON}</button><div class="hl-name">Добавить</div></div>${(b.links || []).map(hlItem).join('')}</div>`;
+  const hlStrip = `<div class="hl-strip" id="hlstrip">${(b.links || []).map(hlItem).join('')}<div class="hl-item hl-fixed"><button class="hl-tile hl-add" id="hladd" aria-label="Добавить ссылку">${PLUS_ICON}</button><div class="hl-name">Добавить</div></div></div>`;
   $('#app').innerHTML = `<div class="titlerow"><div class="kbtitle" id="kbname" title="Нажмите, чтобы переименовать">${esc(b.name)}</div>
       <div class="tr-actions"><button class="iconbtn" id="kball" aria-label="Все доски" title="Все доски">${HOME_ICON}</button>
       <button class="iconbtn" id="kfull" aria-label="Во всю ширину" title="${isFull(bid) ? 'Вернуть' : 'Во всю ширину'}">${isFull(bid) ? RESTORE_ICON : FULL_ICON}</button></div></div>
@@ -815,7 +815,8 @@ async function board(bid) {
   $('#kball').onclick = () => { location.hash = '#/kanban'; };
   const linkById = id => (b.links || []).find(x => x.id === id);
   $('#hladd').onclick = () => openLink(null);
-  document.querySelectorAll('[data-hl-open]').forEach(el => el.onclick = () => { const l = linkById(+el.dataset.hlOpen); if (l) window.open(l.url, '_blank', 'noopener'); });
+  document.querySelectorAll('[data-hl-open]').forEach(el => el.onclick = () => { if (hlSuppress) return; const l = linkById(+el.dataset.hlOpen); if (l) window.open(l.url, '_blank', 'noopener'); });
+  bindHlDrag();
   document.querySelectorAll('[data-hl-edit]').forEach(el => el.onclick = e => { e.stopPropagation(); openLink(linkById(+el.dataset.hlEdit)); });
   $('#app').classList.toggle('kfull', isFull(bid));
   $('#kfull').onclick = () => {
@@ -1739,7 +1740,7 @@ const hlItem = l => {
   const media = l.thumb
     ? `<img class="hl-img" src="${esc(l.thumb)}" alt="">`
     : `<span class="hl-ic">${/docs\.google|drive\.google/.test(l.url) ? HL_DOC : HL_LINK}</span>`;
-  return `<div class="hl-item"><button class="hl-tile" data-hl-open="${l.id}" style="--hb:${k.bg};--ht:${k.tc}" title="${esc(l.url)}">${media}</button><button class="hl-pen" data-hl-edit="${l.id}" aria-label="Изменить ссылку">${PEN}</button><div class="hl-name" title="${esc(l.label)}">${esc(l.label)}</div></div>`;
+  return `<div class="hl-item" data-hl-item="${l.id}"><button class="hl-tile" data-hl-open="${l.id}" style="--hb:${k.bg};--ht:${k.tc}" title="${esc(l.url)}">${media}</button><button class="hl-pen" data-hl-edit="${l.id}" aria-label="Изменить ссылку">${PEN}</button><div class="hl-name" title="${esc(l.label)}">${esc(l.label)}</div></div>`;
 };
 
 // окно ссылки: адрес и комментарий; адрес сохраняется при выходе из поля, комментарий — по паузе в наборе
@@ -1798,6 +1799,98 @@ function openLink(l) {
     closeSheet();
   };
   setTimeout(() => (lid == null ? urlIn : nameIn).focus(), 0);
+}
+
+/* ---------- перетаскивание ссылок-«хайлайтов» влево и вправо ---------- */
+let hlDrag = null, hlSuppress = false;
+function bindHlDrag() {
+  document.querySelectorAll('.hl-item[data-hl-item] .hl-tile').forEach(el => el.onpointerdown = e => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    hlDrag = {el: el.closest('.hl-item'), x0: e.clientX, y0: e.clientY, started: false, ph: null, ghost: null, sx: 0, sy: 0, cx: 0, cy: 0, tx: 0, ty: 0, raf: 0, orig: []};
+    window.addEventListener('pointermove', hlMove);
+    window.addEventListener('pointerup', hlUp);
+    window.addEventListener('pointercancel', hlUp);
+  });
+}
+function hlIds() { return [...document.querySelectorAll('#hlstrip .hl-item[data-hl-item]')].map(x => +x.dataset.hlItem); }
+function hlMove(e) {
+  if (!hlDrag) return;
+  if (!hlDrag.started) {
+    if (Math.hypot(e.clientX - hlDrag.x0, e.clientY - hlDrag.y0) < 6) return;
+    hlStart(e);
+  }
+  e.preventDefault();
+  hlDrag.tx = e.clientX - hlDrag.sx;
+  hlDrag.ty = e.clientY - hlDrag.sy;
+  const strip = $('#hlstrip');
+  const r = strip.getBoundingClientRect();
+  if (e.clientX > r.right - 60) strip.scrollLeft += 12;
+  if (e.clientX < r.left + 60) strip.scrollLeft -= 12;
+  hlPlace(e.clientX);
+}
+function hlStart(e) {
+  const r = hlDrag.el.getBoundingClientRect();
+  hlDrag.started = true;
+  hlSuppress = true;
+  hlDrag.orig = hlIds();
+  hlDrag.sx = e.clientX - r.left;
+  hlDrag.sy = e.clientY - r.top;
+  hlDrag.cx = r.left; hlDrag.cy = r.top;
+  const ph = document.createElement('div');
+  ph.className = 'hl-ph';
+  ph.style.flex = `0 0 ${r.width}px`;
+  ph.style.width = r.width + 'px';
+  ph.style.height = r.height + 'px';
+  hlDrag.el.replaceWith(ph);
+  hlDrag.ph = ph;
+  const g = hlDrag.el.cloneNode(true);
+  g.classList.add('kghost');
+  g.style.width = r.width + 'px';
+  document.body.appendChild(g);
+  hlDrag.ghost = g;
+  document.body.classList.add('kdragging');
+  const follow = () => {
+    if (!hlDrag || !hlDrag.ghost) return;
+    hlDrag.cx += (hlDrag.tx - hlDrag.cx) * 0.35;
+    hlDrag.cy += (hlDrag.ty - hlDrag.cy) * 0.35;
+    hlDrag.ghost.style.transform = `translate(${hlDrag.cx}px, ${hlDrag.cy}px) rotate(2deg)`;
+    hlDrag.raf = requestAnimationFrame(follow);
+  };
+  hlDrag.tx = hlDrag.cx; hlDrag.ty = hlDrag.cy;
+  follow();
+}
+// место ссылки: слева от той, над серединой которой прошли курсором; «+» всегда последний
+function hlPlace(x) {
+  const strip = $('#hlstrip');
+  let before = null;
+  for (const it of strip.querySelectorAll('.hl-item[data-hl-item]')) {
+    if (it === hlDrag.el) continue;
+    const r = it.getBoundingClientRect();
+    if (x < r.left + r.width / 2) { before = it; break; }
+  }
+  if (before) {
+    if (hlDrag.ph.nextElementSibling !== before) strip.insertBefore(hlDrag.ph, before);
+  } else {
+    const add = strip.querySelector('.hl-fixed');
+    if (hlDrag.ph.nextElementSibling !== add) strip.insertBefore(hlDrag.ph, add);
+  }
+}
+async function hlUp() {
+  window.removeEventListener('pointermove', hlMove);
+  window.removeEventListener('pointerup', hlUp);
+  window.removeEventListener('pointercancel', hlUp);
+  const d = hlDrag;
+  hlDrag = null;
+  if (!d || !d.started) return;
+  cancelAnimationFrame(d.raf);
+  setTimeout(() => { hlSuppress = false; }, 300);
+  d.ghost.remove();
+  document.body.classList.remove('kdragging');
+  d.ph.replaceWith(d.el);
+  const ids = hlIds();
+  if (ids.join() === d.orig.join()) return;
+  try { await api(`/boards/${curBoard}/links/order`, {method: 'POST', body: {ids}}); }
+  catch (err) { alert(err.message); board(curBoard); }
 }
 
 /* ---------- старт ---------- */
