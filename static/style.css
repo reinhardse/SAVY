@@ -428,7 +428,8 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .kcol.kdone .kcn{color:#2f6446}
 .kcard{background:#fff;border:1px solid #ececf0;border-radius:12px;box-shadow:none;padding:11px 13px}
 .kcard:hover{border-color:#d9d9e0;box-shadow:0 2px 8px rgba(0,0,0,.05)}
-.kct{font-size:14.5px;font-weight:500;line-height:1.35;color:var(--ink)}
+.kct{font-size:14px;font-weight:500;line-height:1.35;color:var(--ink)}
+.kct .kc-doc{display:inline-block;width:14px;height:14px;vertical-align:-2px;margin-right:6px;color:#9b9a97}
 .kct.ph{color:var(--muted);font-weight:400}
 .kadd{font-size:13.5px;color:var(--muted)}
 .kbt{background:#fff;border:1px solid #ececf0;box-shadow:none;border-radius:16px}

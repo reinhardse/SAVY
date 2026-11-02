@@ -786,12 +786,14 @@ const cardDateText = c => {
 };
 
 // карточка доски: заголовок, дата и теги
+const NOTE_ICON = '<svg class="kc-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg>';
 const cardHtml = c => {
   const dt = cardDateText(c);
   const dateChip = dt ? `<span class="kc-tag kc-date">${esc(dt)}</span>` : '';
   const tags = (c.tags || []).map(t => { const k = tagColor(t); return `<span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(t)}</span>`; }).join('');
   const row = dateChip + tags;
-  return `<div class="kcard" data-card="${c.id}"><div class="kct${c.title ? '' : ' ph'}">${esc(c.title || 'Без названия')}</div>${row ? `<div class="kc-tags">${row}</div>` : ''}</div>`;
+  const hasNote = !!(c.note || '').trim(); // значок «есть заметка», как в Notion
+  return `<div class="kcard" data-card="${c.id}"><div class="kct${c.title ? '' : ' ph'}">${hasNote ? NOTE_ICON : ''}${esc(c.title || 'Без названия')}</div>${row ? `<div class="kc-tags">${row}</div>` : ''}</div>`;
 };
 
 async function board(bid) {
