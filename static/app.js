@@ -1084,12 +1084,26 @@ function linkify(text) {
 // ----- заметка: один редактируемый блок; строки: обычные, «## » заголовок, «- » список, «[ ] » / «[x] » чекбоксы -----
 const textOf = el => (el ? (el.textContent || '') : '').replace(/​/g, '').replace(/ /g, ' ');
 
+// разметка в тексте заметки: **жирный**, *курсив*, __подчёркнутый__ (ссылки — как раньше)
+function fmtHtml(s) {
+  const re = /\*\*(?=\S)([\s\S]+?)(?<=\S)\*\*|__(?=\S)([\s\S]+?)(?<=\S)__|\*(?=\S)([\s\S]+?)(?<=\S)\*/g;
+  let out = '', last = 0, m;
+  while ((m = re.exec(s))) {
+    out += linkify(s.slice(last, m.index));
+    if (m[1] !== undefined) out += `<b>${fmtHtml(m[1])}</b>`;
+    else if (m[2] !== undefined) out += `<u>${fmtHtml(m[2])}</u>`;
+    else out += `<i>${fmtHtml(m[3])}</i>`;
+    last = re.lastIndex;
+  }
+  return out + linkify(s.slice(last));
+}
+
 function lineHtml(kind, text, checked, level = 0) {
   // пустая строка держит каретку: нулевой символ вместо <br>
-  const body = linkify(text) || '​';
+  const body = fmtHtml(text) || '​';
   if (kind === 'check') return `<div class="kline kcheck${checked ? ' done' : ''}" data-lvl="${level}" style="margin-left:${level * 24}px"><span class="kcb" contenteditable="false" role="checkbox" aria-checked="${checked ? 'true' : 'false'}"></span><span class="kct">${body}</span></div>`;
   if (kind === 'h') return `<div class="kh">${body}</div>`;
-  if (kind === 'bul') return `<div class="kline kbul">${body}</div>`;
+  if (kind === 'bul') return `<div class="kline kbul" data-lvl="${level}" style="margin-left:${level * 24}px">${body}</div>`;
   return `<div class="kline">${body}</div>`;
 }
 
@@ -1103,10 +1117,28 @@ function renderNoteEdit(text) {
   return (text || '').split('\n').map(line => {
     const m = line.match(/^( *)\[( |x|X)\] ?(.*)$/);
     if (m) return lineHtml('check', m[3], m[2] !== ' ', Math.min(6, Math.floor(m[1].length / 2)));
+    const b = line.match(/^( *)- (.*)$/);
+    if (b) return lineHtml('bul', b[2], false, Math.min(6, Math.floor(b[1].length / 2)));
     if (line.startsWith('## ')) return lineHtml('h', line.slice(3));
-    if (line.startsWith('- ')) return lineHtml('bul', line.slice(2));
     return lineHtml('plain', line);
   }).join('');
+}
+
+// текст строки с разметкой: жирный, курсив, подчёркнутый — обратно в **, *, __
+function fmtOf(node) {
+  if (node.nodeType === 3) return (node.textContent || '').replace(/​/g, '').replace(/ /g, ' ');
+  if (node.nodeType !== 1 || node.classList.contains('kcb')) return '';
+  const inner = [...node.childNodes].map(fmtOf).join('');
+  const tag = node.tagName;
+  const mark = (open, close) => {
+    // пробелы по краям выносим за маркер, иначе разметка не разберётся обратно
+    const m = inner.match(/^(\s*)([\s\S]*?)(\s*)$/);
+    return m[2] ? m[1] + open + m[2] + close + m[3] : inner;
+  };
+  if (tag === 'B' || tag === 'STRONG') return mark('**', '**');
+  if (tag === 'I' || tag === 'EM') return mark('*', '*');
+  if (tag === 'U') return mark('__', '__');
+  return inner;
 }
 
 // текст заметки из блока: по строкам
@@ -1114,10 +1146,10 @@ function readNote(root) {
   return [...root.childNodes].map(node => {
     if (node.nodeType === 3) return node.textContent;
     const el = node;
-    if (el.classList && el.classList.contains('kcheck')) return '  '.repeat(+(el.dataset.lvl || 0)) + `[${el.classList.contains('done') ? 'x' : ' '}] ${textOf(el.querySelector('.kct'))}`;
-    if (el.classList && el.classList.contains('kh')) return '## ' + textOf(el);
-    if (el.classList && el.classList.contains('kbul')) return '- ' + textOf(el);
-    return textOf(el);
+    if (el.classList && el.classList.contains('kcheck')) return '  '.repeat(+(el.dataset.lvl || 0)) + `[${el.classList.contains('done') ? 'x' : ' '}] ${fmtOf(el.querySelector('.kct'))}`;
+    if (el.classList && el.classList.contains('kh')) return '## ' + fmtOf(el);
+    if (el.classList && el.classList.contains('kbul')) return '  '.repeat(+(el.dataset.lvl || 0)) + '- ' + fmtOf(el);
+    return fmtOf(el);
   }).join('\n');
 }
 
@@ -1485,6 +1517,11 @@ async function openCard(kid) {
     closeSlash();
   };
   n.addEventListener('keydown', e => {
+    // Ctrl/Cmd+B, I, U — жирный, курсив, подчёркнутый; сохраняются в тексте заметки
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
+      const cmd = { b: 'bold', i: 'italic', u: 'underline' }[e.key.toLowerCase()];
+      if (cmd) { e.preventDefault(); document.execCommand(cmd); queue(); return; }
+    }
     // печать в пункте списка всегда идёт в его текст: курсор, стоявший на уровне строки, переводим внутрь
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
       const sc = getSelection();
@@ -1506,7 +1543,7 @@ async function openCard(kid) {
       if (!s0.rangeCount) return;
       let ln = s0.anchorNode;
       while (ln && ln.parentNode !== n) ln = ln.parentNode;
-      if (!ln || !ln.classList || !ln.classList.contains('kcheck')) return;
+      if (!ln || !ln.classList || !(ln.classList.contains('kcheck') || ln.classList.contains('kbul'))) return;
       e.preventDefault();
       const lvl = Math.max(0, Math.min(6, +(ln.dataset.lvl || 0) + (e.shiftKey ? -1 : 1)));
       ln.dataset.lvl = lvl;
@@ -1558,8 +1595,8 @@ async function openCard(kid) {
       if (body.contains(r0.startContainer)) cut.setStart(r0.startContainer, r0.startOffset);
       else cut.setStart(body, 0);
       cut.setEnd(body, body.childNodes.length);
-      const rest = cut.extractContents().textContent.replace(/\u200b/g, '');
-      const nl = createLine(isCheck ? 'check' : 'bul', rest, false, isCheck ? +(el.dataset.lvl || 0) : 0);
+      const rest = [...cut.extractContents().childNodes].map(fmtOf).join('');
+      const nl = createLine(isCheck ? 'check' : 'bul', rest, false, +(el.dataset.lvl || 0));
       el.after(nl);
       caretStart(nl);
     }
