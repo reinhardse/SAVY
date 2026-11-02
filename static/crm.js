@@ -22,6 +22,7 @@ const CRM_ICO = {
   send: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l16-8-6 16-2-6z"/></svg>',
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
   clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+  dots: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>',
   chev: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>',
   back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>',
 };
@@ -46,24 +47,50 @@ const crmAvatar = (name, cls = '') => {
 };
 
 // окна поверх друг друга: закрытие верхнего возвращает предыдущее
-let crmStack = [];     // функции, которые заново открывают окна под текущим
-let crmCurrent = null; // функция, которая открывает текущее окно
-let crmReturn = null;  // куда вернуться из окна сделки, открытого со страницы
+let crmStack = [];      // окна под текущим: {fn, kind} — как их заново открыть
+let crmCurrent = null;  // функция, которая открывает текущее окно
+let crmCurKind = null;  // вид текущего окна: deal | contact | company
+let crmReturn = null;   // куда вернуться из окна сделки, открытого со страницы
+const CRM_KIND_BACK = {deal: 'К сделке', contact: 'К контакту', company: 'К компании'};
 
-function crmOpenWin(fn) {
-  if (crmCurrent) crmStack.push(crmCurrent);
+// kind — вид окна, которое открываем
+function crmOpenWin(kind, fn) {
+  if (crmCurrent) crmStack.push({fn: crmCurrent, kind: crmCurKind});
   crmCurrent = fn;
+  crmCurKind = kind;
   return fn();
 }
+// «назад»: возвращаемся к предыдущему окну, остальные остаются
 function crmCloseWin() {
   if (crmStack.length) {
     const prev = crmStack.pop();
-    crmCurrent = prev;
-    return prev();
+    crmCurrent = prev.fn;
+    crmCurKind = prev.kind;
+    return prev.fn();
   }
-  crmCurrent = null;
+  return crmCloseAll();
+}
+// крестик: закрываем всё и возвращаемся на страницу (воронка, список, задачи)
+function crmCloseAll() {
+  crmStack = []; crmCurrent = null; crmCurKind = null;
+  // адрес окна не должен снова открыть его: возвращаемся к разделу
+  const h = location.hash;
+  const page = /^#\/crm\/(deal|contact|company)\//.test(h)
+    ? (h.startsWith('#/crm/deal/') ? '#/crm' : h.startsWith('#/crm/contact/') ? '#/crm/contacts' : '#/crm/companies')
+    : null;
+  if (page && page !== h) location.hash = page;
   return closeSheet();
 }
+// подпись кнопки «назад» — к какому окну вернёмся
+const crmBackBtn = () => {
+  if (!crmStack.length) return '';
+  const top = crmStack[crmStack.length - 1];
+  return `<button class="crm-backwin" id="crmback" aria-label="${CRM_KIND_BACK[top.kind] || 'Назад'}">${CRM_ICO.back}<span>${CRM_KIND_BACK[top.kind] || 'Назад'}</span></button>`;
+};
+// клик мимо меню сообщения — меню закрывается
+document.addEventListener('click', e => {
+  if (!e.target.closest('.crm-msg-acts')) document.querySelectorAll('[data-msg-menu]').forEach(m => { m.hidden = true; });
+});
 
 /* ---------- каркас: слева меню разделов, справа содержимое ---------- */
 function crmShell(active, inner, narrow = false) {
@@ -174,7 +201,7 @@ function crmWin(left, mode, tools = '') {
 }
 
 const crmSheetTop = (tools = '') => `<div class="crm-dtop"><span class="kb-saved" id="crmsaved">Сохранено</span>
-  <div class="kb-tools">${tools}<button class="kb-ib" id="sx" aria-label="Закрыть">${XICON}</button></div></div>`;
+  <div class="kb-tools">${crmBackBtn()}${tools}<button class="kb-ib" id="sx" aria-label="Закрыть">${XICON}</button></div></div>`;
 
 // подсказка «сохранено» в окне
 function crmSaved() {
@@ -218,7 +245,7 @@ function crmItemsHtml(items) {
     ? crmTaskHtml(i)
     : `<div class="crm-msg" data-msg="${i.id}">
         <div class="crm-bub">${esc(i.text).replace(/\n/g, '<br>')}</div>
-        <div class="crm-msg-t">${crmStamp(i.created_at)}<span class="crm-msg-acts"><button class="crm-msg-link" data-msg-edit="${i.id}">Изменить</button><button class="crm-msg-link danger" data-msg-del="${i.id}">Удалить</button></span></div>
+        <div class="crm-msg-t">${crmStamp(i.created_at)}<span class="crm-msg-acts"><button class="crm-msg-more" data-msg-more="${i.id}" aria-label="Действия">${CRM_ICO.dots}</button><span class="crm-msg-menu" data-msg-menu="${i.id}" hidden><button data-msg-edit="${i.id}">Изменить</button><button class="danger" data-msg-del="${i.id}">Удалить</button></span></span></div>
         <div class="crm-msg-ed" data-msg-ed="${i.id}" hidden><textarea rows="2">${esc(i.text)}</textarea>
           <div class="crm-task-cf-row"><button class="crm-task-save" data-msg-save="${i.id}">Сохранить</button><button class="crm-task-cancel" data-msg-cancel="${i.id}">Отмена</button></div></div>
       </div>`
@@ -272,7 +299,17 @@ function crmBindFeed(kind, oid, items) {
       el.querySelector(`[data-msg-ed="${id}"]`).hidden = !editing;
       if (editing) el.querySelector('[data-msg-ed] textarea').focus();
     };
-    document.querySelectorAll('[data-msg-edit]').forEach(b => b.onclick = () => msgView(+b.dataset.msgEdit, true));
+    document.querySelectorAll('[data-msg-more]').forEach(b => b.onclick = e => {
+      e.stopPropagation();
+      const menu = document.querySelector(`[data-msg-menu="${b.dataset.msgMore}"]`);
+      const open = menu.hidden;
+      document.querySelectorAll('[data-msg-menu]').forEach(m => { m.hidden = true; });
+      menu.hidden = !open;
+    });
+    document.querySelectorAll('[data-msg-edit]').forEach(b => b.onclick = () => {
+      document.querySelectorAll('[data-msg-menu]').forEach(m => { m.hidden = true; });
+      msgView(+b.dataset.msgEdit, true);
+    });
     document.querySelectorAll('[data-msg-cancel]').forEach(b => b.onclick = () => msgView(+b.dataset.msgCancel, false));
     document.querySelectorAll('[data-msg-save]').forEach(b => b.onclick = async () => {
       const id = +b.dataset.msgSave;
@@ -485,9 +522,9 @@ async function crmOpenDeal(id) {
     };
     // связи: контакты и компании открываются окном поверх
     crmBindPicker($('#crmlk-contacts'), 'contacts', linkContact, unlinkContact,
-      id => crmOpenWin(() => crmContactView(id, 'sheet')), paint);
+      id => crmOpenWin('contact', () => crmContactView(id, 'sheet')), paint);
     crmBindPicker($('#crmlk-companies'), 'companies', linkCompany, unlinkCompany,
-      id => crmOpenWin(() => crmCompanyView(id, 'sheet')), paint);
+      id => crmOpenWin('company', () => crmCompanyView(id, 'sheet')), paint);
   };
 
   const left = `<div class="crm-body">
@@ -497,7 +534,8 @@ async function crmOpenDeal(id) {
   sheet(`<div class="crm-win-box">${crmWin(left, 'sheet', `<button class="kb-ib" id="crmdel" aria-label="Удалить сделку">${CRM_ICO.trash}</button>`)}</div>`,
     'crm-sheet crm-dwin');
 
-  $('#sx').onclick = crmCloseWin;
+  $('#sx').onclick = crmCloseAll;
+  if ($('#crmback')) $('#crmback').onclick = crmCloseWin;
   beforeClose = async () => { location.hash = back; };
   paint();
 
@@ -589,7 +627,7 @@ function crmDealGroups(g) {
 function crmBindDealGroups(mode) {
   document.querySelectorAll('[data-deal-go]').forEach(el => el.onclick = () => {
     const id = +el.dataset.dealGo;
-    if (mode === 'sheet') return crmOpenWin(() => crmOpenDeal(id));
+    if (mode === 'sheet') return crmOpenWin('deal', () => crmOpenDeal(id));
     crmReturn = location.hash;
     location.hash = '#/crm/deal/' + id;
   });
@@ -618,7 +656,8 @@ function crmFormsHtml() {
 // контакт и компания: то же окно, что у сделки — слева сведения, справа сообщения и задачи
 function crmShowPerson(kind, mode, title, back, left) {
   sheet(`<div class="crm-win-box">${crmWin(left, 'sheet')}</div>`, 'crm-sheet crm-dwin');
-  $('#sx').onclick = crmCloseWin;
+  $('#sx').onclick = crmCloseAll;
+  if ($('#crmback')) $('#crmback').onclick = crmCloseWin;
 }
 
 // открыть окно по ссылке из списка или раздела «Задачи»: поверх текущей страницы
@@ -626,9 +665,9 @@ function crmOpenHref(h) {
   const m = String(h).match(/^#\/crm\/(deal|contact|company)\/(\d+)$/);
   if (!m) return;
   const id = +m[2];
-  if (m[1] === 'deal') return crmOpenWin(() => crmOpenDeal(id));
-  if (m[1] === 'contact') return crmOpenWin(() => crmContactView(id, 'sheet'));
-  return crmOpenWin(() => crmCompanyView(id, 'sheet'));
+  if (m[1] === 'deal') return crmOpenWin('deal', () => crmOpenDeal(id));
+  if (m[1] === 'contact') return crmOpenWin('contact', () => crmContactView(id, 'sheet'));
+  return crmOpenWin('company', () => crmCompanyView(id, 'sheet'));
 }
 
 /* ---------- карточка контакта ---------- */
@@ -667,7 +706,7 @@ async function crmContactView(id, mode) {
       relink([...c.companies.map(x => x.id), kid]);
     },
     kid => relink(c.companies.map(x => x.id).filter(x => x !== kid)),
-    kid => mode === 'sheet' ? crmOpenWin(() => crmCompanyView(kid, 'sheet')) : (location.hash = '#/crm/company/' + kid),
+    kid => mode === 'sheet' ? crmOpenWin('company', () => crmCompanyView(kid, 'sheet')) : (location.hash = '#/crm/company/' + kid),
     refresh);
   crmBindDealGroups(mode);
   crmBindFeed('contacts', id, c.items);
@@ -723,7 +762,7 @@ async function crmCompanyView(id, mode) {
     } catch (e) { alert(e.message); }
   };
   crmBindPicker($('#crmlk-contacts'), 'contacts', relinkContact, unlinkContact,
-    cid => mode === 'sheet' ? crmOpenWin(() => crmContactView(cid, 'sheet')) : (location.hash = '#/crm/contact/' + cid),
+    cid => mode === 'sheet' ? crmOpenWin('contact', () => crmContactView(cid, 'sheet')) : (location.hash = '#/crm/contact/' + cid),
     refresh);
   crmBindDealGroups(mode);
   crmBindFeed('companies', id, k.items);
@@ -782,11 +821,11 @@ function crmRoute(parts) {
   if (sec === 'contacts') return crmContactsList();
   if (sec === 'companies') return crmCompaniesList();
   // ссылка на контакт или компанию: раздел под окном, окно поверх
-  if (sec === 'contact') return crmContactsList().then(() => crmOpenWin(() => crmContactView(+id, 'sheet')));
-  if (sec === 'company') return crmCompaniesList().then(() => crmOpenWin(() => crmCompanyView(+id, 'sheet')));
+  if (sec === 'contact') return crmContactsList().then(() => crmOpenWin('contact', () => crmContactView(+id, 'sheet')));
+  if (sec === 'company') return crmCompaniesList().then(() => crmOpenWin('company', () => crmCompanyView(+id, 'sheet')));
   if (sec === 'deal') {
     // воронка остаётся на фоне, окно сделки поверх
-    return crmPipeline().then(() => crmOpenWin(() => crmOpenDeal(+id)));
+    return crmPipeline().then(() => crmOpenWin('deal', () => crmOpenDeal(+id)));
   }
   return crmPipeline();
 }
