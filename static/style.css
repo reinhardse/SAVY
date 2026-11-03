@@ -1359,3 +1359,10 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-msgs{gap:16px}
 .crm-right{background:linear-gradient(90deg,#fff 0,#f2f5fa 96px,#f2f5fa 100%)}
 .crm-win .crm-right{background:linear-gradient(90deg,#fff 0,#e7eef8 140px,#e7eef8 100%)}
+
+/* CRM: фон переходит от белого к голубовато-серому через границу панелей, а не в правой половине */
+.crm-win{background:linear-gradient(90deg,#fff 0%,#fff 36%,#e7eef8 60%,#e7eef8 100%)}
+.crm-win .crm-right{background:transparent}
+/* сообщения — по правому краю, все в одну линию (зелёные и синие) */
+.crm-msgs > .crm-msg{align-self:flex-end;align-items:flex-end;width:auto;max-width:88%}
+.crm-msgs > .crm-msg .crm-bub-t{text-align:right}
