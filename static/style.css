@@ -1446,3 +1446,46 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .ks-foot{margin-top:18px}
 .ks-sheet .kb-top{position:sticky}
 .ks-sheet .ks-crumbs{max-width:calc(100% - 60px)}
+
+/* ---------- подзадачи как в Тудуисте: секция «Подзадачи» в заметке; окно подзадачи — как карточка доски ---------- */
+.kt-sec{margin:16px 0 8px}
+.kt-sec-h{display:flex;align-items:center;gap:8px;padding:6px 0 10px;border-bottom:1px solid #ececf0}
+.kt-ring{width:16px;height:16px;flex:none}
+.kt-sec-t{font-size:15px;font-weight:700;color:var(--ink)}
+.kt-sec-n{font-size:14px;color:var(--muted)}
+.kt-showdone{margin-left:auto;border:0;background:none;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;padding:4px 8px;border-radius:8px}
+.kt-showdone:hover{background:#f2f2f4;color:var(--ink)}
+.kt-rows{display:flex;flex-direction:column}
+.kt-row{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #f2f2f4;align-items:flex-start}
+.kt-row.done{display:none}
+.kt-sec.show-done .kt-row.done{display:flex}
+.kt-circle{width:18px;height:18px;border:1.5px solid #bcbcc4;border-radius:50%;flex:none;margin-top:2px;cursor:pointer;box-sizing:border-box;position:relative;background:#fff}
+.kt-circle:hover{border-color:#3fa975}
+.kt-circle.on{background:#3fa975;border-color:#3fa975}
+.kt-circle.on::after{content:'';position:absolute;left:5px;top:2px;width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.kt-circle.big{width:22px;height:22px;margin-top:4px}
+.kt-circle.big.on::after{left:6px;top:3px;width:5px;height:10px}
+.kt-main{flex:1;min-width:0}
+.kt-title{font-size:15px;font-weight:500;color:var(--ink);cursor:pointer;word-break:break-word;line-height:1.35}
+.kt-title:hover{text-decoration:underline}
+.kt-row.done .kt-title{color:#9a9aa3;text-decoration:line-through}
+.kt-desc{font-size:13px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kt-meta{display:flex;gap:8px;margin-top:6px;align-items:center;font-size:12px}
+.kt-date{color:var(--muted)}
+.kt-cnt{background:#f2f2f4;color:var(--muted);border-radius:999px;padding:1px 7px}
+.kt-add{display:flex;align-items:center;gap:10px;padding:10px 0;color:var(--muted);cursor:text;font-size:15px}
+.kt-add:hover{color:var(--ink)}
+.kt-plus{color:#e44332;font-size:20px;line-height:1}
+.kt-new{width:100%;border:0;outline:none;font-size:15px;background:transparent;color:var(--ink);padding:0}
+.kt-head{display:flex;gap:12px;align-items:flex-start;margin:4px 0 14px}
+.kt-title-in{flex:1;min-width:0;border:0;outline:none;resize:none;font-size:24px;font-weight:800;letter-spacing:-.02em;line-height:1.25;background:transparent;color:var(--ink);padding:0;overflow:hidden;font-family:inherit}
+.kt-crumbs{display:flex;align-items:center;gap:2px;flex-wrap:wrap;font-size:14px;color:var(--muted);min-width:0}
+.kt-crumb{border:0;background:none;color:var(--muted);font:inherit;cursor:pointer;padding:3px 6px;border-radius:6px}
+.kt-crumb:hover{background:#f2f2f4;color:var(--ink)}
+.kt-cur{color:var(--ink);padding:3px 6px;font-weight:500}
+.kt-sep{color:#b5b5bd;padding:0 2px}
+.ks-sheet .kb-top{position:sticky;top:0}
+.kt-secwrap{margin-top:6px}
+.ks-sheet .kb-tools{position:relative}
+.ks-sheet .kt-crumbs{flex:1 1 0;min-width:0;overflow:hidden;flex-wrap:nowrap;white-space:nowrap}
+.ks-sheet .kb-tools{flex:none;z-index:2}

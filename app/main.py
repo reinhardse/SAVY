@@ -736,7 +736,10 @@ def card_read(kid: int, db: Session = Depends(get_db), _: int = Depends(require_
     c = _card(db, kid)
     # сводка всех подзадач карточки (любой глубины): заметка рисует строки по ним
     subs = db.scalars(select(CardSub).where(CardSub.card_id == c.id)).all()
-    return {**card_out(c), "subs": {str(s.id): _sub_brief(db, s) for s in subs}}
+    roots = db.scalars(select(CardSub).where(CardSub.card_id == c.id, CardSub.parent_id.is_(None))
+                       .order_by(CardSub.sort, CardSub.id)).all()
+    return {**card_out(c), "subs": {str(s.id): _sub_brief(db, s) for s in subs},
+            "root_subs": [_sub_brief(db, s) for s in roots]}
 
 
 # ---------- подзадачи: вложенные окна, прогресс «выполнено из всего», хлебные крошки ----------
@@ -762,7 +765,8 @@ def _sub(db: Session, sid: int) -> CardSub:
 
 def _sub_brief(db: Session, s: CardSub) -> dict:
     kids = db.scalars(select(CardSub).where(CardSub.parent_id == s.id)).all()
-    return {"id": s.id, "title": s.title or "", "done": bool(s.done), "due_date": s.due_date,
+    first = (s.note or "").strip().split("\n")[0][:140]
+    return {"id": s.id, "title": s.title or "", "done": bool(s.done), "due_date": s.due_date, "desc": first,
             "total": len(kids), "done_count": sum(1 for k in kids if k.done), "card_id": s.card_id}
 
 
@@ -770,13 +774,21 @@ def _sub_full(db: Session, s: CardSub) -> dict:
     # крошки: карточка → подзадачи по пути вниз до текущей
     crumbs, cur = [], s
     while cur is not None:
-        crumbs.append({"id": cur.id, "title": cur.title or "Без названия"})
+        crumbs.append({"id": cur.id, "title": cur.title or "Без названия", "kind": "sub"})
         cur = db.get(CardSub, cur.parent_id) if cur.parent_id else None
     card = db.get(Card, s.card_id)
-    crumbs.append({"id": None, "title": card.title or "Без названия", "card_id": card.id})
+    board = db.get(Board, card.board_id)
+    crumbs.append({"id": None, "title": card.title or "Без названия", "kind": "card", "card_id": card.id})
+    crumbs.append({"id": None, "title": board.name if board else "Доска", "kind": "board", "board_id": card.board_id})
     crumbs.reverse()
+    # соседи на том же уровне — для стрелок вверх/вниз
+    sibs = db.scalars(select(CardSub.id).where(CardSub.card_id == s.card_id, CardSub.parent_id == s.parent_id)
+                      .order_by(CardSub.sort, CardSub.id)).all()
+    i = sibs.index(s.id) if s.id in sibs else -1
     kids = db.scalars(select(CardSub).where(CardSub.parent_id == s.id).order_by(CardSub.sort, CardSub.id)).all()
     return {**_sub_brief(db, s), "note": s.note or "", "crumbs": crumbs,
+            "prev_id": sibs[i - 1] if i > 0 else None,
+            "next_id": sibs[i + 1] if 0 <= i < len(sibs) - 1 else None,
             "children": [_sub_brief(db, k) for k in kids]}
 
 

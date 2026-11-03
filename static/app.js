@@ -1123,8 +1123,7 @@ function renderNoteEdit(text) {
     const h = line.match(/^(#{1,3}) (.*)$/);
     if (h) return lineHtml(h[1].length === 1 ? 'h1' : h[1].length === 3 ? 'h3' : 'h2', h[2]);
     if (line === '---') return lineHtml('hr');
-    const sb = line.match(/^\[s:(\d+)\]$/);
-    if (sb) return subLineHtml(+sb[1]);
+    if (line === '[subs]') return subsSection(null, NOTE_ROOT, NOTE_KID);
     return lineHtml('plain', line);
   }).join('');
 }
@@ -1156,7 +1155,7 @@ function readNote(root) {
     if (el.classList && el.classList.contains('kh')) return '#'.repeat(el.classList.contains('kh1') ? 1 : el.classList.contains('kh3') ? 3 : 2) + ' ' + fmtOf(el);
     if (el.classList && el.classList.contains('kbul')) return '  '.repeat(+(el.dataset.lvl || 0)) + '- ' + fmtOf(el);
     if (el.classList && el.classList.contains('kdiv')) return '---';
-    if (el.classList && el.classList.contains('ksub')) return `[s:${el.dataset.sub}]`;
+    if (el.classList && el.classList.contains('kt-sec')) return '[subs]';
     return fmtOf(el);
   }).join('\n');
 }
@@ -1196,45 +1195,117 @@ function caretEnd(el) {
   s.addRange(r);
 }
 
-// ----- подзадачи, как в Тудуисте: строка в заметке и окна вложенных подзадач без предела глубины -----
-let NOTE_SUBS = {};   // сводка подзадач открытой карточки: id → {title, done, total, done_count, due_date}
+// ----- подзадачи, как в Тудуисте: секция «Подзадачи» в заметке и окна подзадач без предела глубины -----
+let NOTE_ROOT = [];      // подзадачи верхнего уровня открытой карточки (сводка)
+let NOTE_KID = null;     // карточка, в заметке которой сейчас работаем
 const subDate = d => (d ? d.split('-').reverse().join('.') : '');
+const KT_UP = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 14l6-6 6 6"/></svg>';
+const KT_DOWN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10l6 6 6-6"/></svg>';
+const KT_DOTS = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';
 
-// строка подзадачи в заметке: галочка, название, счётчик «выполнено/всего», дата
-function subLineHtml(id) {
-  const s = NOTE_SUBS[id];
-  if (!s) return '';
-  const cnt = s.total ? `<span class="ks-cnt">${s.done_count}/${s.total}</span>` : '';
-  const date = s.due_date ? `<span class="ks-date">${subDate(s.due_date)}</span>` : '';
-  return `<div class="kline ksub${s.done ? ' done' : ''}" data-sub="${id}" contenteditable="false"><span class="ksb" role="checkbox" aria-checked="${s.done ? 'true' : 'false'}"></span><span class="ks-t" data-open-sub="${id}">${esc(s.title || 'Без названия')}</span>${cnt}${date}</div>`;
+// кружок прогресса: сколько подзадач выполнено
+const ktRing = (done, total) => {
+  const p = total ? done / total : 0;
+  const len = 2 * Math.PI * 6.5;
+  return `<svg class="kt-ring" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="#d4d4da" stroke-width="1.6"/><circle cx="8" cy="8" r="6.5" fill="none" stroke="#3fa975" stroke-width="1.6" stroke-dasharray="${(p * len).toFixed(2)} ${len.toFixed(2)}" transform="rotate(-90 8 8)"/></svg>`;
+};
+
+// строка подзадачи в секции: кружок, название, описание, дата и счётчик
+function subRowHtml(x) {
+  const meta = [x.due_date ? `<span class="kt-date">${subDate(x.due_date)}</span>` : '', x.total ? `<span class="kt-cnt">${x.done_count}/${x.total}</span>` : ''].join('');
+  return `<div class="kt-row${x.done ? ' done' : ''}" data-row="${x.id}">
+    <span class="kt-circle${x.done ? ' on' : ''}" data-tog="${x.id}" role="checkbox" aria-checked="${x.done ? 'true' : 'false'}"></span>
+    <div class="kt-main"><div class="kt-title" data-open-sub="${x.id}">${esc(x.title || 'Без названия')}</div>
+      ${x.desc ? `<div class="kt-desc">${esc(x.desc)}</div>` : ''}
+      ${meta ? `<div class="kt-meta">${meta}</div>` : ''}</div></div>`;
 }
 
-// окно подзадачи: сверху хлебные крошки, ниже название, дата, подзадачи, заметка
+// секция «Подзадачи»: в карточке (parent пустой) и внутри подзадачи (parent — её id)
+function subsSection(parent, list, kid, showDone = false) {
+  const total = list.length, done = list.filter(x => x.done).length;
+  return `<div class="kt-sec${showDone ? ' show-done' : ''}" contenteditable="false" data-subs="1" data-parent="${parent ?? ''}" data-kid="${kid}">
+    <div class="kt-sec-h">${ktRing(done, total)}<span class="kt-sec-t">Подзадачи</span>${total ? `<span class="kt-sec-n">${done}/${total}</span>` : ''}
+      ${done ? `<button class="kt-showdone" type="button">${showDone ? 'Скрыть выполненные' : 'Показать выполненные'}</button>` : ''}</div>
+    <div class="kt-rows">${list.map(subRowHtml).join('')}</div>
+    <div class="kt-add" role="button" tabindex="0"><span class="kt-plus">+</span><span>Добавить подзадачу</span></div>
+  </div>`;
+}
+
+// перечитать список подзадач секции и заменить секцию (без перерисовки всего окна)
+async function refreshSection(sec) {
+  const parent = sec.dataset.parent ? +sec.dataset.parent : null;
+  const kid = +sec.dataset.kid;
+  const show = sec.classList.contains('show-done');
+  let list;
+  if (parent === null) { const c = await api('/cards/' + kid); list = c.root_subs; NOTE_ROOT = list; }
+  else { list = (await api('/subs/' + parent)).children; }
+  const t = document.createElement('template');
+  t.innerHTML = subsSection(parent, list, kid, show).trim();
+  sec.replaceWith(t.content.firstElementChild);
+}
+
+// клики по секции: галочка, название, показать выполненные, добавить
+document.addEventListener('click', async e => {
+  const tog = e.target.closest && e.target.closest('.kt-circle[data-tog]');
+  if (tog) {
+    e.preventDefault();
+    const sec = tog.closest('.kt-sec'), id = +tog.dataset.tog;
+    const cur = await api('/subs/' + id);
+    await api('/subs/' + id, {method: 'PATCH', body: {done: !cur.done}});
+    await refreshSection(sec);
+    return;
+  }
+  const open = e.target.closest && e.target.closest('[data-open-sub]');
+  if (open) { e.preventDefault(); openSubWin(+open.dataset.openSub, +open.closest('.kt-sec').dataset.kid); return; }
+  const sd = e.target.closest && e.target.closest('.kt-showdone');
+  if (sd) { const sec = sd.closest('.kt-sec'); sec.classList.toggle('show-done'); await refreshSection(sec); return; }
+  const add = e.target.closest && e.target.closest('.kt-add');
+  if (add && !add.querySelector('input')) {
+    const sec = add.closest('.kt-sec');
+    add.innerHTML = '<input class="kt-new" placeholder="Название подзадачи">';
+    const inp = add.querySelector('input');
+    inp.focus();
+    inp.onkeydown = async ev => {
+      if (ev.key === 'Escape') { await refreshSection(sec); return; }
+      if (ev.key !== 'Enter') return;
+      const v = inp.value.trim();
+      if (!v) return;
+      const parent = sec.dataset.parent ? +sec.dataset.parent : null;
+      await api(`/cards/${sec.dataset.kid}/subs`, {method: 'POST', body: {title: v, parent_id: parent}});
+      await refreshSection(sec);
+    };
+    inp.onblur = () => setTimeout(() => { if (add.isConnected && !add.querySelector('input').value.trim()) refreshSection(sec); }, 150);
+  }
+});
+
+// окно подзадачи — как карточка доски: сверху хлебные крошки и кнопки, ниже название, дата, заметка, подзадачи
 async function openSubWin(sid, kid) {
   if (beforeClose) { const f = beforeClose; beforeClose = null; await f(); }
   const s = await api('/subs/' + sid);
-  NOTE_SUBS[sid] = {id: s.id, title: s.title, done: s.done, total: s.total, done_count: s.done_count, due_date: s.due_date};
   const crumbs = s.crumbs.map((c, i) => {
-    if (i === s.crumbs.length - 1) return `<span class="ks-cur">${esc(c.title)}</span>`;
-    const attr = c.id === null ? `data-crumb-card="${c.card_id}"` : `data-crumb-sub="${c.id}"`;
-    return `<button class="ks-crumb" ${attr}>${esc(c.title)}</button>`;
-  }).join('<span class="ks-sep">›</span>');
-  const kids = s.children.map(k => `<div class="ks-child${k.done ? ' done' : ''}" data-child="${k.id}"><span class="ksb" data-sub-tog="${k.id}" role="checkbox" aria-checked="${k.done ? 'true' : 'false'}"></span><span class="ks-t" data-open-sub="${k.id}">${esc(k.title || 'Без названия')}</span>${k.total ? `<span class="ks-cnt">${k.done_count}/${k.total}</span>` : ''}${k.due_date ? `<span class="ks-date">${subDate(k.due_date)}</span>` : ''}</div>`).join('');
+    if (i === s.crumbs.length - 1) return `<span class="kt-cur">${esc(c.title)}</span>`;
+    const attr = c.kind === 'board' ? `data-crumb-board="${c.board_id}"` : c.kind === 'card' ? `data-crumb-card="${c.card_id}"` : `data-crumb-sub="${c.id}"`;
+    return `<button class="kt-crumb" ${attr}>${esc(c.title)}</button>`;
+  }).join('<span class="kt-sep">/</span>');
   sheet(`<div class="sheet-body kb-card ks-win">
-      <div class="kb-top"><nav class="ks-crumbs">${crumbs}</nav><div class="kb-tools"><button class="kb-ib" id="sx" aria-label="Закрыть">${XICON}</button></div></div>
+      <div class="kb-top"><div class="kt-crumbs">${crumbs}</div>
+        <div class="kb-tools">
+          ${s.prev_id ? `<button class="kb-ib" data-nav-sub="${s.prev_id}" data-kid="${kid}" aria-label="Предыдущая подзадача">${KT_UP}</button>` : ''}
+          ${s.next_id ? `<button class="kb-ib" data-nav-sub="${s.next_id}" data-kid="${kid}" aria-label="Следующая подзадача">${KT_DOWN}</button>` : ''}
+          <button class="kb-ib" id="ksmore" aria-label="Действия">${KT_DOTS}</button>
+          <button class="kb-ib" id="sx" aria-label="Закрыть">${XICON}</button>
+          <div class="kb-menu" id="ksmenu" hidden><button class="kb-mi bad" id="ksdel">Удалить подзадачу</button></div>
+        </div></div>
       <div class="kb-body">
-        <div class="ks-head"><span class="ksb big" id="ksdone" role="checkbox" aria-checked="${s.done ? 'true' : 'false'}"></span><input class="ks-title" id="kstitle" value="${esc(s.title)}" placeholder="Название подзадачи"></div>
-        <div class="kb-props"><div class="kb-prop"><div class="kb-pl"><span>Дата</span></div><div class="kb-pv"><input type="date" class="ks-date-in" id="ksdate" value="${s.due_date || ''}"></div></div></div>
+        <div class="kt-head"><span class="kt-circle big${s.done ? ' on' : ''}" id="ksdone" role="checkbox" aria-checked="${s.done ? 'true' : 'false'}"></span>
+          <textarea class="kt-title-in" id="kstitle" rows="1" placeholder="Название">${esc(s.title)}</textarea></div>
+        <div class="kb-props"><div class="kb-prop"><div class="kb-pl"><span>Дата</span></div><div class="kb-pv"><input type="date" class="kt-date-in" id="ksdate" value="${s.due_date || ''}"></div></div></div>
         <hr class="kb-hr">
-        <div class="ks-sec">Подзадачи${s.total ? ` <span class="ks-cnt">${s.done_count}/${s.total}</span>` : ''}</div>
-        <div class="ks-children">${kids}</div>
-        <input class="ks-add" id="ksnew" placeholder="+ Добавить подзадачу">
-        <hr class="kb-hr">
-        <textarea class="ks-note" id="ksnote" placeholder="Заметка">${esc(s.note)}</textarea>
-        <div class="ks-foot"><button class="kb-mi bad" id="ksdel">Удалить подзадачу</button></div>
+        <textarea class="kb-note ks-note" id="ksnote" placeholder="Заметка">${esc(s.note)}</textarea>
+        <div class="kt-secwrap">${subsSection(sid, s.children, kid)}</div>
       </div></div>`, 'card-sheet ks-sheet');
 
-  // заметка сохраняется сама; перед любым действием — сначала она
+  // заметка сохраняется сама; при уходе из поля — тоже
   let noteTimer = null;
   const note = $('#ksnote');
   const saveNote = async () => {
@@ -1244,48 +1315,35 @@ async function openSubWin(sid, kid) {
   autosize(note);
   note.oninput = () => { autosize(note); note.dataset.dirty = '1'; clearTimeout(noteTimer); noteTimer = setTimeout(saveNote, 500); };
   note.onblur = saveNote;
-  const parent = s.crumbs[s.crumbs.length - 2];
-  const goBack = () => (parent && parent.id !== null ? openSubWin(parent.id, kid) : openCard(kid));
-  $('#sx').onclick = closeSheet;
-  $('#ov').onclick = e => { if (e.target.id === 'ov') goBack(); };
-  document.querySelectorAll('[data-crumb-sub]').forEach(b => b.onclick = async () => { await saveNote(); openSubWin(+b.dataset.crumbSub, kid); });
-  document.querySelectorAll('[data-crumb-card]').forEach(b => b.onclick = async () => { await saveNote(); openCard(+b.dataset.crumbCard); });
-  document.querySelectorAll('.ks-children [data-open-sub], .ks-win [data-open-sub]').forEach(b => b.onclick = async () => { await saveNote(); openSubWin(+b.dataset.openSub, kid); });
-  document.querySelectorAll('[data-sub-tog]').forEach(b => b.onclick = async () => {
-    await saveNote();
-    const id = +b.dataset.subTog, cur = await api('/subs/' + id);
-    await api('/subs/' + id, {method: 'PATCH', body: {done: !cur.done}});
-    openSubWin(sid, kid);
-  });
+  const title = $('#kstitle');
+  const grow = () => { title.style.height = 'auto'; title.style.height = title.scrollHeight + 'px'; };
+  grow();
+  title.oninput = grow;
+  title.onchange = async () => {
+    const v = title.value.trim();
+    if (!v) { title.value = s.title; grow(); return; }
+    await api('/subs/' + sid, {method: 'PATCH', body: {title: v}});
+  };
+  title.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); title.blur(); } };
+  $('#ksdate').onchange = async () => { await api('/subs/' + sid, {method: 'PATCH', body: {due_date: $('#ksdate').value || ''}}); };
   $('#ksdone').onclick = async () => {
     await saveNote();
     await api('/subs/' + sid, {method: 'PATCH', body: {done: !s.done}});
     openSubWin(sid, kid);
   };
-  $('#kstitle').onchange = async () => {
-    const v = $('#kstitle').value.trim();
-    if (!v) { $('#kstitle').value = s.title; return; }
-    await api('/subs/' + sid, {method: 'PATCH', body: {title: v}});
-    NOTE_SUBS[sid] = {...NOTE_SUBS[sid], title: v};
-  };
-  $('#ksdate').onchange = async () => {
-    await saveNote();
-    await api('/subs/' + sid, {method: 'PATCH', body: {due_date: $('#ksdate').value || ''}});
-    openSubWin(sid, kid);
-  };
-  $('#ksnew').onkeydown = async e => {
-    if (e.key !== 'Enter') return;
-    const v = e.target.value.trim();
-    if (!v) return;
-    await saveNote();
-    await api(`/cards/${kid}/subs`, {method: 'POST', body: {title: v, parent_id: sid}});
-    openSubWin(sid, kid);
-  };
+  // назад: на уровень выше; из верхнего уровня — к карточке
+  const parent = s.crumbs[s.crumbs.length - 2];
+  const goBack = () => (parent && parent.kind === 'sub' ? openSubWin(parent.id, kid) : openCard(kid));
+  $('#sx').onclick = closeSheet;
+  $('#ov').onclick = e => { if (e.target.id === 'ov') goBack(); };
+  document.querySelectorAll('[data-crumb-sub]').forEach(b => b.onclick = () => openSubWin(+b.dataset.crumbSub, kid));
+  document.querySelectorAll('[data-crumb-card]').forEach(b => b.onclick = () => openCard(+b.dataset.crumbCard));
+  document.querySelectorAll('[data-crumb-board]').forEach(b => b.onclick = async () => { await closeSheet(); location.hash = '#/board/' + b.dataset.crumbBoard; });
+  document.querySelectorAll('[data-nav-sub]').forEach(b => b.onclick = () => openSubWin(+b.dataset.navSub, kid));
+  $('#ksmore').onclick = e => { e.stopPropagation(); $('#ksmenu').hidden = !$('#ksmenu').hidden; };
   $('#ksdel').onclick = async () => {
     if (!confirm('Удалить подзадачу вместе с вложенными?')) return;
-    note.dataset.dirty = '';
     await api('/subs/' + sid, {method: 'DELETE'});
-    delete NOTE_SUBS[sid];
     goBack();
   };
 }
@@ -1293,7 +1351,8 @@ async function openSubWin(sid, kid) {
 // окно карточки: заголовок и заметка
 async function openCard(kid) {
   const c = await api('/cards/' + kid);
-  NOTE_SUBS = c.subs || {};
+  NOTE_ROOT = c.root_subs || [];
+  NOTE_KID = kid;
   const bd = await api('/boards/' + c.board_id);
   let boardTags = bd.tags || [], cardTags = c.tags || [], cols = bd.columns || [], curCol = c.column_id;
   let timer = null, dirty = false;
@@ -1552,7 +1611,7 @@ async function openCard(kid) {
     {label: 'Заголовок 2', kind: 'h2', kw: 'h2 заголовок'},
     {label: 'Заголовок 3', kind: 'h3', kw: 'h3 заголовок'},
     {label: 'Чекбокс', kind: 'check', kw: 'чекбокс check задача'},
-    {label: 'Подзадача', kind: 'sub', kw: 'подзадача subtask todo вложенная'},
+    {label: 'Подзадачи', kind: 'sub', kw: 'подзадачи подзадача subtask todo вложенная'},
     {label: 'Список', kind: 'bul', kw: 'список bullet'},
     {label: 'Разделитель', kind: 'hr', kw: 'разделитель линия hr ---'},
   ];
@@ -1645,15 +1704,14 @@ async function openCard(kid) {
       return;
     }
     if (kind === 'sub') {
-      // подзадача — отдельная запись: в заметке остаётся её строка, открывается окном
-      api(`/cards/${kid}/subs`, {method: 'POST', body: {title: 'Подзадача'}}).then(r => {
-        NOTE_SUBS[r.id] = r;
+      // секция «Подзадачи» — одна на заметку
+      if (!n.querySelector('.kt-sec')) {
         const t = document.createElement('template');
-        t.innerHTML = subLineHtml(r.id).trim();
-        const line = t.content.firstElementChild;
-        if (text) el.after(line); else n.replaceChild(line, el);
+        t.innerHTML = subsSection(null, NOTE_ROOT, kid).trim();
+        const sec = t.content.firstElementChild;
+        if (text) el.after(sec); else n.replaceChild(sec, el);
         queue();
-      }).catch(e => alert(e.message));
+      } else if (!text) { n.removeChild(el); queue(); }
       return;
     }
     const nl = createLine(kind === 'text' ? 'plain' : kind, text);
@@ -1769,19 +1827,7 @@ async function openCard(kid) {
     queue();
   });
   // квадрат: одно нажатие — одно переключение; фокус и каретку не трогаем
-  n.addEventListener('mousedown', async e => {
-    const sb = e.target.closest && e.target.closest('.ksub .ksb');
-    if (sb) {
-      e.preventDefault();
-      const row = sb.closest('.ksub'), id = +row.dataset.sub;
-      const cur = NOTE_SUBS[id];
-      const r = await api('/subs/' + id, {method: 'PATCH', body: {done: !cur.done}});
-      NOTE_SUBS[id] = {...cur, done: r.done, total: r.total, done_count: r.done_count};
-      const t = document.createElement('template');
-      t.innerHTML = subLineHtml(id).trim();
-      row.replaceWith(t.content.firstElementChild);
-      return;
-    }
+  n.addEventListener('mousedown', e => {
     const box = e.target.closest && e.target.closest('.kcb');
     if (!box) return;
     e.preventDefault();
@@ -1791,8 +1837,6 @@ async function openCard(kid) {
   });
   // ссылки открываются по нажатию, даже в режиме редактирования
   n.addEventListener('click', e => {
-    const ot = e.target.closest && e.target.closest('[data-open-sub]');
-    if (ot) { e.preventDefault(); openSubWin(+ot.dataset.openSub, kid); return; }
     const a = e.target.closest('a');
     if (a) { e.preventDefault(); window.open(a.href, '_blank', 'noopener'); }
   });
