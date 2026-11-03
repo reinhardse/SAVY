@@ -685,7 +685,8 @@ async function crmOpenDeal(id) {
     // бюджет: сохраняем при уходе из поля
     const amt = $('#crmamt');
     // ширина поля — по длине суммы, знак рубля стоит сразу за ней
-    const fitAmt = () => { amt.style.width = Math.max(3, amt.value.length + 1) + 'ch'; };
+    // пустое поле — по длине подсказки «Не указан», чтобы она не обрезалась
+    const fitAmt = () => { amt.style.width = Math.max(amt.placeholder.length, amt.value.length) + 2 + 'ch'; };
     fitAmt();
     amt.oninput = () => { const v = amt.value.replace(/\D/g, ''); amt.value = v ? (+v).toLocaleString('ru-RU') : ''; fitAmt(); };
     amt.onblur = async () => {
