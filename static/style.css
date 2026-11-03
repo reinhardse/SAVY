@@ -1366,3 +1366,13 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 /* сообщения — по правому краю, все в одну линию (зелёные и синие) */
 .crm-msgs > .crm-msg{align-self:flex-end;align-items:flex-end;width:auto;max-width:88%}
 .crm-msgs > .crm-msg .crm-bub-t{text-align:right}
+
+/* CRM: лента — по центру окна, сообщения и задачи в одной колонке, выровнены по её правому краю;
+   левая часть — по центру; ссылки такого же размера, как значения полей */
+.crm-msgs{align-items:center}
+.crm-msgs > *{width:84%;max-width:84%;align-self:center}
+.crm-msgs > .crm-msg{align-self:center;align-items:flex-end;width:84%;max-width:84%}
+.crm-compose .crm-ta-wrap,.crm-compose .crm-tf-row,.crm-compose .crm-compose-bar{width:84%;align-self:center}
+.crm-body{margin:0 auto;max-width:430px;width:100%}
+.crm-alink,.crm-linkrow{font-size:13.5px}
+.crm-edit{font-size:11px}
