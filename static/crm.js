@@ -202,17 +202,12 @@ function crmWin(left, mode, tools = '') {
     <div class="crm-right">
       <div class="crm-chat-h">Сообщения и задачи</div>
       <div class="crm-msgs" id="crmmsgs"></div>
-      <div class="crm-tf" id="crmtf" hidden>
-        <textarea class="crm-tf-title" id="crmtftitle" rows="1" placeholder="Что нужно сделать"></textarea>
-        <div class="crm-tf-row">
+      <div class="crm-compose" id="crmcompose">
+        <textarea id="crmmsg" rows="1" placeholder="Напишите сообщение…"></textarea>
+        <div class="crm-tf-row" id="crmtfrow" hidden>
           <input type="date" class="crm-tf-date" id="crmtfdate" value="${crmToday()}">
           <input type="time" class="crm-tf-time" id="crmtftime" aria-label="Время">
-          <button class="crm-tf-ok" id="crmtfok">Добавить</button>
-          <button class="crm-tf-x" id="crmtfx" aria-label="Отмена">${XICON}</button>
         </div>
-      </div>
-      <div class="crm-compose">
-        <textarea id="crmmsg" rows="1" placeholder="Напишите сообщение…"></textarea>
         <div class="crm-compose-bar">
           <button class="crm-addtask" id="crmaddtask">+ задача</button>
           <button class="crm-send" id="crmsend" aria-label="Отправить сообщение">${CRM_ICO.send}<span>Отправить</span></button>
@@ -404,41 +399,39 @@ function crmBindFeed(kind, oid, items) {
   };
   render();
 
-  // задача: форма над полем ввода, без отдельного окна
-  const tf = $('#crmtf');
-  $('#crmaddtask').onclick = () => {
-    tf.hidden = !tf.hidden;
-    if (!tf.hidden) $('#crmtftitle').focus();
+  // одно поле ввода: обычное сообщение или, после «+ задача», название задачи с датой и временем под ним
+  const compose = $('#crmcompose'), ta = $('#crmmsg'), tfrow = $('#crmtfrow'), addBtn = $('#crmaddtask'), sendBtn = $('#crmsend');
+  const crmGrow = el => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
+  let taskMode = false;
+  const setTaskMode = on => {
+    taskMode = on;
+    compose.classList.toggle('task-mode', on);
+    tfrow.hidden = !on;
+    addBtn.classList.toggle('on', on);
+    ta.placeholder = on ? 'Что нужно сделать' : 'Напишите сообщение…';
+    sendBtn.querySelector('span').textContent = on ? 'Добавить' : 'Отправить';
+    if (on) ta.focus();
+    crmGrow(ta);
   };
-  $('#crmtfx').onclick = () => { tf.hidden = true; };
+  addBtn.onclick = () => setTaskMode(!taskMode);
   const addTask = async () => {
-    const title = $('#crmtftitle').value.trim();
+    const title = ta.value.trim();
     const due = $('#crmtfdate').value;
     const time = $('#crmtftime').value;
-    if (!title) { $('#crmtftitle').focus(); return; }
+    if (!title) { ta.focus(); return; }
     if (!due) { $('#crmtfdate').focus(); return; }
     try {
       const task = await api(`/crm/${kind}/${oid}/tasks`, {method: 'POST', body: {title, due_date: due, due_time: time || null}});
       list = [...list, task];
-      $('#crmtftitle').value = '';
+      ta.value = '';
       $('#crmtftime').value = '';
-      tf.hidden = true;
+      setTaskMode(false);
       render();
     } catch (e) { alert(e.message); }
   };
-  $('#crmtfok').onclick = addTask;
-  const crmGrow = el => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
-  $('#crmtftitle').oninput = e => crmGrow(e.target);
-  $('#crmtftitle').onkeydown = e => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addTask(); return; }
-    if (e.key === 'Escape') tf.hidden = true;
-  };
-  document.querySelectorAll('[data-ed-title]').forEach(el => { el.oninput = () => crmGrow(el); });
-
-  // сообщения
-  const ta = $('#crmmsg');
   ta.oninput = () => crmGrow(ta);
   const send = async () => {
+    if (taskMode) return addTask();
     const text = ta.value.trim();
     if (!text) return;
     ta.value = '';
@@ -450,8 +443,12 @@ function crmBindFeed(kind, oid, items) {
     } catch (e) { alert(e.message); }
     ta.focus();
   };
-  $('#crmsend').onclick = send;
-  ta.onkeydown = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
+  sendBtn.onclick = send;
+  ta.onkeydown = e => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); return; }
+    if (e.key === 'Escape' && taskMode) setTaskMode(false);
+  };
+  document.querySelectorAll('[data-ed-title]').forEach(el => { el.oninput = () => crmGrow(el); });
 }
 
 /* ---------- ссылки: контакты и компании, выбор из базы с поиском ---------- */

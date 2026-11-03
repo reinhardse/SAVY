@@ -1299,3 +1299,10 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-msgs .crm-task.open{position:sticky;z-index:2;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.06)}
 .crm-msgs .crm-task.open.ext{background:#eef7fd}
 .crm-pins{display:none}
+
+/* CRM: «+ задача» — поле сообщения становится полем задачи: синий градиент снизу, дата и время под полем */
+.crm-compose .crm-tf-row{display:flex;gap:6px;align-items:center}
+.crm-compose .crm-tf-row[hidden]{display:none}
+.crm-compose.task-mode{background:linear-gradient(to top,rgba(47,111,224,.18) 0%,#fff 75%);border-top-color:#bcd3f5}
+.crm-compose.task-mode textarea{border-color:#9bb8ec}
+.crm-addtask.on{background:#2f6fe0;border-color:#2f6fe0;color:#fff}
