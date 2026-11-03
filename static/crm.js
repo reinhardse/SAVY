@@ -134,7 +134,7 @@ function crmStageCol(s) {
       <div class="crm-col-s">${n} ${crmPlural(n, 'сделка', 'сделки', 'сделок')}: ${crmMoney(s.sum)}</div>
     </div>
     <div class="crm-col-b">
-      <div class="crm-quick" data-quick="${s.key}"><button class="crm-quick-btn">Быстрое добавление</button></div>
+      ${s.key === 'new' ? `<div class="crm-quick" data-quick="${s.key}"><button class="crm-quick-btn">Быстрое добавление</button></div>` : ''}
       ${s.deals.map(crmDealCard).join('')}
     </div>
   </div>`;
@@ -753,9 +753,9 @@ function crmDealGroups(g) {
       <div class="crm-grp-h ${cls}"><span>${title}</span><span>${crmMoney(sum)}</span></div>
       ${list.length ? list.map(d => `<div class="crm-drow" data-deal-go="${d.id}"><span class="crm-drow-t">${esc(d.title)}</span><span class="crm-drow-s">${crmMoney(d.amount)}</span></div>`).join('') : '<div class="crm-drow-empty">Нет сделок</div>'}
     </div>`;
-  return block('Успешные', 'ok', g.won, g.sums.won)
-    + block('Потерянные', 'lost', g.lost, g.sums.lost)
-    + block('В работе', 'act', g.active, g.sums.active);
+  return block('В работе', 'act', g.active, g.sums.active)
+    + block('Успешные', 'ok', g.won, g.sums.won)
+    + block('Потерянные', 'lost', g.lost, g.sums.lost);
 }
 
 function crmBindDealGroups(mode) {
@@ -791,6 +791,11 @@ function crmFormsHtml() {
 function crmShowPerson(kind, mode, title, back, left) {
   sheet(`<div class="crm-win-box">${crmWin(left, 'sheet')}</div>`, 'crm-sheet crm-dwin');
   crmOverlay();
+  // вкладки: «Основное» и «Сделки», переключаются без перерисовки
+  document.querySelectorAll('.crm-tab').forEach(b => b.onclick = () => {
+    document.querySelectorAll('.crm-tab').forEach(x => x.classList.toggle('on', x === b));
+    document.querySelectorAll('[data-panel]').forEach(p => { p.hidden = p.dataset.panel !== b.dataset.tab; });
+  });
   $('#sx').onclick = crmCloseAll;
   if ($('#crmback')) $('#crmback').onclick = crmCloseWin;
 }
@@ -809,6 +814,8 @@ function crmOpenHref(h) {
 // ссылка для «Открыть»: без протокола добавляем https://
 const crmHref = v => (/^https?:\/\//i.test(v) ? v : 'https://' + v);
 
+const crmTabsBar = () => '<div class="crm-tabs"><button class="crm-tab on" data-tab="info">Основное</button><button class="crm-tab" data-tab="deals">Сделки</button></div>';
+
 async function crmContactView(id, mode) {
   const c = await api('/crm/contacts/' + id);
   const refresh = () => crmContactView(id, mode);
@@ -819,15 +826,15 @@ async function crmContactView(id, mode) {
   const left = `<div class="crm-body">
       <div class="crm-head-p">${crmAvatar(c.name, 'lg')}<div><div class="crm-card-t" id="crmname">${esc(c.name)}</div>
         <div class="crm-sub">${esc([c.position, c.city].filter(Boolean).join(' · ')) || 'Контакт'}</div></div></div>
-      <div class="crm-props">
+      ${crmTabsBar()}
+      <div class="crm-panel" data-panel="info"><div class="crm-props">
         ${field('Имя', 'first_name')}${field('Фамилия', 'last_name')}${field('Отчество', 'middle_name')}${siteRow}
         ${field('Телефон', 'phone', '+7…')}${field('Почта', 'email', 'name@mail.ru')}${field('Телеграм', 'telegram', '@username')}
         ${field('Должность', 'position')}${field('Город', 'city')}
         <div class="crm-prop"><div class="crm-pl"><span>Компании</span></div>
           <div class="crm-pv crm-links" id="crmlk-companies">${crmEntChips('companies', c.companies)}<button class="crm-add-btn" data-add-companies="1">+ компанию</button></div></div>
-      </div>
-      <div class="crm-sec-t">Сделки</div>
-      <div class="crm-groups">${crmDealGroups(c.deals)}</div>
+      </div></div>
+      <div class="crm-panel" data-panel="deals" hidden><div class="crm-groups">${crmDealGroups(c.deals)}</div></div>
     </div>`;
   crmShowPerson('contacts', mode, c.name, '#/crm/contacts', left);
   document.querySelectorAll('[data-f]').forEach(inp => inp.onchange = async () => {
@@ -860,7 +867,8 @@ async function crmCompanyView(id, mode) {
   const left = `<div class="crm-body">
       <div class="crm-head-p">${`<span class="crm-av lg crm-av-ic">${CRM_ICO.building}</span>`}<div><div class="crm-card-t" id="crmname">${esc(k.name)}</div>
         <div class="crm-sub">Компания</div></div></div>
-      <div class="crm-props">
+      ${crmTabsBar()}
+      <div class="crm-panel" data-panel="info"><div class="crm-props">
         <div class="crm-prop"><div class="crm-pl"><span>Название</span></div>
           <div class="crm-pv"><input class="crm-in crm-wide" id="crmnm" value="${esc(k.name)}"></div></div>
         <div class="crm-prop"><div class="crm-pl"><span>ИНН</span></div>
@@ -871,9 +879,8 @@ async function crmCompanyView(id, mode) {
           <div class="crm-pv crm-docs"><input class="crm-in crm-url" id="crmcu" placeholder="Ссылка на Google Диск" value="${esc(k.card_url || '')}">${k.card_url ? `<a class="crm-open" href="${esc(k.card_url)}" target="_blank" rel="noopener">Открыть</a>` : ''}</div></div>
         <div class="crm-prop"><div class="crm-pl"><span>Контакты</span></div>
           <div class="crm-pv crm-links" id="crmlk-contacts">${crmEntChips('contacts', k.contacts)}<button class="crm-add-btn" data-add-contacts="1">+ контакт</button></div></div>
-      </div>
-      <div class="crm-sec-t">Сделки</div>
-      <div class="crm-groups">${crmDealGroups(k.deals)}</div>
+      </div></div>
+      <div class="crm-panel" data-panel="deals" hidden><div class="crm-groups">${crmDealGroups(k.deals)}</div></div>
     </div>`;
   crmShowPerson('companies', mode, k.name, '#/crm/companies', left);
   $('#crmnm').onchange = async () => {

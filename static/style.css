@@ -1200,3 +1200,45 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-addtask{height:34px;padding:0 14px;display:inline-flex;align-items:center;font-size:13px;border-radius:999px}
 .crm-tf-title,.crm-task-ed .crm-tf-title{resize:none;display:block;min-height:36px;line-height:1.35;overflow:hidden;white-space:pre-wrap;word-break:break-word}
 .kin-area{resize:none;display:block;overflow:hidden;white-space:pre-wrap;word-break:break-word;line-height:1.35;min-height:40px}
+
+/* CRM: компактное окно — фиксированная ширина, не тянется в тонкую полоску; вкладки; сообщения в размере задач */
+.sheet.crm-dwin{width:min(760px,calc(100vw - 32px));max-width:760px;height:min(78vh,640px);border-radius:18px}
+.crm-left{flex:1 1 58%;padding:0 26px 20px}
+.crm-right{flex:0 0 42%;min-width:260px}
+.crm-body{max-width:none;padding-top:6px}
+.crm-dtop{padding:10px 0 0}
+.crm-dtitle{font-size:20px;margin:10px 0 12px}
+.crm-head-p{margin:8px 0 10px;gap:12px}
+.crm-head-p .crm-card-t{margin:0;font-size:20px;line-height:1.2}
+.crm-head-p .crm-av.lg{width:44px;height:44px;font-size:15px}
+.crm-sub{font-size:12px;margin-top:1px}
+.crm-tabs{display:flex;gap:2px;border-bottom:1px solid #ececf0;margin:0 0 10px;flex:none}
+.crm-tab{border:0;background:none;padding:7px 10px;font:inherit;font-size:13px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.crm-tab:hover{color:var(--ink)}
+.crm-tab.on{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
+.crm-panel[hidden]{display:none}
+.crm-props{gap:2px}
+.crm-prop{grid-template-columns:112px minmax(0,1fr);min-height:28px}
+.crm-pl{font-size:13px;padding-top:5px;gap:6px}
+.crm-pl svg{width:14px;height:14px}
+.crm-pv{min-height:24px;padding-top:2px;gap:5px}
+.crm-in{font-size:14px}
+.crm-chip{font-size:12px;padding:3px 10px}
+.crm-add-btn,.crm-ent-n{font-size:12px}
+.crm-groups{gap:10px}
+.crm-grp-h{font-size:11px;padding:7px 12px}
+.crm-drow{font-size:13px;padding:7px 12px}
+.crm-msgs{padding:10px 12px;gap:8px}
+.crm-msg{max-width:88%}
+.crm-bub{font-size:14px;line-height:1.3;padding:6px 10px;border-radius:12px 12px 4px 12px}
+.crm-msg-t{font-size:10.5px}
+.crm-chat-h{font-size:11px;padding:10px 14px 8px}
+.crm-compose{padding:8px 10px 10px}
+.crm-compose textarea{font-size:13px;padding:7px 10px;min-height:34px}
+@media (max-width:640px){
+  .sheet.crm-dwin{width:calc(100vw - 16px);height:auto;max-height:92vh}
+  .crm-win{flex-direction:column;height:auto}
+  .crm-left,.crm-right{flex:none}
+  .crm-left{padding:0 16px 16px}
+  .crm-right{min-width:0;min-height:44vh;border-left:0;border-top:1px solid #ececf0}
+}

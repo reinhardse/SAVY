@@ -1280,7 +1280,11 @@ def crm_deal_add_contact(did: int, body: CrmIdIn, db: Session = Depends(get_db),
         raise HTTPException(404, "Не найдено")
     if c not in d.contacts:
         d.contacts.append(c)
-        db.commit()
+    # компании контакта подтягиваются к сделке автоматически
+    for comp in c.companies:
+        if comp not in d.companies:
+            d.companies.append(comp)
+    db.commit()
     return _crm_deal_full(d, db)
 
 
@@ -1300,7 +1304,11 @@ def crm_deal_add_company(did: int, body: CrmIdIn, db: Session = Depends(get_db),
         raise HTTPException(404, "Не найдено")
     if c not in d.companies:
         d.companies.append(c)
-        db.commit()
+    # и наоборот: контакты компании подтягиваются к сделке
+    for person in c.contacts:
+        if person not in d.contacts:
+            d.contacts.append(person)
+    db.commit()
     return _crm_deal_full(d, db)
 
 
