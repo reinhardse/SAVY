@@ -410,7 +410,6 @@ function crmBindFeed(kind, oid, items) {
     taskMode = on;
     compose.classList.toggle('task-mode', on);
     tfrow.hidden = !on;
-    (on ? tfrow : compose.querySelector('.crm-compose-bar')).appendChild(sendBtn);
     addBtn.classList.toggle('on', on);
     addBtn.textContent = on ? 'Отмена' : '+ задача';
     ta.placeholder = on ? '' : 'Напишите сообщение…';
