@@ -1337,3 +1337,19 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-msgs > .crm-msg{max-width:88%;align-items:center}
 .crm-msg-t{align-self:center}
 .crm-compose .crm-ta-wrap,.crm-compose .crm-tf-row,.crm-compose .crm-compose-bar{width:88%;align-self:center}
+
+/* CRM: время и автор — внутри сообщения и задачи, справа снизу; «…» — внутри зелёного поля справа сверху;
+   верх ленты коротко размывается при уходе сообщений; заголовок «Сообщения и задачи» убран */
+.crm-feedwrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
+.crm-feedwrap::before{content:'';position:absolute;left:0;right:0;top:0;height:28px;background:linear-gradient(#fff 15%,rgba(255,255,255,0));backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);pointer-events:none;z-index:3}
+.crm-msgs{flex:1;min-height:0}
+.crm-bub{position:relative}
+.crm-bub > .crm-msg-acts{position:absolute;top:2px;right:2px;margin:0;z-index:2}
+.crm-bub-t{display:block;text-align:right;font-size:10px;line-height:1.2;color:#6b8a63;margin-top:2px}
+.crm-msg.ext .crm-bub-t{color:#3f6f99}
+.crm-msg-from{color:inherit}
+.crm-msg .crm-msg-ed{width:100%}
+.crm-task-act{justify-content:space-between;align-items:center;gap:8px;margin-top:6px}
+.crm-task-meta{margin-left:auto;font-size:11px;color:var(--muted);text-align:right;white-space:nowrap}
+.crm-task-meta.red{color:#c64545}
+.crm-task-from{display:none}

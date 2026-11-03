@@ -200,8 +200,7 @@ function crmWin(left, mode, tools = '') {
   return `<div class="crm-win${mode === 'page' ? ' page' : ''}">
     <div class="crm-left">${mode === 'sheet' ? crmSheetTop(tools) : ''}${left}</div>
     <div class="crm-right">
-      <div class="crm-chat-h">Сообщения и задачи</div>
-      <div class="crm-msgs" id="crmmsgs"></div>
+      <div class="crm-feedwrap"><div class="crm-msgs" id="crmmsgs"></div></div>
       <div class="crm-compose" id="crmcompose">
         <div class="crm-ta-wrap">
           <textarea id="crmmsg" rows="1" placeholder="Напишите сообщение…"></textarea>
@@ -238,11 +237,12 @@ function crmTaskHtml(t) {
   return `<div class="crm-task${done ? ' done' : ' open'}${overdue ? ' overdue' : ''}${ext ? ' ext' : ''}" data-task="${t.id}">
     <span class="crm-msg-acts crm-task-acts"><button class="crm-msg-more" data-task-more="${t.id}" aria-label="Действия">${CRM_ICO.dots}</button><span class="crm-msg-menu" data-task-menu="${t.id}" hidden><button data-task-edit="${t.id}">Изменить</button><button class="danger" data-task-del="${t.id}">Удалить</button></span></span>
     <div class="crm-task-top"><span class="crm-task-chk">${done ? CRM_ICO.check : ''}</span>
-      <div class="crm-task-main">${t.from ? `<div class="crm-task-from">${esc(t.from)}</div>` : ''}<div class="crm-task-t">${esc(t.title)}</div><div class="crm-task-m${overdue ? ' red' : ''}">${when}</div></div></div>
+      <div class="crm-task-main"><div class="crm-task-t">${esc(t.title)}</div></div></div>
     ${done ? `<div class="crm-task-res"><span class="crm-task-resl">Итог</span>${esc(t.result).replace(/\n/g, '<br>')}</div>
       <div class="crm-task-m crm-task-stamp">Выполнено ${t.done_at ? crmStamp(t.done_at) : ''}</div>` : ''}
     <div class="crm-task-act">
       ${done ? '' : `<button class="crm-task-done" data-task-done="${t.id}">Выполнено</button>`}
+      <span class="crm-task-meta${overdue ? ' red' : ''}">${t.from ? `${esc(t.from)} · ` : ''}${when}</span>
     </div>
     <div class="crm-task-cf" data-task-cf="${t.id}" hidden>
       <textarea placeholder="Итог: что сделано" rows="2"></textarea>
@@ -264,9 +264,7 @@ function crmItemsHtml(items) {
   return items.map(i => i.kind === 'task'
     ? crmTaskHtml(i)
     : `<div class="crm-msg${i.owner && i.owner !== 'deal' ? ' ext' : ''}" data-msg="${i.id}">
-        <span class="crm-msg-acts"><button class="crm-msg-more" data-msg-more="${i.id}" aria-label="Действия">${CRM_ICO.dots}</button><span class="crm-msg-menu" data-msg-menu="${i.id}" hidden><button data-msg-edit="${i.id}">Изменить</button><button class="danger" data-msg-del="${i.id}">Удалить</button></span></span>
-        <div class="crm-bub">${esc(i.text).replace(/\n/g, '<br>')}</div>
-        <div class="crm-msg-t">${i.from ? `<span class="crm-msg-from">${esc(i.from)} · </span>` : ''}${crmStamp(i.created_at)}</div>
+        <div class="crm-bub"><span class="crm-msg-acts"><button class="crm-msg-more" data-msg-more="${i.id}" aria-label="Действия">${CRM_ICO.dots}</button><span class="crm-msg-menu" data-msg-menu="${i.id}" hidden><button data-msg-edit="${i.id}">Изменить</button><button class="danger" data-msg-del="${i.id}">Удалить</button></span></span>${esc(i.text).replace(/\n/g, '<br>')}<span class="crm-bub-t">${i.from ? `<span class="crm-msg-from">${esc(i.from)} · </span>` : ''}${crmStamp(i.created_at)}</span></div>
         <div class="crm-msg-ed" data-msg-ed="${i.id}" hidden><textarea rows="2">${esc(i.text)}</textarea>
           <div class="crm-task-cf-row"><button class="crm-task-save" data-msg-save="${i.id}">Сохранить</button><button class="crm-task-cancel" data-msg-cancel="${i.id}">Отмена</button></div></div>
       </div>`
@@ -337,7 +335,6 @@ function crmBindFeed(kind, oid, items) {
     const msgView = (id, editing) => {
       const el = msgEl(id);
       el.querySelector('.crm-bub').hidden = editing;
-      el.querySelector('.crm-msg-t').hidden = editing;
       el.querySelector(`[data-msg-ed="${id}"]`).hidden = !editing;
       if (editing) el.querySelector('[data-msg-ed] textarea').focus();
     };
