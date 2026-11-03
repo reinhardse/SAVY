@@ -1358,3 +1358,4 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 /* CRM: между сообщениями больше воздуха; фон чата — светло-голубовато-серый, от белого слева */
 .crm-msgs{gap:16px}
 .crm-right{background:linear-gradient(90deg,#fff 0,#f2f5fa 96px,#f2f5fa 100%)}
+.crm-win .crm-right{background:linear-gradient(90deg,#fff 0,#e7eef8 140px,#e7eef8 100%)}
