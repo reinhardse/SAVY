@@ -1258,52 +1258,56 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-deal-foot{font-size:12.6px}
 .crm-deal-foot .kc-tag{font-size:11.7px}
 
-/* CRM: окна контакта, компании и сделки — шире и выше; сообщения забирают ширину у левой части; стиль Airbnb, акцент синий */
-.sheet.crm-dwin{width:min(1020px,calc(100vw - 32px));max-width:1020px;height:min(90vh,800px);border-radius:24px;background:#fff;box-shadow:0 14px 44px rgba(0,0,0,.2)}
-.crm-left{flex:1 1 0;min-width:0;padding:0 36px 28px;color:#222}
-.crm-right{flex:0 0 46%;min-width:300px;background:#fff;border-left:1px solid #ebebeb}
-.crm-dtop{padding:18px 0 0}
-.crm-body{padding-top:4px}
-.crm-head-p{margin:14px 0 16px;gap:16px}
-.crm-head-p .crm-card-t{font-size:26px;font-weight:600;letter-spacing:-.02em;line-height:1.15}
-.crm-sub{font-size:14px;color:#717171;margin-top:4px}
-.crm-tabs{gap:26px;border-bottom:1px solid #ebebeb;margin:0 0 6px}
-.crm-tab{font-size:15px;color:#717171;padding:10px 0 12px;border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:500}
-.crm-tab.on{color:#222;font-weight:600;border-bottom-color:#222}
-.crm-props{gap:0}
-.crm-prop{grid-template-columns:150px minmax(0,1fr);min-height:0;padding:11px 0;border-bottom:1px solid #f0f0f0}
-.crm-pl{font-size:14px;color:#717171;padding-top:0;gap:8px}
-.crm-pl svg{width:16px;height:16px;stroke:#717171}
-.crm-pv{min-height:22px;padding-top:0;gap:6px}
-.crm-in{font-size:15px;color:#222;border:0;border-bottom:1px solid transparent;border-radius:0;padding:0 0 1px;background:transparent}
-.crm-in:focus{border-bottom-color:#222;outline:none}
-.crm-in::placeholder{color:#b0b0b0}
-.crm-prop .crm-in:focus,.crm-amount:focus,.crm-url:focus{border-bottom:1px solid #222}
-.crm-chip{font-size:14px;padding:6px 14px;border-radius:999px;border:1px solid #b0b0b0;color:#222;background:#fff}
-.crm-chip.on{border-color:#2f6fe0;background:#eef4ff;color:#2f6fe0}
-.crm-add-btn{font-size:14px;color:#222;border:1px solid #b0b0b0;border-radius:999px;padding:4px 12px;background:#fff}
-.crm-add-btn:hover{border-color:#222}
-.crm-ent{border-radius:999px;background:#f2f2f2;padding:4px 6px 4px 12px}
-.crm-ent-n{font-size:14px;color:#222}
+/* CRM: окна контакта, компании и сделки — тот же вид, что у карточки доски в СЕЙВе: белый лист, тонкие линии, чипы, чёрные кнопки */
+.sheet.crm-dwin{width:min(1000px,calc(100vw - 32px));max-width:1000px;height:min(88vh,780px);border-radius:26px;background:#fff;box-shadow:var(--sh-lg)}
+.crm-left{flex:1 1 0;min-width:0;padding:0 40px 28px;color:var(--ink)}
+.crm-right{flex:0 0 44%;min-width:300px;background:#fff;border-left:1px solid var(--line)}
+.crm-dtop{padding:14px 14px 0}
+.crm-dtop .kb-saved{color:var(--muted);font-size:13px}
+.crm-body{padding-top:6px}
+.crm-head-p{margin:12px 0 18px;gap:16px}
+.crm-head-p .crm-card-t{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.2}
+.crm-sub{font-size:14px;color:var(--muted);margin-top:2px}
+.crm-tabs{gap:22px;border-bottom:1px solid var(--line);margin:0 0 8px}
+.crm-tab{font-size:15px;font-weight:600;color:var(--muted);padding:10px 0 12px;border-bottom:2px solid transparent;margin-bottom:-1px}
+.crm-tab:hover{color:var(--ink)}
+.crm-tab.on{color:var(--ink);border-bottom-color:var(--ink)}
+.crm-props{gap:0;margin:0 0 4px}
+.crm-prop{grid-template-columns:132px minmax(0,1fr);min-height:34px;padding:4px 0}
+.crm-pl{font-size:14px;line-height:24px;color:#787774;padding-top:5px;gap:8px}
+.crm-pl svg{width:16px;height:16px;stroke:#787774}
+.crm-pv{min-height:30px;padding-top:2px;gap:6px}
+.crm-in{font-size:15px;color:var(--ink);border:1px solid transparent;border-radius:8px;padding:4px 8px;background:transparent;margin-left:-8px}
+.crm-in:hover{border-color:var(--line)}
+.crm-in:focus{border-color:var(--ink);outline:none}
+.crm-in::placeholder{color:#b5b5bd}
+.crm-prop .crm-in:focus,.crm-amount:focus,.crm-url:focus{border-bottom:1px solid var(--ink)}
+.crm-chip{font-size:13px;padding:3px 10px;border-radius:999px;border:1px solid #e3e3e8;background:#f2f2f4;color:#6b6b74}
+.crm-chip:hover{background:#e9e9ee}
+.crm-chip.on{background:#2f2f33;border-color:#2f2f33;color:#fff}
+.crm-add-btn{font-size:13px;color:var(--muted);border:1px dashed var(--line2);border-radius:999px;padding:3px 10px;background:transparent}
+.crm-add-btn:hover{color:var(--ink);border-color:#b5b5bd}
+.crm-ent{border-radius:999px;background:#f2f2f4;border:1px solid #e3e3e8;padding:3px 6px 3px 10px}
+.crm-ent-n{font-size:13px;color:#6b6b74}
 .crm-groups{gap:12px}
-.crm-grp{border:1px solid #ebebeb;border-radius:16px;box-shadow:none}
-.crm-grp-h{font-size:14px;font-weight:600;letter-spacing:0;text-transform:none;padding:12px 16px;background:#fff;border-bottom:1px solid #f0f0f0}
-.crm-grp-h.act{color:#222}
-.crm-grp-h.ok{color:#222}
-.crm-grp-h.lost{color:#717171}
-.crm-drow{font-size:14px;padding:11px 16px;border-bottom:1px solid #f5f5f5}
+.crm-grp{border:1px solid var(--line);border-radius:16px;box-shadow:none;overflow:hidden}
+.crm-grp-h{font-size:13px;font-weight:700;letter-spacing:0;text-transform:none;padding:10px 14px;background:#fafafb;border-bottom:1px solid #f0f0f3}
+.crm-grp-h.act{color:var(--ink)}
+.crm-grp-h.ok{color:#3f7d52}
+.crm-grp-h.lost{color:var(--muted)}
+.crm-drow{font-size:14px;padding:10px 14px;border-bottom:1px solid #f5f5f7}
 .crm-drow:last-child{border-bottom:0}
-.crm-drow:hover{background:#f7f7f7}
-.crm-chat-h{font-size:15px;font-weight:600;letter-spacing:0;text-transform:none;color:#222;background:#fff;padding:20px 24px 14px;border-bottom:1px solid #ebebeb}
-.crm-msgs{padding:16px 22px;gap:10px;background:#fff}
-.crm-msg{max-width:84%}
-.crm-bub{background:#2f6fe0;color:#fff;font-size:14px;line-height:1.35;padding:8px 13px;border-radius:18px 18px 6px 18px;box-shadow:none}
-.crm-msg-t{font-size:11px;color:#8a8a8a}
-.crm-compose{background:#fff;padding:12px 16px 14px;border-top:1px solid #ebebeb}
-.crm-compose textarea{border:1px solid #b0b0b0;border-radius:20px;padding:9px 14px;font-size:14px}
-.crm-compose textarea:focus{border-color:#222}
-.crm-send{background:#2f6fe0;border-radius:999px;height:36px;padding:0 16px}
-.crm-send:hover{background:#2862c9}
-.crm-addtask{border:1px solid #b0b0b0;border-radius:999px;background:#fff;color:#222;font-size:13px;padding:6px 12px}
-.crm-tf{background:#fff}
-.crm-task{border:1px solid #ebebeb;border-radius:16px;box-shadow:none;padding:12px 14px}
+.crm-drow:hover{background:#f7f7f9}
+.crm-chat-h{font-size:13px;font-weight:700;letter-spacing:0;text-transform:none;color:var(--ink);background:#fff;padding:18px 22px 12px;border-bottom:1px solid var(--line)}
+.crm-msgs{padding:14px 20px;gap:10px;background:#fff}
+.crm-msg{max-width:86%}
+.crm-bub{background:#2f2f33;color:#fff;font-size:14px;line-height:1.35;padding:7px 12px;border-radius:18px 18px 6px 18px;box-shadow:none}
+.crm-msg-t{font-size:11px;color:var(--muted)}
+.crm-compose{background:#fff;padding:12px 14px 14px;border-top:1px solid var(--line)}
+.crm-compose textarea{border:1px solid var(--line2);border-radius:14px;padding:8px 12px;font-size:14px}
+.crm-compose textarea:focus{border-color:var(--ink);outline:none}
+.crm-addtask{border:1px dashed var(--line2);border-radius:999px;background:transparent;color:var(--muted);font-size:13px;padding:5px 12px}
+.crm-addtask:hover{color:var(--ink)}
+.crm-send{background:var(--ink);border-radius:12px;height:34px;padding:0 14px;font-size:14px;font-weight:600}
+.crm-send:hover{background:#000}
+.crm-task{border:1px solid var(--line);border-radius:14px;box-shadow:none;padding:10px 12px}
