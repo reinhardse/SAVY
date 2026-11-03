@@ -1334,13 +1334,10 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-msgs > *{align-self:center;width:88%;max-width:88%}
 .crm-msgs > .crm-msg{max-width:88%;align-items:center}
 .crm-msg-t{align-self:center}
-.crm-compose .crm-ta-wrap,.crm-compose .crm-tf-row,.crm-compose .crm-compose-bar{width:88%;align-self:center}
 
 /* CRM: время и автор — внутри сообщения и задачи, справа снизу; «…» — внутри зелёного поля справа сверху;
    верх ленты коротко размывается при уходе сообщений; заголовок «Сообщения и задачи» убран */
 .crm-feedwrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
-.crm-feedwrap::before{content:'';position:absolute;left:0;right:0;top:0;height:40px;background:linear-gradient(#fff 0%,rgba(255,255,255,.6) 55%,rgba(255,255,255,0) 100%);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);-webkit-mask-image:linear-gradient(#000 35%,transparent);mask-image:linear-gradient(#000 35%,transparent);pointer-events:none;z-index:3;opacity:0;transition:opacity .2s}
-.crm-feedwrap.scrolled::before{opacity:1}
 .crm-msgs{flex:1;min-height:0}
 .crm-bub{position:relative}
 .crm-bub > .crm-msg-acts{position:absolute;top:2px;right:2px;margin:0;z-index:2}
@@ -1366,7 +1363,6 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-msgs{align-items:center}
 .crm-msgs > *{width:84%;max-width:84%;align-self:center}
 .crm-msgs > .crm-msg{align-self:center;align-items:flex-end;width:84%;max-width:84%}
-.crm-compose .crm-ta-wrap,.crm-compose .crm-tf-row,.crm-compose .crm-compose-bar{width:84%;align-self:center}
 .crm-body{margin:0 auto;max-width:430px;width:100%}
 .crm-alink,.crm-linkrow{font-size:13.5px}
 .crm-edit{font-size:11px}
@@ -1382,4 +1378,6 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 
 /* CRM: откат фона — снова вертикальная линия между параметрами и лентой, фон ленты прежний */
 .crm-right{border-left:1px solid #ececf0;background:#fafafb}
-.crm-feedwrap::before{background:linear-gradient(#fafafb 0%,rgba(250,250,251,.6) 55%,rgba(250,250,251,0) 100%)}
+
+/* CRM: нижняя панель — как раньше: поле и кнопки на всю ширину; сверху ленты без размытия, сообщения уходят за край */
+.crm-compose .crm-ta-wrap,.crm-compose .crm-tf-row,.crm-compose .crm-compose-bar{width:100%;align-self:stretch}
