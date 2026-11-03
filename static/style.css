@@ -1418,3 +1418,31 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-msgs{padding-left:0;padding-right:0}
 .crm-msgs > *,.crm-msgs > .crm-msg{width:calc(100% - 64px);max-width:calc(100% - 64px)}
 .crm-compose{padding-left:32px;padding-right:32px}
+
+/* подзадачи в заметке и окна подзадач: галочка, название, счётчик «выполнено/всего», дата, хлебные крошки */
+.ksub{display:flex;align-items:center;gap:8px;padding:3px 0;cursor:default}
+.ksb{width:16px;height:16px;border:1.5px solid #bcbcc4;border-radius:4px;background:#fff;flex:none;cursor:pointer;position:relative;box-sizing:border-box;display:inline-block}
+.ksb.big{width:20px;height:20px;border-radius:5px}
+.ksb[aria-checked="true"]{background:#3fa975;border-color:#3fa975}
+.ksb[aria-checked="true"]::after{content:'';position:absolute;left:4px;top:1px;width:4px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.ksb:hover{border-color:#8f8f99}
+.ks-t{cursor:pointer;color:var(--ink);border-bottom:1px solid transparent;word-break:break-word}
+.ks-t:hover{border-bottom-color:var(--ink)}
+.ksub.done .ks-t,.ks-child.done .ks-t{color:#9a9aa3;text-decoration:line-through}
+.ks-cnt{font-size:12px;color:var(--muted);background:#f2f2f4;border-radius:999px;padding:1px 7px;display:inline-flex;align-items:center;flex:none}
+.ks-date{font-size:12px;color:var(--muted);flex:none}
+.ks-crumbs{display:flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:13px;color:var(--muted);min-width:0}
+.ks-crumb{border:0;background:none;color:var(--muted);font:inherit;cursor:pointer;padding:2px 6px;border-radius:6px}
+.ks-crumb:hover{background:#f2f2f4;color:var(--ink)}
+.ks-cur{color:var(--ink);font-weight:600;padding:2px 6px}
+.ks-sep{color:#b5b5bd}
+.ks-head{display:flex;align-items:center;gap:10px;margin:6px 0 14px}
+.ks-title{flex:1;min-width:0;border:0;outline:none;font-size:22px;font-weight:800;letter-spacing:-.02em;background:transparent;padding:4px 0;color:var(--ink)}
+.ks-children{display:flex;flex-direction:column;margin:6px 0}
+.ks-child{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f2f2f4}
+.ks-add{width:100%;border:0;outline:none;padding:8px 0;font-size:15px;background:transparent;color:var(--ink)}
+.ks-sec{font-size:14px;font-weight:700;margin:4px 0;display:flex;align-items:center;gap:6px}
+.ks-note{width:100%;min-height:90px;border:0;outline:none;resize:none;font-size:15px;line-height:1.6;background:transparent;color:var(--ink2);padding:0;overflow:hidden}
+.ks-foot{margin-top:18px}
+.ks-sheet .kb-top{position:sticky}
+.ks-sheet .ks-crumbs{max-width:calc(100% - 60px)}

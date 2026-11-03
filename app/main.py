@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from . import gcal, meta
 from types import SimpleNamespace
 from urllib.parse import urlparse
-from .db import (BASE_DIR, DATA_DIR, STATUSES, Board, BoardLink, Card, Category, Company, Contact, CrmTask, Deal, DealMessage,
+from .db import (BASE_DIR, DATA_DIR, STATUSES, Board, BoardLink, Card, CardSub, Category, Company, Contact, CrmTask, Deal, DealMessage,
                  GCalToken, Item, KColumn, SessionLocal, Tag, init_db)
 
 PASSWORD = os.environ.get("LIBRARY_PASSWORD")
@@ -733,7 +733,102 @@ def card_create(cid: int, body: CardIn, db: Session = Depends(get_db), _: int = 
 
 @app.get("/api/cards/{kid}")
 def card_read(kid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
-    return card_out(_card(db, kid))
+    c = _card(db, kid)
+    # сводка всех подзадач карточки (любой глубины): заметка рисует строки по ним
+    subs = db.scalars(select(CardSub).where(CardSub.card_id == c.id)).all()
+    return {**card_out(c), "subs": {str(s.id): _sub_brief(db, s) for s in subs}}
+
+
+# ---------- подзадачи: вложенные окна, прогресс «выполнено из всего», хлебные крошки ----------
+class SubIn(BaseModel):
+    title: str = ""
+    parent_id: int | None = None
+
+
+class SubPatch(BaseModel):
+    title: str | None = None
+    note: str | None = None
+    due_date: str | None = None
+    done: bool | None = None
+
+
+def _sub(db: Session, sid: int) -> CardSub:
+    s = db.get(CardSub, sid)
+    if not s:
+        raise HTTPException(404, "Подзадача не найдена")
+    _card(db, s.card_id)  # проверка владельца через карточку
+    return s
+
+
+def _sub_brief(db: Session, s: CardSub) -> dict:
+    kids = db.scalars(select(CardSub).where(CardSub.parent_id == s.id)).all()
+    return {"id": s.id, "title": s.title or "", "done": bool(s.done), "due_date": s.due_date,
+            "total": len(kids), "done_count": sum(1 for k in kids if k.done), "card_id": s.card_id}
+
+
+def _sub_full(db: Session, s: CardSub) -> dict:
+    # крошки: карточка → подзадачи по пути вниз до текущей
+    crumbs, cur = [], s
+    while cur is not None:
+        crumbs.append({"id": cur.id, "title": cur.title or "Без названия"})
+        cur = db.get(CardSub, cur.parent_id) if cur.parent_id else None
+    card = db.get(Card, s.card_id)
+    crumbs.append({"id": None, "title": card.title or "Без названия", "card_id": card.id})
+    crumbs.reverse()
+    kids = db.scalars(select(CardSub).where(CardSub.parent_id == s.id).order_by(CardSub.sort, CardSub.id)).all()
+    return {**_sub_brief(db, s), "note": s.note or "", "crumbs": crumbs,
+            "children": [_sub_brief(db, k) for k in kids]}
+
+
+@app.post("/api/cards/{kid}/subs")
+def sub_create(kid: int, body: SubIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    _card(db, kid)
+    parent = None
+    if body.parent_id:
+        parent = _sub(db, body.parent_id)
+        if parent.card_id != kid:
+            raise HTTPException(400, "Подзадача из другой карточки")
+    last = db.scalar(select(func.max(CardSub.sort)).where(CardSub.card_id == kid, CardSub.parent_id == (parent.id if parent else None))) or 0
+    s = CardSub(card_id=kid, parent_id=parent.id if parent else None, title=body.title.strip()[:300], sort=last + 1)
+    db.add(s)
+    db.commit()
+    return _sub_brief(db, s)
+
+
+@app.get("/api/subs/{sid}")
+def sub_read(sid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    return _sub_full(db, _sub(db, sid))
+
+
+@app.patch("/api/subs/{sid}")
+def sub_patch(sid: int, body: SubPatch, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    s = _sub(db, sid)
+    f = body.model_fields_set
+    if "title" in f and body.title is not None:
+        s.title = body.title.strip()[:300]
+    if "note" in f and body.note is not None:
+        s.note = body.note[:20000]
+    if "due_date" in f:
+        s.due_date = (body.due_date or "").strip() or None
+    if "done" in f and body.done is not None:
+        s.done = body.done
+    db.commit()
+    return _sub_brief(db, s)
+
+
+@app.delete("/api/subs/{sid}")
+def sub_delete(sid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    s = _sub(db, sid)
+    # удаляем подзадачу вместе со всей вложенностью (каскад внешних ключей в SQLite не включён)
+    todo, found = [s.id], []
+    while todo:
+        cur = todo.pop()
+        found.append(cur)
+        todo += [x for (x,) in db.execute(select(CardSub.id).where(CardSub.parent_id == cur)).all()]
+    for x in db.scalars(select(CardSub).where(CardSub.id.in_(found))).all():
+        db.delete(x)
+    db.commit()
+    return {"ok": True}
 
 
 @app.patch("/api/cards/{kid}")

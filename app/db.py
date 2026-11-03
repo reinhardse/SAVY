@@ -86,6 +86,20 @@ class Item(Base):
     __table_args__ = (UniqueConstraint("user_id", "url_norm"),)
 
 
+class CardSub(Base):
+    """Подзадача карточки. Может быть вложена в карточку (parent_id пустой) или в другую подзадачу — глубина без предела."""
+    __tablename__ = "card_subs"
+    id = Column(Integer, primary_key=True)
+    card_id = Column(Integer, ForeignKey("cards.id", ondelete="CASCADE"), nullable=False, index=True)
+    parent_id = Column(Integer, ForeignKey("card_subs.id", ondelete="CASCADE"), nullable=True, index=True)
+    title = Column(String(300), default="")
+    note = Column(Text, default="")
+    due_date = Column(String(10), nullable=True)  # дата YYYY-MM-DD
+    done = Column(Boolean, default=False)
+    sort = Column(Integer, default=0)
+    created_at = Column(DateTime, default=now)
+
+
 class Board(Base):
     __tablename__ = "boards"
     id = Column(Integer, primary_key=True)
