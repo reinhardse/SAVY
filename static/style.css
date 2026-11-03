@@ -1278,3 +1278,8 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-task-from{font-size:11px;color:#3f6f99;margin-bottom:1px}
 .crm-compose textarea,.crm-tf-title,.crm-msg-ed textarea,.crm-task-ed textarea,.crm-task-cf textarea{max-height:50vh;overflow-y:auto;line-height:1.4}
 .crm-compose textarea,.crm-tf-title,.crm-task-cf textarea,.crm-task-ed textarea,.crm-msg-ed textarea{flex:none}
+
+/* CRM: невыполненные задачи закреплены сверху панели «Сообщения и задачи» */
+.crm-pins{flex:none;display:flex;flex-direction:column;gap:6px;padding:8px 12px;border-bottom:1px solid #ececf0;background:#fff;max-height:42%;overflow-y:auto}
+.crm-pins[hidden]{display:none}
+.crm-pins .crm-task{margin:0}

@@ -201,6 +201,7 @@ function crmWin(left, mode, tools = '') {
     <div class="crm-left">${mode === 'sheet' ? crmSheetTop(tools) : ''}${left}</div>
     <div class="crm-right">
       <div class="crm-chat-h">Сообщения и задачи</div>
+      <div class="crm-pins" id="crmpins" hidden></div>
       <div class="crm-msgs" id="crmmsgs"></div>
       <div class="crm-tf" id="crmtf" hidden>
         <textarea class="crm-tf-title" id="crmtftitle" rows="1" placeholder="Что нужно сделать"></textarea>
@@ -285,7 +286,13 @@ function crmBindFeed(kind, oid, items) {
   let list = items;
   const box = $('#crmmsgs');
   const render = () => {
-    box.innerHTML = crmItemsHtml(list);
+    // невыполненные задачи закреплены сверху панели и не уплывают при прокрутке; выполненная уходит в ленту
+    const pinned = list.filter(i => i.kind === 'task' && i.status !== 'done');
+    const rest = list.filter(i => !(i.kind === 'task' && i.status !== 'done'));
+    const pins = $('#crmpins');
+    pins.innerHTML = pinned.map(crmTaskHtml).join('');
+    pins.hidden = !pinned.length;
+    box.innerHTML = rest.length || !pinned.length ? crmItemsHtml(rest) : '';
     bindTasks();
     box.scrollTop = box.scrollHeight;
     const pb = box.closest('.crm-pop-body');
