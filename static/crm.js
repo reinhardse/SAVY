@@ -461,8 +461,14 @@ function crmBindFeed(kind, oid, items) {
 
 /* ---------- ссылки: контакты и компании, выбор из базы с поиском ---------- */
 const crmCapKind = kind => crmCap(kind);
+// длинное название — в одну строку: лишние имя и отчество сводятся к инициалам («ИП Мурадян М. А.»); полное — в подсказке
+function crmShortName(name) {
+  const w = String(name || '').trim().split(/\s+/);
+  if (w.length <= 3) return name;
+  return [...w.slice(0, 2), ...w.slice(2).map(x => x.charAt(0) + '.')].join(' ');
+}
 function crmEntChips(kind, items) {
-  return items.map(x => `<span class="crm-ent"><button class="crm-ent-n" data-open-${kind}="${x.id}">${esc(x.name)}</button><button class="crm-ent-x" data-unlink-${kind}="${x.id}" aria-label="Убрать">${XICON}</button></span>`).join('');
+  return items.map(x => `<span class="crm-ent"><button class="crm-ent-n" data-open-${kind}="${x.id}" title="${esc(x.name)}">${esc(crmShortName(x.name))}</button><button class="crm-ent-x" data-unlink-${kind}="${x.id}" aria-label="Убрать">${XICON}</button></span>`).join('');
 }
 
 function crmBindPicker(box, kind, onLink, onUnlink, onOpen, repaint) {

@@ -1381,3 +1381,7 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 
 /* CRM: нижняя панель — как раньше: поле и кнопки на всю ширину; сверху ленты без размытия, сообщения уходят за край */
 .crm-compose .crm-ta-wrap,.crm-compose .crm-tf-row,.crm-compose .crm-compose-bar{width:100%;align-self:stretch}
+
+/* CRM: теги контактов и компаний — в одну строку, без переноса; длинное название сокращено до инициалов */
+.crm-ent{white-space:nowrap;max-width:100%}
+.crm-ent-n{white-space:nowrap;display:inline-block;vertical-align:middle;max-width:280px;overflow:hidden;text-overflow:ellipsis}
