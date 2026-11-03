@@ -90,7 +90,19 @@ const crmBackBtn = () => {
 // клик за пределами окна: закрывается только текущее окно, остальные остаются
 function crmOverlay() {
   const ov = $('#ov');
-  if (ov) ov.onclick = e => { if (e.target.id === 'ov') crmCloseWin(); };
+  if (ov) ov.onclick = e => { if (e.target.id === 'ov') crmCloseOutside(); };
+}
+// клик мимо окна: возвращаемся к окну, с которого начата цепочка (например, к сделке), а не на шаг назад;
+// если окно одно — закрываем всё и возвращаемся на страницу
+function crmCloseOutside() {
+  if (crmStack.length) {
+    const root = crmStack[0];
+    crmStack = [];
+    crmCurrent = root.fn;
+    crmCurKind = root.kind;
+    return root.fn();
+  }
+  return crmCloseAll();
 }
 // клик мимо меню сообщения — меню закрывается
 document.addEventListener('click', e => {
