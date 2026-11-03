@@ -1319,3 +1319,11 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-ph[hidden]{display:none}
 @keyframes crmSweep{from{background-position:100% 0}to{background-position:0 0}}
 .crm-compose .crm-ta-wrap,.crm-compose textarea#crmmsg{width:100%;align-self:stretch}
+
+/* CRM: ссылки в окнах — как в Notion: серый шрифт, подчёркивание, открываются в новой вкладке */
+.crm-alink{color:#787774;text-decoration:underline;text-underline-offset:2px;text-decoration-color:#b5b5bd;word-break:break-all;font-size:inherit;cursor:pointer}
+.crm-alink:hover{color:var(--ink);text-decoration-color:var(--ink)}
+.crm-linkrow{display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:100%}
+.crm-linkrow[hidden]{display:none}
+.crm-edit{border:0;background:none;color:#b5b5bd;cursor:pointer;padding:0 2px;font-size:12px;line-height:1}
+.crm-edit:hover{color:var(--ink)}
