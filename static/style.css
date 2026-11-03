@@ -1263,30 +1263,3 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-left{flex:1 1 0;min-width:0;padding:0 26px 20px}
 .crm-right{flex:0 0 52%;min-width:320px}
 .crm-prop{grid-template-columns:108px minmax(0,1fr)}
-
-/* CRM: шрифты чуть крупнее прежнего «мельче» — левая часть, сообщения и задачи */
-.crm-head-p .crm-card-t{font-size:19px}
-.crm-dtitle{font-size:19px}
-.crm-sub{font-size:12px}
-.crm-tab{font-size:13px}
-.crm-pl{font-size:12.5px}
-.crm-pl svg{width:15px;height:15px}
-.crm-in{font-size:13.5px}
-.crm-chip{font-size:12px}
-.crm-add-btn,.crm-ent-n{font-size:12px}
-.crm-grp-h{font-size:11px}
-.crm-drow{font-size:12.5px}
-.crm-drow-s{font-size:12px}
-.crm-bub{font-size:13.5px;line-height:1.3;padding:6px 11px}
-.crm-msg-t{font-size:10.5px}
-.crm-task-t{font-size:13.5px}
-.crm-task-m{font-size:11.5px}
-.crm-task-res{font-size:12.5px}
-.crm-task-done,.crm-task-link{font-size:12px}
-.crm-chat-h{font-size:11px}
-.crm-compose textarea{font-size:13px}
-.crm-send{font-size:13px}
-.crm-addtask{font-size:12px}
-.crm-msg-ed textarea,.crm-task-ed textarea,.crm-task-cf textarea{font-size:13px}
-.crm-tf-title{font-size:13px}
-.crm-tf-date,.crm-tf-time{font-size:12.5px}
