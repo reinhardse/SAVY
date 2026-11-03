@@ -1327,3 +1327,7 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-linkrow[hidden]{display:none}
 .crm-edit{border:0;background:none;color:#b5b5bd;cursor:pointer;padding:0 2px;font-size:12px;line-height:1}
 .crm-edit:hover{color:var(--ink)}
+
+/* CRM: без вертикальной линии между параметрами и лентой — плавный переход от белого к светло-серому */
+.crm-right{border-left:0;background:linear-gradient(90deg,#fff 0,#fafafb 72px,#fafafb 100%)}
+.crm-chat-h,.crm-msgs,.crm-compose{background:transparent}
