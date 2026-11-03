@@ -684,7 +684,10 @@ async function crmOpenDeal(id) {
     });
     // бюджет: сохраняем при уходе из поля
     const amt = $('#crmamt');
-    amt.oninput = () => { const v = amt.value.replace(/\D/g, ''); amt.value = v ? (+v).toLocaleString('ru-RU') : ''; };
+    // ширина поля — по длине суммы, знак рубля стоит сразу за ней
+    const fitAmt = () => { amt.style.width = Math.max(3, amt.value.length + 1) + 'ch'; };
+    fitAmt();
+    amt.oninput = () => { const v = amt.value.replace(/\D/g, ''); amt.value = v ? (+v).toLocaleString('ru-RU') : ''; fitAmt(); };
     amt.onblur = async () => {
       const n = +(amt.value.replace(/\D/g, '')) || 0;
       if (n === (d.amount || 0)) return;

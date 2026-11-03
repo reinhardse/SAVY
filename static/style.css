@@ -1405,3 +1405,9 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-msgs{padding-top:26px}
 .crm-ent{display:inline-flex;align-items:center;max-width:100%;min-width:0}
 .crm-ent-n{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* CRM: бюджет — знак рубля сразу за суммой; кнопка «Отправить» — справа от «+ задача» с зазором 6 px */
+.crm-amount{width:auto;min-width:3ch}
+.crm-pv .crm-unit{margin-left:4px}
+.crm-compose-bar{justify-content:flex-start;gap:6px}
+.crm-compose-bar .crm-send{margin-left:0}
