@@ -1259,7 +1259,7 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-deal-foot .kc-tag{font-size:11.7px}
 
 /* CRM: окна контакта, компании и сделки — крупнее по ширине и высоте; сообщения и задачи шире за счёт левой части с параметрами */
-.sheet.crm-dwin{width:min(1040px,calc(100vw - 32px));max-width:1040px;height:min(90vh,820px)}
-.crm-left{flex:1 1 0;min-width:0;padding:0 28px 22px}
-.crm-right{flex:0 0 50%;min-width:340px}
+.sheet.crm-dwin{width:min(860px,calc(100vw - 32px));max-width:860px;height:min(88vh,740px);min-height:min(560px,88vh)}
+.crm-left{flex:1 1 0;min-width:0;padding:0 26px 20px}
+.crm-right{flex:0 0 52%;min-width:320px}
 .crm-prop{grid-template-columns:108px minmax(0,1fr)}
