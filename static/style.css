@@ -1263,3 +1263,10 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-left{flex:1 1 0;min-width:0;padding:0 26px 20px}
 .crm-right{flex:0 0 52%;min-width:320px}
 .crm-prop{grid-template-columns:108px minmax(0,1fr)}
+
+/* CRM: чуть крупнее теги — формат (белый/чёрный), контакты и компании в окнах, кнопки «+ контакт», «+ компанию» */
+.crm-chip{font-size:13px;padding:4px 12px}
+.crm-add-btn{font-size:13px;padding:3px 12px}
+.crm-ent{padding:3px 5px 3px 11px}
+.crm-ent-n{font-size:13px}
+.crm-ent-x svg{width:11px;height:11px}
