@@ -236,9 +236,10 @@ function crmTaskHtml(t) {
   const when = [crmDate(t.due_date), t.due_time].filter(Boolean).join(' · ');
   const done = t.status === 'done';
   const overdue = !done && t.due_date < crmToday();
-  return `<div class="crm-task${done ? ' done' : ''}${overdue ? ' overdue' : ''}" data-task="${t.id}">
+  const ext = t.owner && t.owner !== 'deal';
+  return `<div class="crm-task${done ? ' done' : ''}${overdue ? ' overdue' : ''}${ext ? ' ext' : ''}" data-task="${t.id}">
     <div class="crm-task-top"><span class="crm-task-chk">${done ? CRM_ICO.check : ''}</span>
-      <div class="crm-task-main"><div class="crm-task-t">${esc(t.title)}</div><div class="crm-task-m${overdue ? ' red' : ''}">${when}</div></div></div>
+      <div class="crm-task-main">${t.from ? `<div class="crm-task-from">${esc(t.from)}</div>` : ''}<div class="crm-task-t">${esc(t.title)}</div><div class="crm-task-m${overdue ? ' red' : ''}">${when}</div></div></div>
     ${done ? `<div class="crm-task-res"><span class="crm-task-resl">Итог</span>${esc(t.result).replace(/\n/g, '<br>')}</div>
       <div class="crm-task-m crm-task-stamp">Выполнено ${t.done_at ? crmStamp(t.done_at) : ''}</div>` : ''}
     <div class="crm-task-act">
@@ -265,9 +266,9 @@ function crmTaskHtml(t) {
 function crmItemsHtml(items) {
   return items.map(i => i.kind === 'task'
     ? crmTaskHtml(i)
-    : `<div class="crm-msg" data-msg="${i.id}">
+    : `<div class="crm-msg${i.owner && i.owner !== 'deal' ? ' ext' : ''}" data-msg="${i.id}">
         <div class="crm-bub">${esc(i.text).replace(/\n/g, '<br>')}</div>
-        <div class="crm-msg-t">${crmStamp(i.created_at)}<span class="crm-msg-acts"><button class="crm-msg-more" data-msg-more="${i.id}" aria-label="Действия">${CRM_ICO.dots}</button><span class="crm-msg-menu" data-msg-menu="${i.id}" hidden><button data-msg-edit="${i.id}">Изменить</button><button class="danger" data-msg-del="${i.id}">Удалить</button></span></span></div>
+        <div class="crm-msg-t">${i.from ? `<span class="crm-msg-from">${esc(i.from)} · </span>` : ''}${crmStamp(i.created_at)}<span class="crm-msg-acts"><button class="crm-msg-more" data-msg-more="${i.id}" aria-label="Действия">${CRM_ICO.dots}</button><span class="crm-msg-menu" data-msg-menu="${i.id}" hidden><button data-msg-edit="${i.id}">Изменить</button><button class="danger" data-msg-del="${i.id}">Удалить</button></span></span></div>
         <div class="crm-msg-ed" data-msg-ed="${i.id}" hidden><textarea rows="2">${esc(i.text)}</textarea>
           <div class="crm-task-cf-row"><button class="crm-task-save" data-msg-save="${i.id}">Сохранить</button><button class="crm-task-cancel" data-msg-cancel="${i.id}">Отмена</button></div></div>
       </div>`
@@ -275,6 +276,11 @@ function crmItemsHtml(items) {
 }
 
 // kind: deals | contacts | companies — кому принадлежит лента
+// поля ввода в окнах CRM растут по содержимому: лента над ними уменьшается
+const crmGrowField = el => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
+document.addEventListener('input', e => { if (e.target.tagName === 'TEXTAREA' && e.target.closest('.crm-win')) crmGrowField(e.target); });
+document.addEventListener('focusin', e => { if (e.target.tagName === 'TEXTAREA' && e.target.closest('.crm-win')) crmGrowField(e.target); });
+
 function crmBindFeed(kind, oid, items) {
   let list = items;
   const box = $('#crmmsgs');
@@ -306,7 +312,7 @@ function crmBindFeed(kind, oid, items) {
         if (!result) { cf.querySelector('textarea').focus(); return; }
         try {
           const upd = await api(`/crm/tasks/${id}/complete`, {method: 'POST', body: {result}});
-          list = list.map(i => i.kind === 'task' && i.id === id ? upd : i);
+          list = list.map(i => i.kind === 'task' && i.id === id ? {...i, ...upd} : i);
           render();
         } catch (e) { alert(e.message); }
       };
@@ -339,7 +345,7 @@ function crmBindFeed(kind, oid, items) {
       if (!text) { msgEl(id).querySelector('[data-msg-ed] textarea').focus(); return; }
       try {
         const upd = await api(`/crm/messages/${id}`, {method: 'PATCH', body: {text}});
-        list = list.map(i => i.kind === 'message' && i.id === id ? upd : i);
+        list = list.map(i => i.kind === 'message' && i.id === id ? {...i, ...upd} : i);
         render();
       } catch (e) { alert(e.message); }
     });
@@ -366,7 +372,7 @@ function crmBindFeed(kind, oid, items) {
       if (!body.due_date) { c.querySelector('[data-ed-date]').focus(); return; }
       try {
         const upd = await api(`/crm/tasks/${id}`, {method: 'PATCH', body});
-        list = list.map(i => i.kind === 'task' && i.id === id ? upd : i);
+        list = list.map(i => i.kind === 'task' && i.id === id ? {...i, ...upd} : i);
         render();
       } catch (e) { alert(e.message); }
     });
@@ -415,10 +421,12 @@ function crmBindFeed(kind, oid, items) {
 
   // сообщения
   const ta = $('#crmmsg');
+  ta.oninput = () => crmGrow(ta);
   const send = async () => {
     const text = ta.value.trim();
     if (!text) return;
     ta.value = '';
+    crmGrow(ta);
     try {
       const m = await api(`/crm/${kind}/${oid}/messages`, {method: 'POST', body: {text}});
       list = [...list, m];

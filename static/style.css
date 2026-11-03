@@ -1270,3 +1270,11 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-ent{padding:3px 5px 3px 11px}
 .crm-ent-n{font-size:13px}
 .crm-ent-x svg{width:11px;height:11px}
+
+/* CRM: записи из контакта и компании — голубые (в своей ленте и в ленте сделки); поля ввода растут вверх */
+.crm-msg.ext .crm-bub{background:#cfe8fb;color:#0d3b66}
+.crm-msg-from{color:#3f6f99}
+.crm-task.ext{background:#eef7fd;border-color:#bcdcf5}
+.crm-task-from{font-size:11px;color:#3f6f99;margin-bottom:1px}
+.crm-compose textarea,.crm-tf-title,.crm-msg-ed textarea,.crm-task-ed textarea,.crm-task-cf textarea{max-height:50vh;overflow-y:auto;line-height:1.4}
+.crm-compose textarea,.crm-tf-title,.crm-task-cf textarea,.crm-task-ed textarea,.crm-msg-ed textarea{flex:none}

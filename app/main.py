@@ -978,11 +978,21 @@ def _crm_deal_brief(d: Deal) -> dict:
             "open_tasks": sum(1 for t in d.tasks if t.status == "open")}
 
 
+def _crm_owner_of(row) -> str:
+    """Кому принадлежит сообщение или задача: сделке, контакту или компании."""
+    return "deal" if row.deal_id else "contact" if row.contact_id else "company"
+
+
 def _crm_task_out(t: CrmTask) -> dict:
     return {"id": t.id, "kind": "task", "title": t.title, "due_date": t.due_date, "due_time": t.due_time,
             "status": t.status, "result": t.result or "",
             "done_at": t.done_at.isoformat() if t.done_at else None,
-            "created_at": t.created_at.isoformat()}
+            "created_at": t.created_at.isoformat(), "owner": _crm_owner_of(t)}
+
+
+def _crm_msg_out(m: DealMessage) -> dict:
+    return {"id": m.id, "kind": "message", "text": m.text, "created_at": m.created_at.isoformat(),
+            "owner": _crm_owner_of(m)}
 
 
 def _crm_deal_full(d: Deal, db: Session | None = None) -> dict:
@@ -1017,15 +1027,22 @@ def _crm_sync_task(db: Session, t: CrmTask) -> None:
 
 
 def _crm_feed(db: Session, kind: str, obj) -> list[dict]:
-    """Лента владельца: сообщения и задачи в хронологическом порядке."""
+    """Лента владельца: сообщения и задачи в хронологическом порядке.
+    У сделки в ленту попадают и сообщения с задачами её контактов и компаний (с пометкой, чья запись)."""
+    sources = [(kind, obj)]
     if kind == "deals":
-        msgs, tasks = obj.messages, obj.tasks
-    else:
-        col = CRM_OWNER_COL[kind]
-        msgs = db.scalars(select(DealMessage).where(getattr(DealMessage, col) == obj.id)).all()
-        tasks = db.scalars(select(CrmTask).where(getattr(CrmTask, col) == obj.id)).all()
-    items = [{"id": m.id, "kind": "message", "text": m.text, "created_at": m.created_at.isoformat()} for m in msgs]
-    items += [_crm_task_out(t) for t in tasks]
+        sources += [("contacts", c) for c in obj.contacts] + [("companies", k) for k in obj.companies]
+    items = []
+    for skind, sobj in sources:
+        if skind == "deals":
+            msgs, tasks = sobj.messages, sobj.tasks
+        else:
+            col = CRM_OWNER_COL[skind]
+            msgs = db.scalars(select(DealMessage).where(getattr(DealMessage, col) == sobj.id)).all()
+            tasks = db.scalars(select(CrmTask).where(getattr(CrmTask, col) == sobj.id)).all()
+        frm = None if skind == kind else (_crm_name(sobj) if skind == "contacts" else (sobj.name or "Без названия"))
+        items += [{**_crm_msg_out(m), "from": frm} for m in msgs]
+        items += [{**_crm_task_out(t), "from": frm} for t in tasks]
     items.sort(key=lambda x: x["created_at"])
     return items
 
@@ -1340,7 +1357,7 @@ def crm_message_add(kind: str, oid: int, body: CrmMessageIn, db: Session = Depen
     m = DealMessage(**{CRM_OWNER_COL[kind]: obj.id}, text=text[:5000])
     db.add(m)
     db.commit()
-    return {"id": m.id, "kind": "message", "text": m.text, "created_at": m.created_at.isoformat()}
+    return _crm_msg_out(m)
 
 
 @app.get("/api/crm/contacts")
@@ -1463,7 +1480,7 @@ def crm_message_patch(mid: int, body: CrmMessagePatch, db: Session = Depends(get
         raise HTTPException(400, "Пустое сообщение")
     m.text = text[:5000]
     db.commit()
-    return {"id": m.id, "kind": "message", "text": m.text, "created_at": m.created_at.isoformat()}
+    return _crm_msg_out(m)
 
 
 @app.delete("/api/crm/messages/{mid}")
