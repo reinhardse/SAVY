@@ -1411,3 +1411,10 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-pv .crm-unit{margin-left:4px}
 .crm-compose-bar{justify-content:flex-start;gap:6px}
 .crm-compose-bar .crm-send{margin-left:0}
+
+/* CRM: воздух по краям окна — на 30% меньше (46 → 32 px); слева параметры, справа сообщения и поле ввода — симметрично */
+.crm-left{padding:0 32px 20px}
+.crm-body{width:auto;max-width:none;margin:0}
+.crm-msgs{padding-left:0;padding-right:0}
+.crm-msgs > *,.crm-msgs > .crm-msg{width:calc(100% - 64px);max-width:calc(100% - 64px)}
+.crm-compose{padding-left:32px;padding-right:32px}
