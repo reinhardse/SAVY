@@ -1280,6 +1280,17 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-compose textarea,.crm-tf-title,.crm-task-cf textarea,.crm-task-ed textarea,.crm-msg-ed textarea{flex:none}
 
 /* CRM: невыполненные задачи закреплены сверху панели «Сообщения и задачи» */
-.crm-pins{flex:none;display:flex;flex-direction:column;gap:6px;padding:8px 12px;border-bottom:1px solid #ececf0;background:#fff;max-height:42%;overflow-y:auto}
+.crm-pins{flex:none;display:flex;flex-direction:column;gap:6px;padding:8px 12px;border-bottom:1px solid #ececf0;background:#fff;position:relative;z-index:3}
 .crm-pins[hidden]{display:none}
 .crm-pins .crm-task{margin:0}
+
+/* CRM: «…» — в правом верхнем углу сообщения и задачи; у задачи кнопка «Выполнено» — в правом нижнем */
+.crm-msg{position:relative}
+.crm-msg > .crm-msg-acts{position:absolute;top:2px;right:2px;margin:0;z-index:2}
+.crm-msg .crm-bub{padding-right:30px}
+.crm-msg-acts .crm-msg-menu{top:26px;bottom:auto}
+.crm-task{position:relative}
+.crm-task > .crm-task-acts{position:absolute;top:6px;right:6px;margin:0;z-index:2}
+.crm-task .crm-task-top{padding-right:26px}
+.crm-task-acts .crm-msg-menu{top:26px;bottom:auto}
+.crm-task-act{justify-content:flex-end;margin-top:6px}

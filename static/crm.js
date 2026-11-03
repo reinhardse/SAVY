@@ -106,7 +106,7 @@ function crmCloseOutside() {
 }
 // клик мимо меню сообщения — меню закрывается
 document.addEventListener('click', e => {
-  if (!e.target.closest('.crm-msg-acts')) document.querySelectorAll('[data-msg-menu]').forEach(m => { m.hidden = true; });
+  if (!e.target.closest('.crm-msg-acts')) document.querySelectorAll('[data-msg-menu],[data-task-menu]').forEach(m => { m.hidden = true; });
 });
 
 /* ---------- каркас: слева меню разделов, справа содержимое ---------- */
@@ -239,14 +239,13 @@ function crmTaskHtml(t) {
   const overdue = !done && t.due_date < crmToday();
   const ext = t.owner && t.owner !== 'deal';
   return `<div class="crm-task${done ? ' done' : ''}${overdue ? ' overdue' : ''}${ext ? ' ext' : ''}" data-task="${t.id}">
+    <span class="crm-msg-acts crm-task-acts"><button class="crm-msg-more" data-task-more="${t.id}" aria-label="Действия">${CRM_ICO.dots}</button><span class="crm-msg-menu" data-task-menu="${t.id}" hidden><button data-task-edit="${t.id}">Изменить</button><button class="danger" data-task-del="${t.id}">Удалить</button></span></span>
     <div class="crm-task-top"><span class="crm-task-chk">${done ? CRM_ICO.check : ''}</span>
       <div class="crm-task-main">${t.from ? `<div class="crm-task-from">${esc(t.from)}</div>` : ''}<div class="crm-task-t">${esc(t.title)}</div><div class="crm-task-m${overdue ? ' red' : ''}">${when}</div></div></div>
     ${done ? `<div class="crm-task-res"><span class="crm-task-resl">Итог</span>${esc(t.result).replace(/\n/g, '<br>')}</div>
       <div class="crm-task-m crm-task-stamp">Выполнено ${t.done_at ? crmStamp(t.done_at) : ''}</div>` : ''}
     <div class="crm-task-act">
-      ${done ? '' : `<button class="crm-task-done" data-task-done="${t.id}">Завершить</button>`}
-      <button class="crm-task-link" data-task-edit="${t.id}">Изменить</button>
-      <button class="crm-task-link danger" data-task-del="${t.id}">Удалить</button>
+      ${done ? '' : `<button class="crm-task-done" data-task-done="${t.id}">Выполнено</button>`}
     </div>
     <div class="crm-task-cf" data-task-cf="${t.id}" hidden>
       <textarea placeholder="Итог: что сделано" rows="2"></textarea>
@@ -268,8 +267,9 @@ function crmItemsHtml(items) {
   return items.map(i => i.kind === 'task'
     ? crmTaskHtml(i)
     : `<div class="crm-msg${i.owner && i.owner !== 'deal' ? ' ext' : ''}" data-msg="${i.id}">
+        <span class="crm-msg-acts"><button class="crm-msg-more" data-msg-more="${i.id}" aria-label="Действия">${CRM_ICO.dots}</button><span class="crm-msg-menu" data-msg-menu="${i.id}" hidden><button data-msg-edit="${i.id}">Изменить</button><button class="danger" data-msg-del="${i.id}">Удалить</button></span></span>
         <div class="crm-bub">${esc(i.text).replace(/\n/g, '<br>')}</div>
-        <div class="crm-msg-t">${i.from ? `<span class="crm-msg-from">${esc(i.from)} · </span>` : ''}${crmStamp(i.created_at)}<span class="crm-msg-acts"><button class="crm-msg-more" data-msg-more="${i.id}" aria-label="Действия">${CRM_ICO.dots}</button><span class="crm-msg-menu" data-msg-menu="${i.id}" hidden><button data-msg-edit="${i.id}">Изменить</button><button class="danger" data-msg-del="${i.id}">Удалить</button></span></span></div>
+        <div class="crm-msg-t">${i.from ? `<span class="crm-msg-from">${esc(i.from)} · </span>` : ''}${crmStamp(i.created_at)}</div>
         <div class="crm-msg-ed" data-msg-ed="${i.id}" hidden><textarea rows="2">${esc(i.text)}</textarea>
           <div class="crm-task-cf-row"><button class="crm-task-save" data-msg-save="${i.id}">Сохранить</button><button class="crm-task-cancel" data-msg-cancel="${i.id}">Отмена</button></div></div>
       </div>`
@@ -298,8 +298,16 @@ function crmBindFeed(kind, oid, items) {
     const pb = box.closest('.crm-pop-body');
     if (pb) pb.scrollTop = pb.scrollHeight;
   };
+  const closeMenus = () => document.querySelectorAll('[data-msg-menu],[data-task-menu]').forEach(m => { m.hidden = true; });
   const bindTasks = () => {
     const card = id => document.querySelector(`[data-task="${id}"]`);
+    document.querySelectorAll('[data-task-more]').forEach(b => b.onclick = e => {
+      e.stopPropagation();
+      const menu = document.querySelector(`[data-task-menu="${b.dataset.taskMore}"]`);
+      const open = menu.hidden;
+      closeMenus();
+      menu.hidden = !open;
+    });
     const showOnly = (id, panel) => {
       const c = card(id);
       c.querySelector('.crm-task-act').hidden = panel !== 'act';
@@ -324,7 +332,7 @@ function crmBindFeed(kind, oid, items) {
         } catch (e) { alert(e.message); }
       };
     });
-    document.querySelectorAll('[data-task-edit]').forEach(b => b.onclick = () => showOnly(+b.dataset.taskEdit, 'ed'));
+    document.querySelectorAll('[data-task-edit]').forEach(b => b.onclick = () => { closeMenus(); showOnly(+b.dataset.taskEdit, 'ed'); });
     document.querySelectorAll('[data-ed-cancel]').forEach(b => b.onclick = () => showOnly(+b.dataset.edCancel, 'act'));
     const msgEl = id => document.querySelector(`[data-msg="${id}"]`);
     const msgView = (id, editing) => {
@@ -338,11 +346,11 @@ function crmBindFeed(kind, oid, items) {
       e.stopPropagation();
       const menu = document.querySelector(`[data-msg-menu="${b.dataset.msgMore}"]`);
       const open = menu.hidden;
-      document.querySelectorAll('[data-msg-menu]').forEach(m => { m.hidden = true; });
+      closeMenus();
       menu.hidden = !open;
     });
     document.querySelectorAll('[data-msg-edit]').forEach(b => b.onclick = () => {
-      document.querySelectorAll('[data-msg-menu]').forEach(m => { m.hidden = true; });
+      closeMenus();
       msgView(+b.dataset.msgEdit, true);
     });
     document.querySelectorAll('[data-msg-cancel]').forEach(b => b.onclick = () => msgView(+b.dataset.msgCancel, false));
