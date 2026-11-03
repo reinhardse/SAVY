@@ -280,6 +280,8 @@ document.addEventListener('focusin', e => { if (e.target.tagName === 'TEXTAREA' 
 function crmBindFeed(kind, oid, items) {
   let list = items;
   const box = $('#crmmsgs');
+  // размытие верха ленты — только когда лента прокручена: первое сообщение при открытии читается полностью
+  box.addEventListener('scroll', () => box.parentElement.classList.toggle('scrolled', box.scrollTop > 4));
   const render = () => {
     box.innerHTML = crmItemsHtml(list);
     stickTasks();

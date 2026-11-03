@@ -1341,7 +1341,8 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 /* CRM: время и автор — внутри сообщения и задачи, справа снизу; «…» — внутри зелёного поля справа сверху;
    верх ленты коротко размывается при уходе сообщений; заголовок «Сообщения и задачи» убран */
 .crm-feedwrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
-.crm-feedwrap::before{content:'';position:absolute;left:0;right:0;top:0;height:22px;background:linear-gradient(#fff 0%,rgba(255,255,255,0) 100%);pointer-events:none;z-index:3}
+.crm-feedwrap::before{content:'';position:absolute;left:0;right:0;top:0;height:40px;background:linear-gradient(#fff 0%,rgba(255,255,255,.6) 55%,rgba(255,255,255,0) 100%);backdrop-filter:blur(5px);-webkit-backdrop-filter:blur(5px);-webkit-mask-image:linear-gradient(#000 35%,transparent);mask-image:linear-gradient(#000 35%,transparent);pointer-events:none;z-index:3;opacity:0;transition:opacity .2s}
+.crm-feedwrap.scrolled::before{opacity:1}
 .crm-msgs{flex:1;min-height:0}
 .crm-bub{position:relative}
 .crm-bub > .crm-msg-acts{position:absolute;top:2px;right:2px;margin:0;z-index:2}
@@ -1353,3 +1354,7 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-task-meta{margin-left:auto;font-size:11px;color:var(--muted);text-align:right;white-space:nowrap}
 .crm-task-meta.red{color:#c64545}
 .crm-task-from{display:none}
+
+/* CRM: между сообщениями больше воздуха; фон чата — светло-голубовато-серый, от белого слева */
+.crm-msgs{gap:16px}
+.crm-right{background:linear-gradient(90deg,#fff 0,#f2f5fa 96px,#f2f5fa 100%)}
