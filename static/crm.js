@@ -469,7 +469,7 @@ function crmShortName(name) {
   return [...w.slice(0, 2), ...w.slice(2).map(x => x.charAt(0) + '.')].join(' ');
 }
 function crmEntChips(kind, items) {
-  return items.map(x => `<span class="crm-ent"><button class="crm-ent-n" data-open-${kind}="${x.id}" title="${esc(x.name)}">${esc(crmShortName(x.name))}</button><button class="crm-ent-x" data-unlink-${kind}="${x.id}" aria-label="Убрать">${XICON}</button></span>`).join('');
+  return items.map(x => `<span class="crm-ent"><button class="crm-ent-n" data-open-${kind}="${x.id}" title="${esc(x.name)}">${esc(x.name)}</button><button class="crm-ent-x" data-unlink-${kind}="${x.id}" aria-label="Убрать">${XICON}</button></span>`).join('');
 }
 
 function crmBindPicker(box, kind, onLink, onUnlink, onOpen, repaint) {
@@ -664,7 +664,7 @@ async function crmOpenDeal(id) {
           <button class="crm-chip crm-fmt-black${d.format === 'black' ? ' on' : ''}" data-fmt="black">Чёрный</button>
         </div></div>
       <div class="crm-prop"><div class="crm-pl">${CRM_ICO.link}<span>Документы</span></div>
-        <div class="crm-pv crm-docs">${crmLinkField('crmdocs', d.documents_url, 'Ссылка на Google Диск')}</div></div>
+        <div class="crm-pv crm-docs">${crmLinkField('crmdocs', d.documents_url, 'Вставить ссылку')}</div></div>
       <div class="crm-prop"><div class="crm-pl">${CRM_ICO.user}<span>Контакты</span></div>
         <div class="crm-pv crm-links" id="crmlk-contacts">${crmEntChips('contacts', d.contacts)}<button class="crm-add-btn" data-add-contacts="1">+ контакт</button></div></div>
       <div class="crm-prop"><div class="crm-pl">${CRM_ICO.building}<span>Компании</span></div>
@@ -864,7 +864,8 @@ const crmHref = v => (/^https?:\/\//i.test(v) ? v : 'https://' + v);
 
 // поле-ссылка: значение — подчёркнутая серая ссылка (открывается в новой вкладке); карандаш — изменить
 function crmLinkField(id, value, placeholder, attrs = '') {
-  const edit = `<span class="crm-linkedit" data-linkedit="${id}"${value ? ' hidden' : ''}><input class="crm-in crm-url" id="${id}" ${attrs} placeholder="${placeholder}" value="${esc(value || '')}"><button class="crm-edit crm-clear" type="button" data-clear-link="${id}" aria-label="Удалить ссылку">✕</button></span>`;
+  const clear = value ? `<button class="crm-edit crm-clear" type="button" data-clear-link="${id}" aria-label="Удалить ссылку">✕</button>` : '';
+  const edit = `<span class="crm-linkedit" data-linkedit="${id}"${value ? ' hidden' : ''}><input class="crm-in crm-url" id="${id}" ${attrs} placeholder="${placeholder}" value="${esc(value || '')}">${clear}</span>`;
   if (!value) return edit;
   return `<span class="crm-linkrow" data-linkrow="${id}"><a class="crm-alink" href="${esc(crmHref(value))}" target="_blank" rel="noopener">${esc(value)}</a><button class="crm-edit" type="button" data-edit-link="${id}" aria-label="Изменить">✎</button></span>${edit}`;
 }
@@ -963,7 +964,7 @@ async function crmCompanyView(id, mode) {
         <div class="crm-prop"><div class="crm-pl"><span>Сайт</span></div>
           <div class="crm-pv crm-docs">${crmLinkField('crmsite', k.website, 'example.ru')}</div></div>
         <div class="crm-prop"><div class="crm-pl"><span>Карточка</span></div>
-          <div class="crm-pv crm-docs">${crmLinkField('crmcu', k.card_url, 'Ссылка на Google Диск')}</div></div>
+          <div class="crm-pv crm-docs">${crmLinkField('crmcu', k.card_url, 'Вставить ссылку')}</div></div>
         <div class="crm-prop"><div class="crm-pl"><span>Контакты</span></div>
           <div class="crm-pv crm-links" id="crmlk-contacts">${crmEntChips('contacts', k.contacts)}<button class="crm-add-btn" data-add-contacts="1">+ контакт</button></div></div>
       </div></div>

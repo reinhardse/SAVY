@@ -1399,3 +1399,9 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 /* кнопка «Отправить» в режиме задачи — в строке даты и времени, рядом с полем задачи */
 .crm-compose .crm-tf-row{display:flex;gap:6px;align-items:center}
 .crm-compose .crm-tf-row .crm-send{margin-left:auto}
+
+/* CRM: поле ссылки — мельче; воздух над первым сообщением; названия тегов обрезаются многоточием по ширине */
+.crm-linkedit .crm-in,.crm-docs .crm-in{font-size:13.5px}
+.crm-msgs{padding-top:26px}
+.crm-ent{display:inline-flex;align-items:center;max-width:100%;min-width:0}
+.crm-ent-n{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
