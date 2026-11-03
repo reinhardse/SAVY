@@ -1294,3 +1294,8 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-task .crm-task-top{padding-right:26px}
 .crm-task-acts .crm-msg-menu{top:26px;bottom:auto}
 .crm-task-act{justify-content:flex-end;margin-top:6px}
+
+/* CRM: невыполненная задача прилипает к верху ленты, когда её проскроллили; при прокрутке назад возвращается на своё место */
+.crm-msgs .crm-task.open{position:sticky;z-index:2;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+.crm-msgs .crm-task.open.ext{background:#eef7fd}
+.crm-pins{display:none}

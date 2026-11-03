@@ -201,7 +201,6 @@ function crmWin(left, mode, tools = '') {
     <div class="crm-left">${mode === 'sheet' ? crmSheetTop(tools) : ''}${left}</div>
     <div class="crm-right">
       <div class="crm-chat-h">Сообщения и задачи</div>
-      <div class="crm-pins" id="crmpins" hidden></div>
       <div class="crm-msgs" id="crmmsgs"></div>
       <div class="crm-tf" id="crmtf" hidden>
         <textarea class="crm-tf-title" id="crmtftitle" rows="1" placeholder="Что нужно сделать"></textarea>
@@ -238,7 +237,7 @@ function crmTaskHtml(t) {
   const done = t.status === 'done';
   const overdue = !done && t.due_date < crmToday();
   const ext = t.owner && t.owner !== 'deal';
-  return `<div class="crm-task${done ? ' done' : ''}${overdue ? ' overdue' : ''}${ext ? ' ext' : ''}" data-task="${t.id}">
+  return `<div class="crm-task${done ? ' done' : ' open'}${overdue ? ' overdue' : ''}${ext ? ' ext' : ''}" data-task="${t.id}">
     <span class="crm-msg-acts crm-task-acts"><button class="crm-msg-more" data-task-more="${t.id}" aria-label="Действия">${CRM_ICO.dots}</button><span class="crm-msg-menu" data-task-menu="${t.id}" hidden><button data-task-edit="${t.id}">Изменить</button><button class="danger" data-task-del="${t.id}">Удалить</button></span></span>
     <div class="crm-task-top"><span class="crm-task-chk">${done ? CRM_ICO.check : ''}</span>
       <div class="crm-task-main">${t.from ? `<div class="crm-task-from">${esc(t.from)}</div>` : ''}<div class="crm-task-t">${esc(t.title)}</div><div class="crm-task-m${overdue ? ' red' : ''}">${when}</div></div></div>
@@ -286,17 +285,18 @@ function crmBindFeed(kind, oid, items) {
   let list = items;
   const box = $('#crmmsgs');
   const render = () => {
-    // невыполненные задачи закреплены сверху панели и не уплывают при прокрутке; выполненная уходит в ленту
-    const pinned = list.filter(i => i.kind === 'task' && i.status !== 'done');
-    const rest = list.filter(i => !(i.kind === 'task' && i.status !== 'done'));
-    const pins = $('#crmpins');
-    pins.innerHTML = pinned.map(crmTaskHtml).join('');
-    pins.hidden = !pinned.length;
-    box.innerHTML = rest.length || !pinned.length ? crmItemsHtml(rest) : '';
+    box.innerHTML = crmItemsHtml(list);
+    stickTasks();
     bindTasks();
     box.scrollTop = box.scrollHeight;
     const pb = box.closest('.crm-pop-body');
     if (pb) pb.scrollTop = pb.scrollHeight;
+  };
+  // невыполненные задачи стоят на своём месте в ленте; когда их проскроллили вверх, они прилипают к верху,
+  // пока лента не вернётся к их месту. Несколько прилипших встают одна под другой
+  const stickTasks = () => {
+    let off = 0;
+    box.querySelectorAll('.crm-task.open').forEach(el => { el.style.top = off + 'px'; off += el.offsetHeight + 8; });
   };
   const closeMenus = () => document.querySelectorAll('[data-msg-menu],[data-task-menu]').forEach(m => { m.hidden = true; });
   const bindTasks = () => {
@@ -310,6 +310,7 @@ function crmBindFeed(kind, oid, items) {
     });
     const showOnly = (id, panel) => {
       const c = card(id);
+      setTimeout(stickTasks, 0);
       c.querySelector('.crm-task-act').hidden = panel !== 'act';
       c.querySelector(`[data-task-cf="${id}"]`).hidden = panel !== 'cf';
       c.querySelector(`[data-task-ed="${id}"]`).hidden = panel !== 'ed';
