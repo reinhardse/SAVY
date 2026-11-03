@@ -1331,3 +1331,9 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 /* CRM: без вертикальной линии между параметрами и лентой — плавный переход от белого к светло-серому */
 .crm-right{border-left:0;background:linear-gradient(90deg,#fff 0,#fafafb 72px,#fafafb 100%)}
 .crm-chat-h,.crm-msgs,.crm-compose{background:transparent}
+
+/* CRM: сообщения и задачи — по центру ленты, не прижаты к правому краю; поле ввода — по центру блока */
+.crm-msgs > *{align-self:center;width:88%;max-width:88%}
+.crm-msgs > .crm-msg{max-width:88%;align-items:center}
+.crm-msg-t{align-self:center}
+.crm-compose .crm-ta-wrap,.crm-compose .crm-tf-row,.crm-compose .crm-compose-bar{width:88%;align-self:center}
