@@ -1318,3 +1318,4 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
   -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:crmSweep 1.3s ease-out 1}
 .crm-ph[hidden]{display:none}
 @keyframes crmSweep{from{background-position:100% 0}to{background-position:0 0}}
+.crm-compose .crm-ta-wrap,.crm-compose textarea#crmmsg{width:100%;align-self:stretch}
