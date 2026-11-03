@@ -1308,3 +1308,13 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-addtask.on{background:#2f6fe0;border-color:#2f6fe0;color:#fff}
 .crm-addtask.on{background:#e6e6eb;border:0;color:var(--ink)}
 .crm-addtask.on:hover{background:#dcdce2}
+
+/* CRM: «+ задача» — кнопка «Отмена» как невыбранный чип (с контуром); подсказка задачи с проходящей синей полосой */
+.crm-addtask.on{background:#f2f2f4;border:1px solid #e3e3e8;color:#6b6b74}
+.crm-addtask.on:hover{background:#e9e9ee}
+.crm-ta-wrap{position:relative;display:flex;flex-direction:column}
+.crm-ph{position:absolute;left:1px;top:1px;padding:8px 12px;font-size:13px;line-height:1.4;pointer-events:none;white-space:pre-wrap;
+  background:linear-gradient(90deg,#8f8f99 0%,#8f8f99 42%,#2f6fe0 50%,#8f8f99 58%,#8f8f99 100%);background-size:250% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;animation:crmSweep 1.3s ease-out 1}
+.crm-ph[hidden]{display:none}
+@keyframes crmSweep{from{background-position:100% 0}to{background-position:0 0}}

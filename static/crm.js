@@ -203,7 +203,10 @@ function crmWin(left, mode, tools = '') {
       <div class="crm-chat-h">Сообщения и задачи</div>
       <div class="crm-msgs" id="crmmsgs"></div>
       <div class="crm-compose" id="crmcompose">
-        <textarea id="crmmsg" rows="1" placeholder="Напишите сообщение…"></textarea>
+        <div class="crm-ta-wrap">
+          <textarea id="crmmsg" rows="1" placeholder="Напишите сообщение…"></textarea>
+          <span class="crm-ph" id="crmph" hidden>Что нужно сделать</span>
+        </div>
         <div class="crm-tf-row" id="crmtfrow" hidden>
           <input type="date" class="crm-tf-date" id="crmtfdate" value="${crmToday()}">
           <input type="time" class="crm-tf-time" id="crmtftime" aria-label="Время">
@@ -401,6 +404,7 @@ function crmBindFeed(kind, oid, items) {
 
   // одно поле ввода: обычное сообщение или, после «+ задача», название задачи с датой и временем под ним
   const compose = $('#crmcompose'), ta = $('#crmmsg'), tfrow = $('#crmtfrow'), addBtn = $('#crmaddtask'), sendBtn = $('#crmsend');
+  const ph = $('#crmph');
   const crmGrow = el => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
   let taskMode = false;
   const setTaskMode = on => {
@@ -409,7 +413,10 @@ function crmBindFeed(kind, oid, items) {
     tfrow.hidden = !on;
     addBtn.classList.toggle('on', on);
     addBtn.textContent = on ? 'Отмена' : '+ задача';
-    ta.placeholder = on ? 'Что нужно сделать' : 'Напишите сообщение…';
+    ta.placeholder = on ? '' : 'Напишите сообщение…';
+    // подсказка задачи: синяя полоса пробегает слева направо по самому тексту
+    ph.hidden = !on || !!ta.value;
+    if (on) { ph.style.animation = 'none'; void ph.offsetWidth; ph.style.animation = ''; }
     sendBtn.querySelector('span').textContent = on ? 'Добавить' : 'Отправить';
     if (on) ta.focus();
     crmGrow(ta);
@@ -430,13 +437,14 @@ function crmBindFeed(kind, oid, items) {
       render();
     } catch (e) { alert(e.message); }
   };
-  ta.oninput = () => crmGrow(ta);
+  ta.oninput = () => { crmGrow(ta); ph.hidden = !taskMode || !!ta.value; };
   const send = async () => {
     if (taskMode) return addTask();
     const text = ta.value.trim();
     if (!text) return;
     ta.value = '';
     crmGrow(ta);
+    ph.hidden = true;
     try {
       const m = await api(`/crm/${kind}/${oid}/messages`, {method: 'POST', body: {text}});
       list = [...list, m];
