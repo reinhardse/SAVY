@@ -1341,7 +1341,7 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 /* CRM: время и автор — внутри сообщения и задачи, справа снизу; «…» — внутри зелёного поля справа сверху;
    верх ленты коротко размывается при уходе сообщений; заголовок «Сообщения и задачи» убран */
 .crm-feedwrap{position:relative;flex:1;min-height:0;display:flex;flex-direction:column}
-.crm-feedwrap::before{content:'';position:absolute;left:0;right:0;top:0;height:28px;background:linear-gradient(#fff 15%,rgba(255,255,255,0));backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);pointer-events:none;z-index:3}
+.crm-feedwrap::before{content:'';position:absolute;left:0;right:0;top:0;height:22px;background:linear-gradient(#fff 0%,rgba(255,255,255,0) 100%);pointer-events:none;z-index:3}
 .crm-msgs{flex:1;min-height:0}
 .crm-bub{position:relative}
 .crm-bub > .crm-msg-acts{position:absolute;top:2px;right:2px;margin:0;z-index:2}
