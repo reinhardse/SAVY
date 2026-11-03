@@ -408,6 +408,7 @@ function crmBindFeed(kind, oid, items) {
     compose.classList.toggle('task-mode', on);
     tfrow.hidden = !on;
     addBtn.classList.toggle('on', on);
+    addBtn.textContent = on ? 'Отмена' : '+ задача';
     ta.placeholder = on ? 'Что нужно сделать' : 'Напишите сообщение…';
     sendBtn.querySelector('span').textContent = on ? 'Добавить' : 'Отправить';
     if (on) ta.focus();

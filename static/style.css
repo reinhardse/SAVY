@@ -1306,3 +1306,4 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-compose.task-mode{background:linear-gradient(to top,rgba(47,111,224,.18) 0%,#fff 75%);border-top-color:#bcd3f5}
 .crm-compose.task-mode textarea{border-color:#9bb8ec}
 .crm-addtask.on{background:#2f6fe0;border-color:#2f6fe0;color:#fff}
+.crm-addtask.on{background:#2f6fe0;border:1px dashed #fff;color:#fff}
