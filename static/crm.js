@@ -410,6 +410,7 @@ function crmBindFeed(kind, oid, items) {
     taskMode = on;
     compose.classList.toggle('task-mode', on);
     tfrow.hidden = !on;
+    (on ? tfrow : compose.querySelector('.crm-compose-bar')).appendChild(sendBtn);
     addBtn.classList.toggle('on', on);
     addBtn.textContent = on ? 'Отмена' : '+ задача';
     ta.placeholder = on ? '' : 'Напишите сообщение…';
@@ -863,26 +864,40 @@ const crmHref = v => (/^https?:\/\//i.test(v) ? v : 'https://' + v);
 
 // поле-ссылка: значение — подчёркнутая серая ссылка (открывается в новой вкладке); карандаш — изменить
 function crmLinkField(id, value, placeholder, attrs = '') {
-  const input = `<input class="crm-in crm-url" id="${id}" ${attrs} placeholder="${placeholder}" value="${esc(value || '')}"${value ? ' hidden' : ''}>`;
-  if (!value) return input;
-  return `<span class="crm-linkrow" data-linkrow="${id}"><a class="crm-alink" href="${esc(crmHref(value))}" target="_blank" rel="noopener">${esc(value)}</a><button class="crm-edit" type="button" data-edit-link="${id}" aria-label="Изменить">✎</button></span>${input}`;
+  const edit = `<span class="crm-linkedit" data-linkedit="${id}"${value ? ' hidden' : ''}><input class="crm-in crm-url" id="${id}" ${attrs} placeholder="${placeholder}" value="${esc(value || '')}"><button class="crm-edit crm-clear" type="button" data-clear-link="${id}" aria-label="Удалить ссылку">✕</button></span>`;
+  if (!value) return edit;
+  return `<span class="crm-linkrow" data-linkrow="${id}"><a class="crm-alink" href="${esc(crmHref(value))}" target="_blank" rel="noopener">${esc(value)}</a><button class="crm-edit" type="button" data-edit-link="${id}" aria-label="Изменить">✎</button></span>${edit}`;
 }
 // карандаш: показываем поле ввода; уход из поля без изменений — снова ссылка
 document.addEventListener('click', e => {
   const b = e.target.closest && e.target.closest('[data-edit-link]');
-  if (!b) return;
-  const id = b.dataset.editLink;
-  const row = document.querySelector(`[data-linkrow="${id}"]`), inp = document.getElementById(id);
-  if (row) row.hidden = true;
-  if (inp) { inp.hidden = false; inp.focus(); }
+  if (b) {
+    const id = b.dataset.editLink;
+    const row = document.querySelector(`[data-linkrow="${id}"]`), edit = document.querySelector(`[data-linkedit="${id}"]`), inp = document.getElementById(id);
+    if (row) row.hidden = true;
+    if (edit) edit.hidden = false;
+    if (inp) inp.focus();
+    return;
+  }
+  const c = e.target.closest && e.target.closest('[data-clear-link]');
+  if (c) {
+    // удалить ссылку: очищаем поле и сохраняем — как при уходе из поля
+    const inp = document.getElementById(c.dataset.clearLink);
+    if (!inp) return;
+    inp.value = '';
+    inp.dispatchEvent(new Event('change', {bubbles: true}));
+    inp.blur();
+  }
 });
+// кнопка «удалить» не должна уводить фокус раньше клика
+document.addEventListener('mousedown', e => { if (e.target.closest && e.target.closest('[data-clear-link]')) e.preventDefault(); });
 document.addEventListener('focusout', e => {
   const inp = e.target;
   if (!inp.classList || !inp.classList.contains('crm-url') || !inp.id) return;
   setTimeout(() => {
     if (document.activeElement === inp || !inp.isConnected || !inp.value.trim()) return;
-    const row = document.querySelector(`[data-linkrow="${inp.id}"]`);
-    if (row) { row.hidden = false; inp.hidden = true; }
+    const row = document.querySelector(`[data-linkrow="${inp.id}"]`), edit = document.querySelector(`[data-linkedit="${inp.id}"]`);
+    if (row) { row.hidden = false; if (edit) edit.hidden = true; }
   }, 200);
 });
 

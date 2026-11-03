@@ -1385,3 +1385,17 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 /* CRM: теги контактов и компаний — в одну строку, без переноса; длинное название сокращено до инициалов */
 .crm-ent{white-space:nowrap;max-width:100%}
 .crm-ent-n{white-space:nowrap;display:inline-block;vertical-align:middle;max-width:280px;overflow:hidden;text-overflow:ellipsis}
+
+/* CRM: ссылка — на всю ширину колонки, обрезается многоточием; карандаш и крестик — в конце, карандаш при наведении */
+.crm-linkrow{display:flex;align-items:center;gap:6px;width:100%;min-width:0}
+.crm-linkrow[hidden],.crm-linkedit[hidden]{display:none}
+.crm-alink{flex:1;min-width:0;display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.crm-edit{opacity:0;transition:opacity .15s}
+.crm-linkrow:hover .crm-edit{opacity:1}
+.crm-linkedit{display:flex;align-items:center;gap:6px;width:100%;min-width:0}
+.crm-linkedit .crm-edit{opacity:1}
+.crm-linkedit .crm-in{flex:1;min-width:0}
+.crm-docs{width:100%;min-width:0}
+/* кнопка «Отправить» в режиме задачи — в строке даты и времени, рядом с полем задачи */
+.crm-compose .crm-tf-row{display:flex;gap:6px;align-items:center}
+.crm-compose .crm-tf-row .crm-send{margin-left:auto}
