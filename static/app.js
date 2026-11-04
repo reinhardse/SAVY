@@ -1403,36 +1403,155 @@ async function openCard(kid) {
   const t = $('#kbt'), n = $('#kbn');
   renumber(n);
   // теги: список доски, отмеченные — у карточки
-  // теги: выбранные видны плашками, список тегов доски — во всплывающем окне с галочками; можно создать новый
+  // поля карточки — выбор во всплывающем окне, как в Notion: сверху выбранное, ниже варианты с ручкой «⠿»
+  const PRIO_NAME = {3: 'Высокий', 2: 'Средний', 1: 'Низкий', 0: 'Без приоритета'};
+  const GRIP_SVG = '<svg viewBox="0 0 10 16" aria-hidden="true"><circle cx="2.5" cy="2.5" r="1.3"/><circle cx="7.5" cy="2.5" r="1.3"/><circle cx="2.5" cy="8" r="1.3"/><circle cx="7.5" cy="8" r="1.3"/><circle cx="2.5" cy="13.5" r="1.3"/><circle cx="7.5" cy="13.5" r="1.3"/></svg>';
+  const tagStyle = name => { const k = tagColor(name); return `--tb:${k.bg};--tt:${k.tc}`; };
+  const chipCol = name => `<span class="kbp-chip${/готов/i.test(name) ? ' done' : ''}">${esc(name)}</span>`;
+  const chipTag = name => `<span class="kbp-chip" style="${tagStyle(name)}">${esc(name)}</span>`;
+  const chipPrio = p => `<span class="kbp-chip" style="--tb:${KB_PRIO[p].bg};--tt:${KB_PRIO[p].tc}">${KB_PRIO[p].t}</span>`;
+  const rowHtml = (id, chip, grip, label = '') => `<div class="kbp-row" data-id="${esc(String(id))}">${grip ? `<button class="kbp-grip" tabindex="-1" aria-label="Перенести или изменить">${GRIP_SVG}</button>` : ''}<button class="kbp-opt">${chip}${label}</button></div>`;
+
+  const kbpClose = () => {
+    document.querySelectorAll('.kbp-pop,.kbp-sub').forEach(n => n.remove());
+    document.removeEventListener('mousedown', kbpOutside, true);
+  };
+  const kbpOutside = e => {
+    if (e.target.closest && e.target.closest('.kbp-pop,.kbp-sub,.kb-pv')) return;
+    kbpClose();
+  };
+  const kbpPlace = (p, r) => {
+    p.style.left = Math.max(12, Math.min(r.left, innerWidth - p.offsetWidth - 12)) + 'px';
+    p.style.top = Math.min(r.bottom + 4, innerHeight - p.offsetHeight - 12) + 'px';
+  };
+  const kbpOpen = (anchor, html, bind) => {
+    kbpClose();
+    const p = document.createElement('div');
+    p.className = 'kbp-pop';
+    p.innerHTML = html;
+    document.body.appendChild(p);
+    kbpPlace(p, anchor.getBoundingClientRect());
+    bind(p);
+    document.addEventListener('mousedown', kbpOutside, true);
+  };
+  const kbpSub = (anchor, html, bind) => {
+    document.querySelectorAll('.kbp-sub').forEach(n => n.remove());
+    const s = document.createElement('div');
+    s.className = 'kbp-sub';
+    s.innerHTML = html;
+    document.body.appendChild(s);
+    kbpPlace(s, anchor.getBoundingClientRect());
+    bind(s);
+  };
+
+  // сохранить новый порядок: статусы — колонки доски, теги — список тегов доски
+  const saveOrder = async (kind, ids) => {
+    try {
+      if (kind === 'col') {
+        await api(`/boards/${c.board_id}/columns/order`, {method: 'POST', body: {ids: ids.map(Number)}});
+        cols = ids.map(id => cols.find(x => x.id === +id)).filter(Boolean);
+      } else {
+        const b2 = await api('/boards/' + c.board_id, {method: 'PATCH', body: {tags: ids}});
+        boardTags = b2.tags;
+      }
+    } catch (e) { alert(e.message); }
+  };
+  // ручка «⠿»: клик — меню, перетаскивание — новый порядок
+  const bindGrip = (row, kind) => {
+    const g = row.querySelector('.kbp-grip');
+    if (!g) return;
+    g.onpointerdown = e => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      const list = row.parentElement, y0 = e.clientY;
+      let moved = false;
+      const move = ev => {
+        if (!moved && Math.abs(ev.clientY - y0) < 4) return;
+        moved = true;
+        row.classList.add('kbp-drag');
+        const others = [...list.querySelectorAll('.kbp-row')].filter(r => r !== row);
+        const after = others.find(r => { const b = r.getBoundingClientRect(); return ev.clientY < b.top + b.height / 2; });
+        if (after) list.insertBefore(row, after); else list.appendChild(row);
+      };
+      const up = () => {
+        document.removeEventListener('pointermove', move);
+        document.removeEventListener('pointerup', up);
+        row.classList.remove('kbp-drag');
+        if (moved) saveOrder(kind, [...list.querySelectorAll('.kbp-row')].map(r => r.dataset.id));
+        else showRowMenu(g, row, kind);
+      };
+      document.addEventListener('pointermove', move);
+      document.addEventListener('pointerup', up);
+    };
+  };
+  const showRowMenu = (g, row, kind) => {
+    const id = row.dataset.id;
+    const items = kind === 'col' ? [['rename', 'Переименовать']] : [['delete', 'Удалить']];
+    kbpSub(g, items.map(([k, l]) => `<button class="kbp-mi${k === 'delete' ? ' bad' : ''}" data-act="${k}">${l}</button>`).join(''), s => {
+      s.querySelector('[data-act="rename"]')?.addEventListener('click', () => { s.remove(); renameCol(row, id); });
+      s.querySelector('[data-act="delete"]')?.addEventListener('click', () => deleteTag(id));
+    });
+  };
+
+  // теги
   const renderTags = () => {
     const box = $('#kbtags');
-    const chips = cardTags.map(x => { const k = tagColor(x); return `<span class="kbp-chip kbp-tg" style="--tb:${k.bg};--tt:${k.tc};--tbd:${k.bd}">${esc(x)}</span>`; }).join('');
-    box.innerHTML = chips || '<span class="kbp-ph">Пусто</span>';
-    box.onclick = () => openTagsPop();
+    box.innerHTML = cardTags.length ? cardTags.map(chipTag).join(' ') : '<span class="kbp-ph">Пусто</span>';
+    box.onclick = () => openTagsPop('');
   };
-  const focusNewTag = () => document.querySelector('#kbnewtag')?.focus();
-  const openTagsPop = () => {
+  const focusTagInput = () => { const i = document.querySelector('#kbnewtag'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } };
+  const setCardTags = async (next, q = '') => {
+    cardTags = next; renderTags(); openTagsPop(q); focusTagInput();
+    try { const r = await api('/cards/' + kid, {method: 'PATCH', body: {tags: cardTags}}); cardTags = r.tags; renderTags(); }
+    catch (e) { alert(e.message); }
+  };
+  const createTag = async name => {
+    if (!boardTags.includes(name)) {
+      try { const b2 = await api('/boards/' + c.board_id, {method: 'PATCH', body: {tags: [...boardTags, name]}}); boardTags = b2.tags; }
+      catch (e) { alert(e.message); return; }
+    }
+    setCardTags(cardTags.includes(name) ? cardTags : [...cardTags, name]);
+  };
+  const deleteTag = async name => {
+    try {
+      const b2 = await api('/boards/' + c.board_id, {method: 'PATCH', body: {tags: boardTags.filter(x => x !== name)}});
+      boardTags = b2.tags;
+      cardTags = cardTags.filter(x => x !== name);
+    } catch (e) { alert(e.message); }
+    renderTags(); openTagsPop($('#kbnewtag')?.value || '');
+  };
+  const openTagsPop = (q = '') => {
     const box = $('#kbtags');
-    const html = '<div class="kbp-hd">Теги</div>' + boardTags.map(x => { const k = tagColor(x); return `<button class="kbp-opt" data-tag="${esc(x)}"><span class="kbp-chip kbp-tg" style="--tb:${k.bg};--tt:${k.tc};--tbd:${k.bd}">${esc(x)}</span>${cardTags.includes(x) ? '<span class="kbp-ck">✓</span>' : ''}</button>`; }).join('')
-      + '<input class="kbp-new" id="kbnewtag" placeholder="Новый тег, Enter" maxlength="40">';
+    const term = q.trim().toLowerCase();
+    const shown = boardTags.filter(x => !term || x.toLowerCase().includes(term));
+    const exact = boardTags.some(x => x.toLowerCase() === term);
+    const sel = cardTags.map(x => `<span class="kbp-chip" style="${tagStyle(x)}">${esc(x)}<button class="kbp-rm" data-rm="${esc(x)}" aria-label="Убрать">×</button></span>`).join('');
+    const html = `<div class="kbp-top"><div class="kbp-sel">${sel}<input class="kbp-in" id="kbnewtag" value="${esc(q)}" maxlength="40" placeholder="${cardTags.length ? '' : 'Поиск или новый тег'}"></div></div>`
+      + '<div class="kbp-cap">Выберите вариант или создайте новый</div>'
+      + `<div class="kbp-list">${shown.map(x => rowHtml(x, chipTag(x), true)).join('')}</div>`
+      + (term && !exact ? `<button class="kbp-create" data-create="1">Создать тег «${esc(q.trim())}»</button>` : '');
     kbpOpen(box, html, p => {
-      p.querySelectorAll('[data-tag]').forEach(b => b.onclick = async () => {
-        const name = b.dataset.tag;
-        cardTags = cardTags.includes(name) ? cardTags.filter(x => x !== name) : [...cardTags, name];
-        renderTags(); openTagsPop(); focusNewTag();
-        try { const r = await api('/cards/' + kid, {method: 'PATCH', body: {tags: cardTags}}); cardTags = r.tags; renderTags(); }
-        catch (e) { alert(e.message); }
-      });
-      p.querySelector('#kbnewtag').onkeydown = async e => {
+      const inp = p.querySelector('#kbnewtag');
+      inp.oninput = () => { openTagsPop(inp.value); focusTagInput(); };
+      inp.onkeydown = e => {
         if (e.key !== 'Enter') return;
-        const name = e.target.value.trim();
+        e.preventDefault();
+        const name = inp.value.trim();
         if (!name) return;
-        try {
-          if (!boardTags.includes(name)) { const b2 = await api('/boards/' + c.board_id, {method: 'PATCH', body: {tags: [...boardTags, name]}}); boardTags = b2.tags; }
-          if (!cardTags.includes(name)) { const k2 = await api('/cards/' + kid, {method: 'PATCH', body: {tags: [...cardTags, name]}}); cardTags = k2.tags; }
-        } catch (err) { alert(err.message); }
-        renderTags(); openTagsPop(); focusNewTag();
+        const hit = boardTags.find(x => x.toLowerCase() === name.toLowerCase());
+        if (hit) { if (!cardTags.includes(hit)) setCardTags([...cardTags, hit]); }
+        else createTag(name);
       };
+      p.querySelectorAll('.kbp-row').forEach(row => {
+        row.querySelector('.kbp-opt').onclick = () => {
+          const name = row.dataset.id;
+          setCardTags(cardTags.includes(name) ? cardTags.filter(x => x !== name) : [...cardTags, name], inp.value);
+        };
+        bindGrip(row, 'tag');
+      });
+      p.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => setCardTags(cardTags.filter(x => x !== b.dataset.rm), inp.value));
+      const cr = p.querySelector('[data-create]');
+      if (cr) cr.onclick = () => createTag(inp.value.trim());
     });
   };
   renderTags();
@@ -1460,30 +1579,7 @@ async function openCard(kid) {
   t.addEventListener('click', e => { const a = e.target.closest('a'); if (a) { e.preventDefault(); window.open(a.href, '_blank', 'noopener'); } });
   t.addEventListener('blur', () => { t.innerHTML = linkify(titleText()); });
 
-  // значения свойств: выбранное видно сразу, все варианты — во всплывающем списке, как в Notion
-  const PRIO_NAME = {3: 'Высокий', 2: 'Средний', 1: 'Низкий', 0: 'Без приоритета'};
-  const kbpClose = () => {
-    document.querySelector('.kbp-pop')?.remove();
-    document.removeEventListener('mousedown', kbpOutside, true);
-  };
-  const kbpOutside = e => {
-    const p = document.querySelector('.kbp-pop');
-    if (p && !p.contains(e.target) && !e.target.closest('.kb-pv')) kbpClose();
-  };
-  const kbpOpen = (anchor, html, bind) => {
-    kbpClose();
-    const p = document.createElement('div');
-    p.className = 'kbp-pop';
-    p.innerHTML = html;
-    document.body.appendChild(p);
-    const r = anchor.getBoundingClientRect();
-    p.style.left = Math.max(12, Math.min(r.left, innerWidth - p.offsetWidth - 12)) + 'px';
-    p.style.top = Math.min(r.bottom + 6, innerHeight - p.offsetHeight - 12) + 'px';
-    bind(p);
-    document.addEventListener('mousedown', kbpOutside, true);
-  };
-
-  // статус: текущая колонка — плашка с точкой; список колонок открывается по клику
+  // статус: текущая колонка — плашка; варианты — колонки доски (перенос ручкой, переименование в меню)
   const moveTo = async id => {
     kbpClose();
     if (id === curCol) return;
@@ -1496,36 +1592,68 @@ async function openCard(kid) {
       if (el && target) { target.appendChild(el); refreshColCounts(); }
     } catch (e) { alert(e.message); }
   };
+  const renameCol = (row, id) => {
+    const col = cols.find(x => x.id === +id);
+    if (!col) return;
+    const opt = row.querySelector('.kbp-opt');
+    opt.innerHTML = `<input class="kbp-edit" value="${esc(col.name)}" maxlength="80">`;
+    const inp = opt.querySelector('input');
+    inp.focus(); inp.select();
+    let fin = false;
+    const done = async save => {
+      if (fin) return;
+      fin = true;
+      const name = inp.value.trim();
+      if (save && name && name !== col.name) {
+        try { await api('/columns/' + id, {method: 'PATCH', body: {name}}); col.name = name; }
+        catch (e) { alert(e.message); }
+      }
+      renderCols(); openColsPop();
+    };
+    inp.onkeydown = e => { if (e.key === 'Enter') done(true); if (e.key === 'Escape') done(false); };
+    inp.onblur = () => done(true);
+  };
   const renderCols = () => {
     const box = $('#kbcols');
     const cur = cols.find(x => x.id === curCol);
-    box.innerHTML = cur
-      ? `<span class="kbp-chip st on${/готов/i.test(cur.name) ? ' done' : ''}"><i class="kbp-dot"></i>${esc(cur.name)}</span>`
-      : '<span class="kbp-ph">Пусто</span>';
-    box.onclick = () => {
-      const html = '<div class="kbp-hd">Статус</div>' + cols.map(col => `<button class="kbp-opt" data-col="${col.id}"><i class="kbp-dot${/готов/i.test(col.name) ? ' done' : ''}"></i>${esc(col.name)}${col.id === curCol ? '<span class="kbp-ck">✓</span>' : ''}</button>`).join('');
-      kbpOpen(box, html, p => p.querySelectorAll('[data-col]').forEach(b => b.onclick = () => moveTo(+b.dataset.col)));
-    };
+    box.innerHTML = cur ? chipCol(cur.name) : '<span class="kbp-ph">Пусто</span>';
+    box.onclick = () => openColsPop();
+  };
+  const openColsPop = () => {
+    const box = $('#kbcols');
+    const cur = cols.find(x => x.id === curCol);
+    const html = `<div class="kbp-top"><div class="kbp-sel">${cur ? chipCol(cur.name) : ''}</div></div>`
+      + '<div class="kbp-cap">Выберите статус</div>'
+      + `<div class="kbp-list">${cols.map(col => rowHtml(col.id, chipCol(col.name), true)).join('')}</div>`;
+    kbpOpen(box, html, p => p.querySelectorAll('.kbp-row').forEach(row => {
+      row.querySelector('.kbp-opt').onclick = () => moveTo(+row.dataset.id);
+      bindGrip(row, 'col');
+    }));
   };
   renderCols();
 
-  // приоритет: одно значение, список из четырёх вариантов; повторный выбор текущего ничего не меняет
+  // приоритет: одно значение из четырёх; ручки нет — уровни фиксированы
   const renderPrio = () => {
     const box = $('#kbprio');
     const cur = prio || 0;
-    const chip = p => `<span class="kbp-chip" style="--tb:${KB_PRIO[p].bg};--tt:${KB_PRIO[p].tc};--tbd:${KB_PRIO[p].bd}">${KB_PRIO[p].t}</span>`;
-    box.innerHTML = cur ? `${chip(cur)}<span class="kbp-name">${PRIO_NAME[cur]}</span>` : '<span class="kbp-ph">Пусто</span>';
-    box.onclick = () => {
-      const html = '<div class="kbp-hd">Приоритет</div>' + [3, 2, 1, 0].map(p => `<button class="kbp-opt" data-prio="${p}">${chip(p)}<span>${PRIO_NAME[p]}</span>${p === cur ? '<span class="kbp-ck">✓</span>' : ''}</button>`).join('');
-      kbpOpen(box, html, pop => pop.querySelectorAll('[data-prio]').forEach(b => b.onclick = async () => {
-        kbpClose();
-        prio = +b.dataset.prio || null;
-        renderPrio();
-        syncBoardPrio(prio);
-        try { await api('/cards/' + kid, {method: 'PATCH', body: {priority: prio}}); }
-        catch (e) { alert(e.message); }
-      }));
-    };
+    box.innerHTML = cur ? `${chipPrio(cur)}<span class="kbp-name">${PRIO_NAME[cur]}</span>` : '<span class="kbp-ph">Пусто</span>';
+    box.onclick = () => openPrioPop();
+  };
+  const openPrioPop = () => {
+    const box = $('#kbprio');
+    const cur = prio || 0;
+    const html = `<div class="kbp-top"><div class="kbp-sel">${cur ? chipPrio(cur) : ''}</div></div>`
+      + '<div class="kbp-cap">Выберите приоритет</div>'
+      + `<div class="kbp-list">${[3, 2, 1, 0].map(p => rowHtml(p, chipPrio(p), false, `<span class="kbp-lb">${PRIO_NAME[p]}</span>`)).join('')}</div>`;
+    kbpOpen(box, html, p => p.querySelectorAll('.kbp-row').forEach(row => row.querySelector('.kbp-opt').onclick = async () => {
+      const v = +row.dataset.id;
+      kbpClose();
+      prio = v || null;
+      renderPrio();
+      syncBoardPrio(prio);
+      try { await api('/cards/' + kid, {method: 'PATCH', body: {priority: prio}}); }
+      catch (e) { alert(e.message); }
+    }));
   };
   renderPrio();
 

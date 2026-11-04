@@ -1622,24 +1622,43 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .card-sheet .kb-dv{padding:2px 6px;margin-left:-6px;border-radius:4px;font-size:14px;line-height:20px}
 .card-sheet .kb-dv:not(.on){color:#9b9a97}
 
-/* значения свойств: плашки круглые; выбранное видно сразу, варианты — во всплывающем списке */
-.card-sheet .kb-pv{cursor:pointer;min-height:32px;padding:4px 6px;margin-left:-6px;border-radius:4px;transition:background-color .12s}
+/* поля карточки в стиле Notion: строки 13px, значения — плашки с радиусом 4px, варианты — в окне выбора */
+.card-sheet .kb-pl{font-size:13px;line-height:20px;color:#787774}
+.card-sheet .kb-pl svg{width:16px;height:16px}
+.card-sheet .kb-pv{cursor:pointer;min-height:30px;padding:3px 6px;margin-left:-6px;border-radius:4px;font-size:13px;transition:background-color .12s}
 .card-sheet .kb-pv:hover{background:#efefed}
-.card-sheet .kbp-ph{color:#9b9a97;font-size:14px}
-.card-sheet .kbp-name{font-size:14px;color:#37352f;margin-left:6px}
-.kbp-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;border-radius:999px;padding:2px 10px;font-size:13px;line-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--tb,#efefed);color:var(--tt,#37352f);box-shadow:inset 0 0 0 1px var(--tbd,transparent)}
-.kbp-chip.kbp-tg{font-weight:500;padding:2px 11px;box-shadow:inset 0 0 0 1px var(--tbd),0 1px 2px rgba(0,0,0,.05)}
-.kbp-chip.st{background:#efefed;color:#37352f;box-shadow:none}
-.kbp-chip.st.on{background:#e7f3f8;color:#183347}
-.kbp-chip.st.done{background:#dbeddb;color:#1c3829}
-.kbp-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#b4b4b0;flex:none}
-.kbp-chip.st.on .kbp-dot{background:#2383e2}
-.kbp-chip.st.done .kbp-dot{background:#4dab9a}
-.kbp-pop{position:fixed;z-index:120;width:240px;max-height:70vh;overflow:auto;background:#fff;border:1px solid #e6e6ea;border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.14);padding:6px}
-.kbp-hd{font-size:12px;color:#9b9a97;padding:6px 8px 4px}
-.kbp-opt{display:flex;align-items:center;gap:8px;width:100%;min-height:30px;border:0;background:transparent;border-radius:6px;padding:4px 8px;font:inherit;font-size:14px;color:#37352f;cursor:pointer;text-align:left}
-.kbp-opt:hover{background:#f1f1ef}
-.kbp-opt .kbp-dot{background:#b4b4b0}
-.kbp-opt .kbp-dot.done{background:#4dab9a}
-.kbp-ck{margin-left:auto;font-size:13px;color:#37352f}
-.kbp-new{display:block;width:calc(100% - 4px);box-sizing:border-box;margin:6px 2px 2px;border:0;border-top:1px solid #efefed;padding:8px 8px 4px;font:inherit;font-size:13px;outline:none;background:transparent;color:#37352f}
+.card-sheet .kbp-ph{color:#9b9a97;font-size:13px}
+.card-sheet .kbp-name{font-size:13px;color:#37352f;margin-left:6px}
+/* текст заметки на 1px меньше прежнего (16 → 15) */
+.card-sheet .kb-note .kline,.card-sheet .kb-note .kct,.card-sheet .kb-note .kbul{font-size:15px;line-height:24px}
+
+.kbp-chip{display:inline-flex;align-items:center;gap:4px;max-width:100%;border-radius:4px;padding:1px 6px;font-size:13px;line-height:20px;white-space:nowrap;background:var(--tb,#e9e9e7);color:var(--tt,#37352f)}
+.kbp-chip.done{--tb:#dbeddb;--tt:#1c3829}
+.kbp-rm{border:0;background:transparent;color:inherit;opacity:.6;font:inherit;font-size:14px;line-height:1;cursor:pointer;padding:0 0 0 2px}
+.kbp-rm:hover{opacity:1}
+.kbp-pop,.kbp-sub{position:fixed;z-index:120;background:#fff;border-radius:6px;box-shadow:0 0 0 1px rgba(15,15,15,.06),0 3px 6px rgba(15,15,15,.08),0 9px 24px rgba(15,15,15,.16);font-size:13px;color:#37352f;overflow:hidden}
+.kbp-pop{width:300px;max-height:70vh;display:flex;flex-direction:column}
+.kbp-top{padding:6px 8px;border-bottom:1px solid rgba(55,53,47,.09)}
+.kbp-sel{display:flex;flex-wrap:wrap;align-items:center;gap:4px;min-height:24px}
+.kbp-in{flex:1 1 90px;min-width:90px;border:0;outline:none;background:transparent;font:inherit;font-size:13px;color:#37352f;padding:2px}
+.kbp-in::placeholder{color:#9b9a97}
+.kbp-cap{font-size:12px;color:#9b9a97;padding:8px 12px 4px}
+.kbp-list{overflow:auto;padding:0 4px 6px}
+.kbp-row{display:flex;align-items:center;min-height:30px;border-radius:4px}
+.kbp-row:hover{background:#f1f1ef}
+.kbp-row.kbp-drag{background:#fff;box-shadow:0 4px 12px rgba(15,15,15,.14);opacity:.96}
+.kbp-grip{width:14px;height:24px;flex:none;border:0;background:transparent;padding:0;color:#b4b4b0;cursor:grab;display:flex;align-items:center;justify-content:center;border-radius:3px;touch-action:none}
+.kbp-grip:hover{color:#37352f}
+.kbp-grip svg{width:10px;height:16px;fill:currentColor;display:block}
+.kbp-opt{flex:1;min-width:0;display:flex;align-items:center;gap:8px;border:0;background:transparent;padding:3px 6px;font:inherit;font-size:13px;color:#37352f;cursor:pointer;text-align:left;min-height:30px}
+.kbp-lb{font-size:13px}
+.kbp-create{display:block;width:calc(100% - 8px);margin:0 4px 6px;border:0;background:transparent;text-align:left;padding:6px 8px;font:inherit;font-size:13px;color:#37352f;cursor:pointer;border-radius:4px}
+.kbp-create:hover{background:#f1f1ef}
+.kbp-sub{width:170px;padding:4px}
+.kbp-mi{display:block;width:100%;text-align:left;border:0;background:transparent;padding:6px 8px;border-radius:4px;font:inherit;font-size:13px;color:#37352f;cursor:pointer}
+.kbp-mi:hover{background:#f1f1ef}
+.kbp-mi.bad{color:#eb5757}
+.kbp-edit{width:100%;border:0;outline:none;background:transparent;font:inherit;font-size:13px;color:#37352f;padding:0}
+/* окно даты в стиле Notion: мягкая тень, меньше скругление */
+.kb-cal{border-radius:6px;border-color:transparent;box-shadow:0 0 0 1px rgba(15,15,15,.06),0 3px 6px rgba(15,15,15,.08),0 9px 24px rgba(15,15,15,.16)}
+.kb-cd{border-radius:4px}
