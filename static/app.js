@@ -1403,36 +1403,37 @@ async function openCard(kid) {
   const t = $('#kbt'), n = $('#kbn');
   renumber(n);
   // теги: список доски, отмеченные — у карточки
+  // теги: выбранные видны плашками, список тегов доски — во всплывающем окне с галочками; можно создать новый
   const renderTags = () => {
     const box = $('#kbtags');
-    box.innerHTML = boardTags.map(x => { const k = tagColor(x); return `<button class="kb-tag${cardTags.includes(x) ? ' on' : ''}" style="--tb:${k.bg};--tt:${k.tc};--tbd:${k.bd}" data-tag="${esc(x)}">${esc(x)}</button>`; }).join('')
-      + '<button class="kb-tag add" id="kbaddtag">+ тег</button>';
-    box.querySelectorAll('[data-tag]').forEach(b => b.onclick = async () => {
-      const name = b.dataset.tag;
-      cardTags = cardTags.includes(name) ? cardTags.filter(x => x !== name) : [...cardTags, name];
-      renderTags();
-      try { const r = await api('/cards/' + kid, {method: 'PATCH', body: {tags: cardTags}}); cardTags = r.tags; renderTags(); }
-      catch (e) { alert(e.message); }
-    });
-    $('#kbaddtag').onclick = () => {
-      $('#kbaddtag').outerHTML = '<input class="kb-tag-in" id="kbnewtag" placeholder="Новый тег" maxlength="40">';
-      const inp = $('#kbnewtag'); inp.focus();
-      inp.onblur = () => renderTags();
-      inp.onkeydown = async e => {
-        if (e.key === 'Escape') { inp.onblur = null; renderTags(); return; }
+    const chips = cardTags.map(x => { const k = tagColor(x); return `<span class="kbp-chip kbp-tg" style="--tb:${k.bg};--tt:${k.tc};--tbd:${k.bd}">${esc(x)}</span>`; }).join('');
+    box.innerHTML = chips || '<span class="kbp-ph">Пусто</span>';
+    box.onclick = () => openTagsPop();
+  };
+  const focusNewTag = () => document.querySelector('#kbnewtag')?.focus();
+  const openTagsPop = () => {
+    const box = $('#kbtags');
+    const html = '<div class="kbp-hd">Теги</div>' + boardTags.map(x => { const k = tagColor(x); return `<button class="kbp-opt" data-tag="${esc(x)}"><span class="kbp-chip kbp-tg" style="--tb:${k.bg};--tt:${k.tc};--tbd:${k.bd}">${esc(x)}</span>${cardTags.includes(x) ? '<span class="kbp-ck">✓</span>' : ''}</button>`; }).join('')
+      + '<input class="kbp-new" id="kbnewtag" placeholder="Новый тег, Enter" maxlength="40">';
+    kbpOpen(box, html, p => {
+      p.querySelectorAll('[data-tag]').forEach(b => b.onclick = async () => {
+        const name = b.dataset.tag;
+        cardTags = cardTags.includes(name) ? cardTags.filter(x => x !== name) : [...cardTags, name];
+        renderTags(); openTagsPop(); focusNewTag();
+        try { const r = await api('/cards/' + kid, {method: 'PATCH', body: {tags: cardTags}}); cardTags = r.tags; renderTags(); }
+        catch (e) { alert(e.message); }
+      });
+      p.querySelector('#kbnewtag').onkeydown = async e => {
         if (e.key !== 'Enter') return;
-        const name = inp.value.trim();
-        inp.onblur = null;
-        if (!name) { renderTags(); return; }
+        const name = e.target.value.trim();
+        if (!name) return;
         try {
-          const b2 = await api('/boards/' + c.board_id, {method: 'PATCH', body: {tags: [...boardTags, name]}});
-          boardTags = b2.tags;
-          const k2 = await api('/cards/' + kid, {method: 'PATCH', body: {tags: [...cardTags, name]}});
-          cardTags = k2.tags;
+          if (!boardTags.includes(name)) { const b2 = await api('/boards/' + c.board_id, {method: 'PATCH', body: {tags: [...boardTags, name]}}); boardTags = b2.tags; }
+          if (!cardTags.includes(name)) { const k2 = await api('/cards/' + kid, {method: 'PATCH', body: {tags: [...cardTags, name]}}); cardTags = k2.tags; }
         } catch (err) { alert(err.message); }
-        renderTags();
+        renderTags(); openTagsPop(); focusNewTag();
       };
-    };
+    });
   };
   renderTags();
   const grow = el => { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; };
@@ -1459,43 +1460,75 @@ async function openCard(kid) {
   t.addEventListener('click', e => { const a = e.target.closest('a'); if (a) { e.preventDefault(); window.open(a.href, '_blank', 'noopener'); } });
   t.addEventListener('blur', () => { t.innerHTML = linkify(titleText()); });
 
-  // колонки доски: текущая — чёрным; «Готово» всегда зелёная; клик переносит карточку
+  // значения свойств: выбранное видно сразу, все варианты — во всплывающем списке, как в Notion
+  const PRIO_NAME = {3: 'Высокий', 2: 'Средний', 1: 'Низкий', 0: 'Без приоритета'};
+  const kbpClose = () => {
+    document.querySelector('.kbp-pop')?.remove();
+    document.removeEventListener('mousedown', kbpOutside, true);
+  };
+  const kbpOutside = e => {
+    const p = document.querySelector('.kbp-pop');
+    if (p && !p.contains(e.target) && !e.target.closest('.kb-pv')) kbpClose();
+  };
+  const kbpOpen = (anchor, html, bind) => {
+    kbpClose();
+    const p = document.createElement('div');
+    p.className = 'kbp-pop';
+    p.innerHTML = html;
+    document.body.appendChild(p);
+    const r = anchor.getBoundingClientRect();
+    p.style.left = Math.max(12, Math.min(r.left, innerWidth - p.offsetWidth - 12)) + 'px';
+    p.style.top = Math.min(r.bottom + 6, innerHeight - p.offsetHeight - 12) + 'px';
+    bind(p);
+    document.addEventListener('mousedown', kbpOutside, true);
+  };
+
+  // статус: текущая колонка — плашка с точкой; список колонок открывается по клику
+  const moveTo = async id => {
+    kbpClose();
+    if (id === curCol) return;
+    curCol = id; renderCols();
+    try {
+      await api('/cards/' + kid, {method: 'PATCH', body: {column_id: id}});
+      // карточка на доске под окном переезжает в новую колонку, счётчики меняются сразу
+      const el = document.querySelector(`.kcard[data-card="${kid}"]`);
+      const target = document.querySelector(`.kcol[data-col="${id}"] .kcards`);
+      if (el && target) { target.appendChild(el); refreshColCounts(); }
+    } catch (e) { alert(e.message); }
+  };
   const renderCols = () => {
     const box = $('#kbcols');
-    box.innerHTML = cols.map(col => {
-      const done = /готов/i.test(col.name);
-      return `<button class="kb-col${done ? ' done' : ''}${col.id === curCol ? ' on' : ''}" data-col="${col.id}">${esc(col.name)}</button>`;
-    }).join('');
-    box.querySelectorAll('[data-col]').forEach(b => b.onclick = async () => {
-      const id = +b.dataset.col;
-      if (id === curCol) return;
-      curCol = id; renderCols();
-      try {
-        await api('/cards/' + kid, {method: 'PATCH', body: {column_id: id}});
-        // карточка на доске под окном переезжает в новую колонку, счётчики меняются сразу
-        const el = document.querySelector(`.kcard[data-card="${kid}"]`);
-        const target = document.querySelector(`.kcol[data-col="${id}"] .kcards`);
-        if (el && target) { target.appendChild(el); refreshColCounts(); }
-      }
-      catch (e) { alert(e.message); }
-    });
+    const cur = cols.find(x => x.id === curCol);
+    box.innerHTML = cur
+      ? `<span class="kbp-chip st on${/готов/i.test(cur.name) ? ' done' : ''}"><i class="kbp-dot"></i>${esc(cur.name)}</span>`
+      : '<span class="kbp-ph">Пусто</span>';
+    box.onclick = () => {
+      const html = '<div class="kbp-hd">Статус</div>' + cols.map(col => `<button class="kbp-opt" data-col="${col.id}"><i class="kbp-dot${/готов/i.test(col.name) ? ' done' : ''}"></i>${esc(col.name)}${col.id === curCol ? '<span class="kbp-ck">✓</span>' : ''}</button>`).join('');
+      kbpOpen(box, html, p => p.querySelectorAll('[data-col]').forEach(b => b.onclick = () => moveTo(+b.dataset.col)));
+    };
   };
   renderCols();
 
-  // приоритет: три значка как у тегов; выбранный — цветной, остальные полупрозрачные; повторный клик снимает
+  // приоритет: одно значение, список из четырёх вариантов; повторный выбор текущего ничего не меняет
   const renderPrio = () => {
     const box = $('#kbprio');
     const cur = prio || 0;
-    box.innerHTML = [3, 2, 1, 0].map(p => `<button class="kb-tag kb-prio${cur === p ? ' on' : ''}" style="--tb:${KB_PRIO[p].bg};--tt:${KB_PRIO[p].tc};--tbd:${KB_PRIO[p].bd}" data-prio="${p}">${KB_PRIO[p].t}</button>`).join('');
-    box.querySelectorAll('[data-prio]').forEach(b => b.onclick = async () => {
-      const p = +b.dataset.prio;
-      prio = p || null;
-      renderPrio();
-      syncBoardPrio(prio);
-      try { await api('/cards/' + kid, {method: 'PATCH', body: {priority: prio}}); }
-      catch (e) { alert(e.message); }
-    });
+    const chip = p => `<span class="kbp-chip" style="--tb:${KB_PRIO[p].bg};--tt:${KB_PRIO[p].tc};--tbd:${KB_PRIO[p].bd}">${KB_PRIO[p].t}</span>`;
+    box.innerHTML = cur ? `${chip(cur)}<span class="kbp-name">${PRIO_NAME[cur]}</span>` : '<span class="kbp-ph">Пусто</span>';
+    box.onclick = () => {
+      const html = '<div class="kbp-hd">Приоритет</div>' + [3, 2, 1, 0].map(p => `<button class="kbp-opt" data-prio="${p}">${chip(p)}<span>${PRIO_NAME[p]}</span>${p === cur ? '<span class="kbp-ck">✓</span>' : ''}</button>`).join('');
+      kbpOpen(box, html, pop => pop.querySelectorAll('[data-prio]').forEach(b => b.onclick = async () => {
+        kbpClose();
+        prio = +b.dataset.prio || null;
+        renderPrio();
+        syncBoardPrio(prio);
+        try { await api('/cards/' + kid, {method: 'PATCH', body: {priority: prio}}); }
+        catch (e) { alert(e.message); }
+      }));
+    };
   };
+  renderPrio();
+
   // значок на карточке доски под окном меняется сразу
   const syncBoardPrio = p => {
     const el = document.querySelector(`.kcard[data-card="${kid}"]`);

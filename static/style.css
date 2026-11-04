@@ -1621,3 +1621,25 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .card-sheet .kb-tag-in{border-radius:4px;border-color:#e3e3e0;font-size:13px}
 .card-sheet .kb-dv{padding:2px 6px;margin-left:-6px;border-radius:4px;font-size:14px;line-height:20px}
 .card-sheet .kb-dv:not(.on){color:#9b9a97}
+
+/* значения свойств: плашки круглые; выбранное видно сразу, варианты — во всплывающем списке */
+.card-sheet .kb-pv{cursor:pointer;min-height:32px;padding:4px 6px;margin-left:-6px;border-radius:4px;transition:background-color .12s}
+.card-sheet .kb-pv:hover{background:#efefed}
+.card-sheet .kbp-ph{color:#9b9a97;font-size:14px}
+.card-sheet .kbp-name{font-size:14px;color:#37352f;margin-left:6px}
+.kbp-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;border-radius:999px;padding:2px 10px;font-size:13px;line-height:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--tb,#efefed);color:var(--tt,#37352f);box-shadow:inset 0 0 0 1px var(--tbd,transparent)}
+.kbp-chip.kbp-tg{font-weight:500;padding:2px 11px;box-shadow:inset 0 0 0 1px var(--tbd),0 1px 2px rgba(0,0,0,.05)}
+.kbp-chip.st{background:#efefed;color:#37352f;box-shadow:none}
+.kbp-chip.st.on{background:#e7f3f8;color:#183347}
+.kbp-chip.st.done{background:#dbeddb;color:#1c3829}
+.kbp-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#b4b4b0;flex:none}
+.kbp-chip.st.on .kbp-dot{background:#2383e2}
+.kbp-chip.st.done .kbp-dot{background:#4dab9a}
+.kbp-pop{position:fixed;z-index:120;width:240px;max-height:70vh;overflow:auto;background:#fff;border:1px solid #e6e6ea;border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.14);padding:6px}
+.kbp-hd{font-size:12px;color:#9b9a97;padding:6px 8px 4px}
+.kbp-opt{display:flex;align-items:center;gap:8px;width:100%;min-height:30px;border:0;background:transparent;border-radius:6px;padding:4px 8px;font:inherit;font-size:14px;color:#37352f;cursor:pointer;text-align:left}
+.kbp-opt:hover{background:#f1f1ef}
+.kbp-opt .kbp-dot{background:#b4b4b0}
+.kbp-opt .kbp-dot.done{background:#4dab9a}
+.kbp-ck{margin-left:auto;font-size:13px;color:#37352f}
+.kbp-new{display:block;width:calc(100% - 4px);box-sizing:border-box;margin:6px 2px 2px;border:0;border-top:1px solid #efefed;padding:8px 8px 4px;font:inherit;font-size:13px;outline:none;background:transparent;color:#37352f}
