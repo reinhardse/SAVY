@@ -357,10 +357,15 @@ function schedulePoll(items, fn) {
   if (items.some(i => i.meta_state === 'pending') && pollLeft-- > 0) setTimeout(fn || route, 2500);
 }
 
+// название вкладки браузера: раздел, а на доске и в воронке — их название (задаётся при открытии)
+function tabTitle(t) { document.title = t; }
+
 async function route() {
   const [view, ...rest] = (location.hash.slice(2) || 'hub').split('/');
   const arg = decodeURIComponent(rest.join('/'));
   pollLeft = view === 'home' ? 6 : pollLeft;
+  const tabs = {hub: 'Хаб', kanban: 'Доски', calendar: 'Календарь', crm: 'CRM', home: 'Сейф'};
+  tabTitle(tabs[view] || 'Сейф');
   if (view === 'hub') return hub();
   if (view === 'kanban') return boards();
   if (view === 'calendar') return calendarPage();
@@ -369,10 +374,11 @@ async function route() {
   const map = {inbox: ['Входящие', {inbox: 1}], all: ['Все материалы', {}]};
   if (view === 'cat') {
     const c = cats.find(x => x.slug === arg);
+    tabTitle(c ? c.name : 'Категория');
     return listView(c ? c.name : 'Категория', {category: arg}, 'all', true);
   }
-  if (view === 'tag') return listView('#' + arg, {tag: arg}, 'all');
-  if (map[view]) return listView(map[view][0], map[view][1], view, view === 'all' || view === 'inbox');
+  if (view === 'tag') { tabTitle('#' + arg); return listView('#' + arg, {tag: arg}, 'all'); }
+  if (map[view]) { tabTitle(map[view][0]); return listView(map[view][0], map[view][1], view, view === 'all' || view === 'inbox'); }
   return home();
 }
 
@@ -811,6 +817,7 @@ const cardHtml = c => {
 async function board(bid) {
   curBoard = bid;
   const b = await api('/boards/' + bid);
+  tabTitle(b.name);
   const cols = b.columns.map(col => `<div class="kcol${/готов/i.test(col.name) ? ' kdone' : ''}" data-col="${col.id}">
       <div class="kch"><span class="kcname"><span class="kcn" data-rencol="${col.id}" title="Нажмите, чтобы переименовать">${esc(col.name)}</span><span class="kcnt">${col.cards.length}</span></span>
         <button class="rb del" data-delcol="${col.id}" aria-label="Удалить колонку">${XICON}</button></div>

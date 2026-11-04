@@ -273,6 +273,7 @@ async function crmPipeline(fid) {
   try { b = await api(`/crm/funnels/${fid}/board`); }
   catch (e) { alert(e.message); location.hash = '#/crm'; return; }
   crmCurFunnel = fid;
+  tabTitle(b.title);
   const all = b.stages.reduce((a, s) => a + s.deals.length, 0);
   const total = b.stages.reduce((a, s) => a + s.sum, 0);
   crmShell('pipe', `<div class="crm-fhead">
@@ -290,6 +291,7 @@ async function crmPipeline(fid) {
     catch (e) { alert(e.message); }
     const f = crmFunnels.find(x => x.id === fid);
     if (f) f.title = v;
+    tabTitle(v);
     const nav = document.querySelector(`.crm-fnav-i[data-fid="${fid}"] span`);
     if (nav) nav.textContent = v;
   });
