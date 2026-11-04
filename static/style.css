@@ -1572,3 +1572,16 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .slash.sl-note .sl-sep{height:1px;background:#ececea;margin:4px 6px}
 .slash.sl-note .sl-del{color:#eb5757}
 .slash.sl-note .sl-del .sl-ic{color:#eb5757}
+
+/* ---------- ручка заметки: плавнее, кнопки крупнее, призрак строки при переносе ---------- */
+.card-sheet .kgut{transition:opacity .18s ease}
+.card-sheet .kgut{gap:2px}
+.card-sheet .kgut button{width:26px;height:26px;border-radius:7px}
+.card-sheet .kgut svg{width:16px;height:16px}
+.card-sheet .kb-note .kdrag{opacity:.22}
+.card-sheet.note-ghost{position:fixed;left:0;top:0;z-index:90;pointer-events:none;background:transparent;scrollbar-width:none;will-change:transform}
+.card-sheet.note-ghost .kb-note{padding:0;min-height:0;background:transparent}
+.card-sheet.note-ghost .kline,.card-sheet.note-ghost .kh{font-weight:400;background:#fff;border-radius:8px;box-shadow:0 14px 34px rgba(15,15,15,.16),0 0 0 1px rgba(15,15,15,.05);padding:3px 10px;margin:0;transform:rotate(-.6deg)}
+.card-sheet.note-ghost .kbul,.card-sheet.note-ghost .knum{padding-left:32px}
+.card-sheet.note-ghost .knum::before{left:10px}
+.card-sheet.note-ghost .kbul::before{left:17px}
