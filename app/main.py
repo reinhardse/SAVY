@@ -1649,10 +1649,21 @@ def crm_contact_patch(cid: int, body: CrmContactPatch, db: Session = Depends(get
     return _crm_contact_full(db, c)
 
 
+def _crm_purge_owner(db: Session, col: str, oid: int) -> None:
+    """Удаляет сообщения и задачи контакта или компании вместе с их событиями в календаре (SQLite не делает это сам)."""
+    for t in db.scalars(select(CrmTask).where(getattr(CrmTask, col) == oid)).all():
+        if t.gcal_event_id:
+            gcal.delete_event(db, t.gcal_event_id, USER_ID)
+        db.delete(t)
+    for m in db.scalars(select(DealMessage).where(getattr(DealMessage, col) == oid)).all():
+        db.delete(m)
+
+
 @app.delete("/api/crm/contacts/{cid}")
 def crm_contact_delete(cid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     c = db.get(Contact, cid)
     if c:
+        _crm_purge_owner(db, "contact_id", c.id)
         db.delete(c)
         db.commit()
     return {"ok": True}
@@ -1707,6 +1718,7 @@ def crm_company_patch(kid: int, body: CrmCompanyPatch, db: Session = Depends(get
 def crm_company_delete(kid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     c = db.get(Company, kid)
     if c:
+        _crm_purge_owner(db, "company_id", c.id)
         db.delete(c)
         db.commit()
     return {"ok": True}

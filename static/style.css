@@ -1524,3 +1524,12 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-fmenu-i.on{font-weight:600}
 .crm-fmenu-i svg{width:14px;height:14px;flex:none}
 .crm-fmenu-sep{height:1px;background:#ececf0;margin:6px 4px}
+
+/* ---------- этапы: крестик удаления, перетаскивание заголовка ---------- */
+.crm-col-del{position:absolute;top:8px;right:0;width:26px;height:26px;border:0;background:none;border-radius:8px;color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:opacity .15s}
+.crm-col-del svg{width:14px;height:14px}
+.crm-col-h:hover .crm-col-del,.crm-col-del:focus{opacity:1}
+.crm-col-del:hover{background:#ececf0;color:var(--ink)}
+.crm-col-h{cursor:grab;user-select:none}
+.crm-col-t{cursor:text;user-select:text}
+.crm-col-drag{position:relative;z-index:5;background:#fff;box-shadow:0 10px 28px rgba(0,0,0,.14);border-radius:16px;cursor:grabbing}
