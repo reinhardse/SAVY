@@ -1111,6 +1111,7 @@ function lineHtml(kind, text, checked, level = 0) {
   if (kind === 'check') return `<div class="kline kcheck${checked ? ' done' : ''}" data-lvl="${level}" style="margin-left:${level * 24}px"><span class="kcb" contenteditable="false" role="checkbox" aria-checked="${checked ? 'true' : 'false'}"></span><span class="kct">${body}</span></div>`;
   if (kind === 'h' || kind === 'h1' || kind === 'h2' || kind === 'h3') return `<div class="kh kh${kind === 'h1' ? 1 : kind === 'h3' ? 3 : 2}">${body}</div>`;
   if (kind === 'bul') return `<div class="kline kbul" data-lvl="${level}" style="margin-left:${level * 24}px">${body}</div>`;
+  if (kind === 'num') return `<div class="kline knum" data-lvl="${level}" data-n="1" style="margin-left:${level * 24}px">${body}</div>`;
   if (kind === 'hr') return '<div class="kdiv" contenteditable="false"><hr class="kb-hr"></div>';
   return `<div class="kline">${body}</div>`;
 }
@@ -1127,6 +1128,8 @@ function renderNoteEdit(text) {
     if (m) return lineHtml('check', m[3], m[2] !== ' ', Math.min(6, Math.floor(m[1].length / 2)));
     const b = line.match(/^( *)- (.*)$/);
     if (b) return lineHtml('bul', b[2], false, Math.min(6, Math.floor(b[1].length / 2)));
+    const nm = line.match(/^( *)\d+\. (.*)$/);
+    if (nm) return lineHtml('num', nm[2], false, Math.min(6, Math.floor(nm[1].length / 2)));
     const h = line.match(/^(#{1,3}) (.*)$/);
     if (h) return lineHtml(h[1].length === 1 ? 'h1' : h[1].length === 3 ? 'h3' : 'h2', h[2]);
     if (line === '---') return lineHtml('hr');
@@ -1153,6 +1156,18 @@ function fmtOf(node) {
   return inner;
 }
 
+// нумерация пунктов: вложенные уровни считаются отдельно, любая другая строка начинает счёт заново
+function renumber(root) {
+  let cnt = [];
+  [...root.children].forEach(el => {
+    if (!el.classList || !el.classList.contains('knum')) { cnt = []; return; }
+    const lvl = +(el.dataset.lvl || 0);
+    cnt.length = lvl + 1;
+    cnt[lvl] = (cnt[lvl] || 0) + 1;
+    el.dataset.n = cnt[lvl];
+  });
+}
+
 // текст заметки из блока: по строкам
 function readNote(root) {
   return [...root.childNodes].map(node => {
@@ -1161,6 +1176,7 @@ function readNote(root) {
     if (el.classList && el.classList.contains('kcheck')) return '  '.repeat(+(el.dataset.lvl || 0)) + `[${el.classList.contains('done') ? 'x' : ' '}] ${fmtOf(el.querySelector('.kct') || el)}`;
     if (el.classList && el.classList.contains('kh')) return '#'.repeat(el.classList.contains('kh1') ? 1 : el.classList.contains('kh3') ? 3 : 2) + ' ' + fmtOf(el);
     if (el.classList && el.classList.contains('kbul')) return '  '.repeat(+(el.dataset.lvl || 0)) + '- ' + fmtOf(el);
+    if (el.classList && el.classList.contains('knum')) return '  '.repeat(+(el.dataset.lvl || 0)) + `${el.dataset.n || 1}. ` + fmtOf(el);
     if (el.classList && el.classList.contains('kdiv')) return '---';
     if (el.classList && el.classList.contains('kt-sec')) return '[subs]';
     return fmtOf(el);
@@ -1385,6 +1401,7 @@ async function openCard(kid) {
       <div class="kb-note kb-edit" id="kbn" contenteditable="true" spellcheck="false">${renderNoteEdit(c.note)}</div></div>
     </div>`, 'card-sheet');
   const t = $('#kbt'), n = $('#kbn');
+  renumber(n);
   // теги: список доски, отмеченные — у карточки
   const renderTags = () => {
     const box = $('#kbtags');
@@ -1430,6 +1447,7 @@ async function openCard(kid) {
     } catch (e) { alert(e.message); }
   };
   const queue = () => {
+    renumber(n);
     dirty = true;
     const s = $('#kbs'); if (s) s.textContent = 'Сохраняю…';
     clearTimeout(timer); timer = setTimeout(flush, 500);
@@ -1611,6 +1629,8 @@ async function openCard(kid) {
     h3: '<span class="sl-tx">H3</span>',
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M8 12.5l2.7 2.7L16 9.5"/></svg>',
     bul: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="5" cy="7" r="1.1" fill="currentColor"/><circle cx="5" cy="12" r="1.1" fill="currentColor"/><circle cx="5" cy="17" r="1.1" fill="currentColor"/><path d="M10 7h10M10 12h10M10 17h10"/></svg>',
+    num: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5l1.5-1v5M3.8 11.5h2.8M4 16.2c0-1.4 2.8-1.6 2.8.1 0 1-1.3 1.2-2.8 2.4h2.8"/><path d="M10 7h10M10 12h10M10 17h10"/></svg>',
+    del: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5"/></svg>',
   };
   const SLASH = [
     {label: 'Текст', kind: 'text', kw: 'text plain обычный'},
@@ -1620,6 +1640,7 @@ async function openCard(kid) {
     {label: 'Чекбокс', kind: 'check', kw: 'чекбокс check задача'},
     {label: 'Подзадачи', kind: 'sub', kw: 'подзадачи подзадача subtask todo вложенная'},
     {label: 'Список', kind: 'bul', kw: 'список bullet'},
+    {label: 'Нумерованный список', kind: 'num', kw: 'нумерованный список numbered 1. цифры'},
     {label: 'Разделитель', kind: 'hr', kw: 'разделитель линия hr ---'},
   ];
   // сколько раз выбран каждый блок — по нему выбираются «часто используемые»
@@ -1672,7 +1693,7 @@ async function openCard(kid) {
     const rc = (ln || node.parentNode).getBoundingClientRect();
     slashRect = rc;
     menu = document.createElement('div');
-    menu.className = 'slash sl-blk';
+    menu.className = 'slash sl-note';
     menu.style.left = Math.max(8, rc.left) + 'px';
     menu.style.top = (rc.bottom + 6) + 'px';
     menu.onmousedown = e => {
@@ -1774,7 +1795,7 @@ async function openCard(kid) {
       if (!s0.rangeCount) return;
       let ln = s0.anchorNode;
       while (ln && ln.parentNode !== n) ln = ln.parentNode;
-      if (!ln || !ln.classList || !(ln.classList.contains('kcheck') || ln.classList.contains('kbul'))) return;
+      if (!ln || !ln.classList || !(ln.classList.contains('kcheck') || ln.classList.contains('kbul') || ln.classList.contains('knum'))) return;
       e.preventDefault();
       const lvl = Math.max(0, Math.min(6, +(ln.dataset.lvl || 0) + (e.shiftKey ? -1 : 1)));
       ln.dataset.lvl = lvl;
@@ -1809,8 +1830,8 @@ async function openCard(kid) {
     let el = s.anchorNode;
     while (el && el.parentNode !== n) el = el.parentNode;
     if (!el || !el.classList) return;
-    const isCheck = el.classList.contains('kcheck'), isBul = el.classList.contains('kbul');
-    if (!isCheck && !isBul) return;
+    const isCheck = el.classList.contains('kcheck'), isBul = el.classList.contains('kbul'), isNum = el.classList.contains('knum');
+    if (!isCheck && !isBul && !isNum) return;
     e.preventDefault();
     const text = isCheck ? textOf(el.querySelector('.kct')) : textOf(el);
     if (text.trim() === '') {
@@ -1827,7 +1848,7 @@ async function openCard(kid) {
       else cut.setStart(body, 0);
       cut.setEnd(body, body.childNodes.length);
       const rest = [...cut.extractContents().childNodes].map(fmtOf).join('');
-      const nl = createLine(isCheck ? 'check' : 'bul', rest, false, +(el.dataset.lvl || 0));
+      const nl = createLine(isCheck ? 'check' : isBul ? 'bul' : 'num', rest, false, +(el.dataset.lvl || 0));
       el.after(nl);
       caretStart(nl);
     }
@@ -1877,23 +1898,30 @@ async function openCard(kid) {
     tpl.innerHTML = structured ? renderNoteEdit(text) : text.split('\n').map(l => lineHtml('plain', l)).join('');
     const nodes = [...tpl.content.childNodes];
     if (!nodes.length) return;
-    const s = getSelection();
-    let anchor = s.rangeCount ? s.anchorNode : null;
+    let anchor = s0.rangeCount ? s0.anchorNode : null;
     while (anchor && anchor.parentNode !== n) anchor = anchor.parentNode;
-    if (!anchor || anchor.parentNode !== n) anchor = null;
-    // текст строки справа от каретки уходит в отдельную строку под вставкой
+    const textLine = el => !!el && el.nodeType === 1 && (el.classList.contains('kline') || el.classList.contains('kh'));
+    const plainLine = el => textLine(el) && !['kcheck', 'kbul', 'knum', 'kh'].some(c => el.classList.contains(c));
+    // первая строка вливается в текст прямо по каретке, без переноса на новую строку
+    if (textLine(anchor) && plainLine(nodes[0])) {
+      const first = nodes.shift();
+      if (textOf(first).trim()) document.execCommand('insertHTML', false, first.innerHTML);
+      if (!nodes.length) { queue(); return; }
+    }
+    const seq = [...nodes];
+    let focusNode = seq[seq.length - 1];
+    if (focusNode.classList.contains('kdiv')) { focusNode = createLine('plain', ''); seq.push(focusNode); }
+    // текст строки справа от каретки уходит в отдельную строку после вставки
     let tail = '';
-    if (anchor && s.rangeCount && anchor.contains(s.getRangeAt(0).endContainer)) {
-      const rr = s.getRangeAt(0), tr = document.createRange();
+    const rr = getSelection().rangeCount ? getSelection().getRangeAt(0) : null;
+    if (textLine(anchor) && rr && anchor.contains(rr.endContainer)) {
+      const tr = document.createRange();
       tr.setStart(rr.endContainer, rr.endOffset);
       tr.setEnd(anchor, anchor.childNodes.length);
       tail = [...tr.extractContents().childNodes].map(fmtOf).join('');
     }
-    const seq = [...nodes];
-    let focusNode = nodes[nodes.length - 1];
-    if (focusNode.classList.contains('kdiv')) { focusNode = createLine('plain', ''); seq.push(focusNode); }
     if (tail) seq.push(createLine('plain', tail));
-    if (anchor && textOf(anchor).trim() === '' && !anchor.classList.contains('kdiv')) anchor.replaceWith(...seq);
+    if (anchor && plainLine(anchor) && textOf(anchor).trim() === '') anchor.replaceWith(...seq);
     else if (anchor) { let p = anchor; seq.forEach(x => { p.after(x); p = x; }); }
     else n.append(...seq);
     queue();
@@ -1920,9 +1948,10 @@ async function openCard(kid) {
   const showGut = line => {
     gutLine = line;
     const br = n.parentNode.getBoundingClientRect(), lr = line.getBoundingClientRect();
-    const lh = Math.min(lr.height, 24);
-    gut.style.left = (lr.left - br.left - 46) + 'px';
-    gut.style.top = (lr.top - br.top + lh / 2 - 10) + 'px';
+    // центр первой строки текста: высота строки из стиля этого блока (у заголовков она своя)
+    const lh = parseFloat(getComputedStyle(line).lineHeight) || lr.height;
+    gut.style.left = (lr.left - br.left - 54) + 'px';
+    gut.style.top = (lr.top - br.top + Math.min(lh, lr.height) / 2 - 12) + 'px';
     gut.classList.add('on');
   };
   const lineAt = el => { let x = el; while (x && x.parentNode !== n) x = x.parentNode; return x && x.nodeType === 1 ? x : null; };
@@ -1950,13 +1979,54 @@ async function openCard(kid) {
       if (dy && k.animate) k.animate([{transform: `translateY(${dy}px)`}, {transform: 'translateY(0)'}], {duration: 180, easing: 'cubic-bezier(.2,.7,.2,1)'});
     });
   };
+  // меню строки: открывается по клику на ручку, пункт «Удалить» убирает строку целиком
+  let lmenu = null;
+  const closeLineMenu = () => {
+    if (lmenu) lmenu.remove();
+    lmenu = null;
+    document.removeEventListener('mousedown', lmenuOut, true);
+    document.removeEventListener('keydown', lmenuKey, true);
+  };
+  const lmenuOut = e => { if (lmenu && !lmenu.contains(e.target)) closeLineMenu(); };
+  const lmenuKey = e => { if (e.key === 'Escape') closeLineMenu(); };
+  const removeLine = line => {
+    const prev = line.previousElementSibling, next = line.nextElementSibling;
+    line.remove();
+    if (!n.children.length) n.appendChild(createLine('plain', ''));
+    gutLine = null;
+    gut.classList.remove('on');
+    const to = prev || next || n.firstElementChild;
+    if (to && textLine(to)) caretEnd(to);
+    queue();
+  };
+  const textLine = el => !!el && (el.classList.contains('kline') || el.classList.contains('kh'));
+  const lineMenu = line => {
+    closeLineMenu();
+    lmenu = document.createElement('div');
+    lmenu.className = 'slash sl-note';
+    lmenu.innerHTML = `<button class="sl-item sl-del"><span class="sl-ic">${SL_ICON.del}</span><span class="sl-lb">Удалить</span></button>`;
+    document.body.appendChild(lmenu);
+    const r = gut.getBoundingClientRect();
+    lmenu.style.left = Math.max(8, r.left) + 'px';
+    lmenu.style.top = (r.bottom + 4) + 'px';
+    lmenu.querySelector('.sl-del').onmousedown = e => { e.preventDefault(); closeLineMenu(); removeLine(line); };
+    document.addEventListener('mousedown', lmenuOut, true);
+    document.addEventListener('keydown', lmenuKey, true);
+  };
   gut.querySelector('.kg-grip').addEventListener('pointerdown', e => {
     if (!gutLine) return;
     e.preventDefault();
-    drag = gutLine;
-    drag.classList.add('kdrag');
-    document.body.style.userSelect = 'none';
+    const line0 = gutLine, sx = e.clientX, sy = e.clientY;
+    let started = false;
     const onMove = ev => {
+      if (!started) {
+        if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 5) return;
+        started = true;
+        closeLineMenu();
+        drag = line0;
+        drag.classList.add('kdrag');
+        document.body.style.userSelect = 'none';
+      }
       const others = [...n.children].filter(c => c !== drag);
       let ref = null;
       for (const c of others) { const r = c.getBoundingClientRect(); if (ev.clientY < r.top + r.height / 2) { ref = c; break; } }
@@ -1968,12 +2038,15 @@ async function openCard(kid) {
     const onUp = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      if (!started) { lineMenu(line0); return; }
       drag.classList.remove('kdrag');
       document.body.style.userSelect = '';
       showGut(drag); drag = null; queue();
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
   });
 
   beforeClose = async () => { closeCal(); await flush(); };

@@ -1533,3 +1533,42 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-col-h{cursor:grab;user-select:none}
 .crm-col-t{cursor:text;user-select:text}
 .crm-col-drag{position:relative;z-index:5;background:#fff;box-shadow:0 10px 28px rgba(0,0,0,.14);border-radius:16px;cursor:grabbing}
+
+/* ---------- заметка карточки: стиль Notion ----------
+   у каждого вида строки своя высота строки — по ней считается положение ручки */
+.card-sheet .kb-note{font-size:16px;line-height:24px;color:#37352f;caret-color:#37352f;padding:2px 0 120px;word-break:break-word;overflow-wrap:anywhere}
+.card-sheet .kb-note .kline,.card-sheet .kb-note .kct{font-size:16px;line-height:24px;font-weight:400;color:#37352f}
+.card-sheet .kb-note .kline{min-height:24px;margin:1px 0;padding:0;position:relative;transition:background-color .12s}
+.card-sheet .kb-note .kh{font-size:16px;line-height:24px;font-weight:400;margin:0;padding:0}
+.card-sheet .kb-note .kh1{font-size:30px;line-height:36px;font-weight:700;letter-spacing:-.02em;margin:22px 0 2px}
+.card-sheet .kb-note .kh2{font-size:24px;line-height:30px;font-weight:650;letter-spacing:-.015em;margin:16px 0 2px}
+.card-sheet .kb-note .kh3{font-size:20px;line-height:26px;font-weight:600;letter-spacing:-.01em;margin:12px 0 2px}
+.card-sheet .kb-note > :first-child{margin-top:0}
+.card-sheet .kb-note .kcheck{display:flex;align-items:flex-start;gap:8px}
+.card-sheet .kb-note .kcb{width:16px;height:16px;margin:4px 0 0;flex:none}
+.card-sheet .kb-note .kct{flex:1;min-width:0;display:block;transition:color .15s,opacity .15s}
+.card-sheet .kb-note .kcheck.done .kct{color:#9b9a97;text-decoration:line-through;opacity:.8}
+.card-sheet .kb-note .kbul,.card-sheet .kb-note .knum{padding-left:22px}
+.card-sheet .kb-note .kbul::before{content:'';position:absolute;left:7px;top:10px;width:5px;height:5px;border-radius:50%;background:#37352f}
+.card-sheet .kb-note .knum::before{content:attr(data-n) ".";position:absolute;left:0;top:0;width:18px;text-align:right;color:#787774;font-variant-numeric:tabular-nums}
+.card-sheet .kb-note .kdiv{margin:12px 0;user-select:none}
+.card-sheet .kb-note .kdiv .kb-hr{margin:0;border:0;border-top:1px solid #e9e9e7}
+.card-sheet .kb-note .kt-sec{margin:14px 0 8px}
+/* ручка и «+»: ровно слева от строки, по центру её первой строки */
+.kgut{gap:0}
+.kgut button{width:24px;height:24px;border-radius:6px;color:#9b9a97;transition:background-color .12s,color .12s}
+.kgut button:hover{background:#efefed;color:#37352f}
+.kgut svg{width:16px;height:16px}
+.kgut .kg-grip{cursor:grab}
+/* меню слэша и меню строки — как в Notion: плавное появление, подсветка, прокрутка по стрелкам */
+.slash.sl-note{position:fixed;z-index:80;width:236px;min-width:0;background:#fff;border:1px solid rgba(15,15,15,.08);border-radius:10px;box-shadow:0 8px 24px rgba(15,15,15,.12),0 0 0 1px rgba(15,15,15,.03);padding:6px;animation:slNoteIn .14s cubic-bezier(.2,.7,.2,1)}
+@keyframes slNoteIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.slash.sl-note .sl-item{display:flex;align-items:center;gap:10px;width:100%;border:0;border-radius:6px;background:transparent;padding:6px 8px;font:inherit;font-size:14px;line-height:20px;color:#37352f;cursor:pointer;text-align:left;transition:background-color .12s,color .12s}
+.slash.sl-note .sl-item.on{background:#efefed}
+.slash.sl-note .sl-ic{width:20px;height:20px;display:flex;align-items:center;justify-content:center;flex:none;color:#37352f}
+.slash.sl-note .sl-ic svg{width:18px;height:18px;display:block}
+.slash.sl-note .sl-lb{flex:1;min-width:0}
+.slash.sl-note .sl-tx{font-size:11px;font-weight:700;letter-spacing:-.02em}
+.slash.sl-note .sl-sep{height:1px;background:#ececea;margin:4px 6px}
+.slash.sl-note .sl-del{color:#eb5757}
+.slash.sl-note .sl-del .sl-ic{color:#eb5757}
