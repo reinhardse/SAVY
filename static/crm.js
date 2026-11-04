@@ -1,15 +1,17 @@
 /* ---------- CRM: воронка сделок, контакты, компании, сообщения и задачи ----------
    Отдельный файл поверх app.js: использует api, sheet, closeSheet, beforeClose, esc, $, tagColor, XICON, PLUS_ICON. */
 
-const CRM_STAGES_UI = [
-  {key: 'new', name: 'Новая заявка', c: '#9fc4f5'},
-  {key: 'later', name: 'Когда-нибудь', c: '#c7cdd8'},
-  {key: 'talks', name: 'Переговоры', c: '#f3e08a'},
-  {key: 'work', name: 'В работе', c: '#f2b8b8'},
-  {key: 'won', name: 'Успешно', c: '#9ed9ae'},
-  {key: 'lost', name: 'Закрыто и не реализовано', c: '#c9c9cf'},
-];
-const crmStage = k => CRM_STAGES_UI.find(s => s.key === k) || CRM_STAGES_UI[0];
+// цвет этапа: «успешно» и «потеряно» фиксированы, остальные берут цвет по порядку
+const CRM_PALETTE = ['#9fc4f5', '#f3e08a', '#f2b8b8', '#c7cdd8', '#d6c4f5', '#b9e3e0', '#f5cfa8'];
+const CRM_KIND_COLOR = {won: '#9ed9ae', lost: '#c9c9cf'};
+const CRM_KIND_NAME = {work: 'В работе', won: 'Успешная', lost: 'Потерянная'};
+const crmColor = (st, i) => CRM_KIND_COLOR[st.kind] || CRM_PALETTE[Math.max(i, 0) % CRM_PALETTE.length];
+
+// воронки для бокового меню и открытая сейчас
+let crmFunnels = [];
+let crmCurFunnel = null;
+let crmFocusNext = null;  // что выделить после перерисовки: {kind: 'title'} или {kind: 'stage', id}
+async function crmLoadFunnels() { crmFunnels = (await api('/crm/funnels')).funnels; }
 
 const CRM_ICO = {
   funnel: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 5h18l-7 8.5V19l-4 2v-7.5z"/></svg>',
@@ -110,19 +112,24 @@ document.addEventListener('click', e => {
 });
 
 /* ---------- каркас: слева меню разделов, справа содержимое ---------- */
-function crmShell(active, inner, narrow = false) {
+function crmShell(active, inner, narrow = false, fid = null) {
   crmStack = []; crmCurrent = null;
+  crmMenuClose();
   $('#app').classList.add('kfull');
+  const funnels = crmFunnels.map(f => `<a class="crm-fnav-i${f.id === fid ? ' on' : ''}" data-fid="${f.id}" href="#/crm/funnel/${f.id}"><span>${esc(f.title)}</span></a>`).join('');
   $('#app').innerHTML = `<div class="crm">
     <div class="crm-nav" role="navigation" aria-label="CRM">
       <div class="crm-nav-t">CRM</div>
-      <a class="crm-nav-i${active === 'pipe' ? ' on' : ''}" href="#/crm"><span class="crm-nav-ic">${CRM_ICO.funnel}</span>Воронка</a>
+      <a class="crm-nav-i${active === 'pipe' ? ' on' : ''}" href="#/crm"><span class="crm-nav-ic">${CRM_ICO.funnel}</span>Воронки</a>
+      <div class="crm-fnav">${funnels}<button class="crm-fnav-add" id="crmfnadd">${PLUS_ICON}<span>Новая воронка</span></button></div>
       <a class="crm-nav-i${active === 'tasks' ? ' on' : ''}" href="#/crm/tasks"><span class="crm-nav-ic">${CRM_ICO.check}</span>Задачи</a>
       <a class="crm-nav-i${active === 'contacts' ? ' on' : ''}" href="#/crm/contacts"><span class="crm-nav-ic">${CRM_ICO.user}</span>Контакты</a>
       <a class="crm-nav-i${active === 'companies' ? ' on' : ''}" href="#/crm/companies"><span class="crm-nav-ic">${CRM_ICO.building}</span>Компании</a>
     </div>
     <div class="crm-main${narrow ? ' narrow' : ''}">${inner}</div>
   </div>`;
+  const add = $('#crmfnadd');
+  if (add) add.onclick = crmNewFunnel;
 }
 
 /* ---------- воронка ---------- */
@@ -137,36 +144,194 @@ function crmDealCard(d) {
   </div>`;
 }
 
-function crmStageCol(s) {
+function crmStageCol(s, i) {
   const n = s.deals.length;
-  const ui = crmStage(s.key);
-  return `<div class="crm-col" data-stage="${s.key}">
-    <div class="crm-col-h" style="--sc:${ui.c}">
-      <div class="crm-col-t">${esc(s.name)}</div>
+  return `<div class="crm-col" data-stage="${s.id}">
+    <div class="crm-col-h" style="--sc:${crmColor(s, i)}">
+      <div class="crm-col-t" contenteditable="true" spellcheck="false" data-sname="${s.id}" data-old="${esc(s.name)}" data-ph="Название этапа">${esc(s.name)}</div>
+      <button class="crm-col-more" data-smore="${s.id}" aria-label="Действия с этапом">${CRM_ICO.dots}</button>
       <div class="crm-col-s">${n} ${crmPlural(n, 'сделка', 'сделки', 'сделок')}: ${crmMoney(s.sum)}</div>
     </div>
     <div class="crm-col-b">
-      ${s.key === 'new' ? `<div class="crm-quick" data-quick="${s.key}"><button class="crm-quick-btn">Быстрое добавление</button></div>` : ''}
+      ${i === 0 ? `<div class="crm-quick" data-quick="${s.id}"><button class="crm-quick-btn">Быстрое добавление</button></div>` : ''}
       ${s.deals.map(crmDealCard).join('')}
     </div>
   </div>`;
 }
 
-async function crmPipeline() {
-  const data = await api('/crm/pipeline');
-  const all = data.stages.reduce((a, s) => a + s.deals.length, 0);
-  const total = data.stages.reduce((a, s) => a + s.sum, 0);
-  crmShell('pipe', `<div class="crm-head">
-      <div class="crm-sum">${all} ${crmPlural(all, 'сделка', 'сделки', 'сделок')}: <b>${crmMoney(total)}</b></div>
-      <button class="crm-newbtn" id="crmnew">${PLUS_ICON}<span>Новая сделка</span></button>
+// редактируемое название: Enter или уход из поля сохраняет, Esc возвращает прежнее
+function crmEditable(el, save) {
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+    if (e.key === 'Escape') { el.dataset.cancel = '1'; el.blur(); }
+  });
+  el.addEventListener('paste', e => {
+    e.preventDefault();
+    document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').replace(/\s+/g, ' '));
+  });
+  el.addEventListener('blur', () => {
+    const cancel = el.dataset.cancel;
+    delete el.dataset.cancel;
+    const v = el.textContent.replace(/\s+/g, ' ').trim();
+    if (cancel || !v || v === el.dataset.old) { el.textContent = el.dataset.old; return; }
+    el.dataset.old = v;
+    el.textContent = v;
+    save(v);
+  });
+}
+function crmSelectAll(el) {
+  const r = document.createRange();
+  r.selectNodeContents(el);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(r);
+}
+
+// плавающее меню под кнопкой: повторный клик по той же кнопке закрывает его
+let crmMenuEl = null, crmMenuFor = null;
+function crmMenuClose() {
+  if (crmMenuEl) crmMenuEl.remove();
+  crmMenuEl = null; crmMenuFor = null;
+  document.removeEventListener('pointerdown', crmMenuOut, true);
+}
+function crmMenuOut(e) {
+  if (e.target.closest('.crm-fmenu') || (crmMenuFor && crmMenuFor.contains(e.target))) return;
+  crmMenuClose();
+}
+// items: {label, act, on, danger, disabled} или {sep: true}; pick(act) — выбранный пункт
+function crmMenu(anchor, items, pick) {
+  if (crmMenuFor === anchor) return crmMenuClose();
+  crmMenuClose();
+  const menu = document.createElement('div');
+  menu.className = 'crm-fmenu';
+  menu.innerHTML = items.map((it, i) => it.sep ? '<div class="crm-fmenu-sep"></div>'
+    : `<button class="crm-fmenu-i${it.danger ? ' danger' : ''}${it.on ? ' on' : ''}" data-i="${i}"${it.disabled ? ' disabled' : ''}><span>${esc(it.label)}</span>${it.on ? CRM_ICO.check : ''}</button>`).join('');
+  document.body.appendChild(menu);
+  const r = anchor.getBoundingClientRect();
+  const w = menu.offsetWidth;
+  menu.style.top = (r.bottom + 6) + 'px';
+  menu.style.left = Math.max(8, Math.min(r.right - w, window.innerWidth - w - 8)) + 'px';
+  menu.onclick = e => {
+    const b = e.target.closest('[data-i]');
+    if (!b || b.disabled) return;
+    const act = items[+b.dataset.i].act;
+    crmMenuClose();
+    pick(act);
+  };
+  crmMenuEl = menu;
+  crmMenuFor = anchor;
+  setTimeout(() => document.addEventListener('pointerdown', crmMenuOut, true), 0);
+}
+
+async function crmNewFunnel() {
+  try {
+    const f = await api('/crm/funnels', {method: 'POST', body: {title: 'Новая воронка'}});
+    crmFocusNext = {kind: 'title'};
+    location.hash = '#/crm/funnel/' + f.id;
+  } catch (e) { alert(e.message); }
+}
+
+function crmNoFunnels() {
+  crmCurFunnel = null;
+  crmShell('pipe', `<div class="crm-empty"><div class="crm-empty-t">Воронок пока нет</div>
+    <button class="crm-newbtn" id="crmfirst">${PLUS_ICON}<span>Создать воронку</span></button></div>`);
+  $('#crmfirst').onclick = crmNewFunnel;
+}
+
+// действия с этапом из меню его колонки
+async function crmStageAct(fid, b, s, act) {
+  const idx = b.stages.findIndex(x => x.id === s.id);
+  try {
+    if (act === 'rename') {
+      const el = document.querySelector(`[data-sname="${s.id}"]`);
+      el.focus();
+      crmSelectAll(el);
+      return;
+    }
+    if (act === 'left' || act === 'right') {
+      const ids = b.stages.map(x => x.id);
+      const j = act === 'left' ? idx - 1 : idx + 1;
+      [ids[idx], ids[j]] = [ids[j], ids[idx]];
+      await api(`/crm/funnels/${fid}/stage-order`, {method: 'POST', body: {ids}});
+    } else if (act.startsWith('kind:')) {
+      await api(`/crm/stages/${s.id}`, {method: 'PATCH', body: {kind: act.slice(5)}});
+    } else if (act === 'del') {
+      const next = b.stages[idx - 1] || b.stages[idx + 1];
+      if (!next) return alert('В воронке должен остаться хотя бы один этап');
+      const q = s.deals.length
+        ? `Сделки этапа «${s.name}» (${s.deals.length}) перейдут в «${next.name}». Удалить этап?`
+        : `Удалить этап «${s.name}»?`;
+      if (!confirm(q)) return;
+      await api(`/crm/stages/${s.id}`, {method: 'DELETE'});
+    }
+    crmPipeline(fid);
+  } catch (err) { alert(err.message); crmPipeline(fid); }
+}
+
+async function crmPipeline(fid) {
+  let b;
+  try { b = await api(`/crm/funnels/${fid}/board`); }
+  catch (e) { alert(e.message); location.hash = '#/crm'; return; }
+  crmCurFunnel = fid;
+  const all = b.stages.reduce((a, s) => a + s.deals.length, 0);
+  const total = b.stages.reduce((a, s) => a + s.sum, 0);
+  crmShell('pipe', `<div class="crm-fhead">
+      <div class="crm-ftitle" id="crmftitle" contenteditable="true" spellcheck="false" data-old="${esc(b.title)}" data-ph="Название воронки">${esc(b.title)}</div>
+      <button class="crm-col-more crm-fmore" id="crmfmore" aria-label="Действия с воронкой">${CRM_ICO.dots}</button>
     </div>
-    <div class="crm-cols">${data.stages.map(crmStageCol).join('')}</div>`);
+    <div class="crm-head">
+      <div class="crm-sum">${all} ${crmPlural(all, 'сделка', 'сделки', 'сделок')}: <b>${crmMoney(total)}</b></div>
+      <button class="crm-newbtn" id="crmnew"${b.stages.length ? '' : ' disabled'}>${PLUS_ICON}<span>Новая сделка</span></button>
+    </div>
+    <div class="crm-cols">${b.stages.map(crmStageCol).join('')}<button class="crm-addstage" id="crmaddstage">${PLUS_ICON}<span>Новый этап</span></button></div>`, false, fid);
+
+  crmEditable($('#crmftitle'), async v => {
+    try { await api(`/crm/funnels/${fid}`, {method: 'PATCH', body: {title: v}}); }
+    catch (e) { alert(e.message); }
+    const f = crmFunnels.find(x => x.id === fid);
+    if (f) f.title = v;
+    const nav = document.querySelector(`.crm-fnav-i[data-fid="${fid}"] span`);
+    if (nav) nav.textContent = v;
+  });
+  $('#crmfmore').onclick = e => crmMenu(e.currentTarget, [{label: 'Удалить воронку', act: 'del', danger: true}], async act => {
+    if (act !== 'del') return;
+    if (!confirm(`Удалить воронку «${b.title}»?`)) return;
+    try { await api(`/crm/funnels/${fid}`, {method: 'DELETE'}); }
+    catch (err) { alert(err.message); return; }
+    await crmLoadFunnels();
+    location.hash = crmFunnels.length ? '#/crm/funnel/' + crmFunnels[0].id : '#/crm';
+  });
+
   document.querySelectorAll('[data-deal]').forEach(el => el.onclick = () => {
     if (crmSuppress) return;
     crmReturn = null;
     location.hash = '#/crm/deal/' + el.dataset.deal;
   });
   crmBindDrag();
+  document.querySelectorAll('[data-sname]').forEach(el => crmEditable(el, async v => {
+    try { await api(`/crm/stages/${el.dataset.sname}`, {method: 'PATCH', body: {name: v}}); }
+    catch (e) { alert(e.message); }
+  }));
+  document.querySelectorAll('[data-smore]').forEach(btn => btn.onclick = e => {
+    const idx = b.stages.findIndex(x => x.id === +btn.dataset.smore);
+    const s = b.stages[idx];
+    crmMenu(e.currentTarget, [
+      {label: 'Переименовать', act: 'rename'},
+      {label: 'Сдвинуть влево', act: 'left', disabled: idx === 0},
+      {label: 'Сдвинуть вправо', act: 'right', disabled: idx === b.stages.length - 1},
+      {sep: true},
+      ...Object.keys(CRM_KIND_NAME).map(k => ({label: CRM_KIND_NAME[k], act: 'kind:' + k, on: s.kind === k})),
+      {sep: true},
+      {label: 'Удалить этап', act: 'del', danger: true},
+    ], act => crmStageAct(fid, b, s, act));
+  });
+  $('#crmaddstage').onclick = async () => {
+    try {
+      const st = await api(`/crm/funnels/${fid}/stages`, {method: 'POST', body: {name: 'Новый этап', kind: 'work'}});
+      crmFocusNext = {kind: 'stage', id: st.id};
+      crmPipeline(fid);
+    } catch (e) { alert(e.message); }
+  };
   document.querySelectorAll('[data-quick]').forEach(box => {
     box.querySelector('.crm-quick-btn').onclick = () => {
       box.innerHTML = '<input class="crm-quick-in" placeholder="Название сделки" maxlength="200">';
@@ -177,22 +342,32 @@ async function crmPipeline() {
         if (done) return;
         done = true;
         const title = inp.value.trim();
-        if (!save || !title) return crmPipeline();
-        try { await api('/crm/deals', {method: 'POST', body: {title, stage: box.dataset.quick}}); }
+        if (!save || !title) return crmPipeline(fid);
+        try { await api('/crm/deals', {method: 'POST', body: {title, stage_id: +box.dataset.quick}}); }
         catch (e) { alert(e.message); }
-        crmPipeline();
+        crmPipeline(fid);
       };
       inp.onkeydown = e => { if (e.key === 'Enter') finish(true); if (e.key === 'Escape') finish(false); };
       inp.onblur = () => finish(true);
     };
   });
   $('#crmnew').onclick = async () => {
+    const first = b.stages[0];
+    if (!first) return;
     try {
-      const d = await api('/crm/deals', {method: 'POST', body: {title: '', stage: 'new'}});
+      const d = await api('/crm/deals', {method: 'POST', body: {title: '', stage_id: first.id}});
       crmReturn = null;
       location.hash = '#/crm/deal/' + d.id;
     } catch (e) { alert(e.message); }
   };
+
+  // выделяем то, что только что создали
+  if (crmFocusNext) {
+    const f = crmFocusNext;
+    crmFocusNext = null;
+    const el = f.kind === 'title' ? $('#crmftitle') : document.querySelector(`[data-sname="${f.id}"]`);
+    if (el) { el.focus(); crmSelectAll(el); }
+  }
 }
 
 /* ---------- окно: слева содержимое, справа сообщения и задачи (одинаково у сделки, контакта, компании) ---------- */
@@ -610,11 +785,11 @@ async function crmDragUp() {
   d.ph.replaceWith(d.el);
   crmRefreshCounts();
   const columns = [...document.querySelectorAll('.crm-col[data-stage]')].map(c => ({
-    key: c.dataset.stage,
+    stage_id: +c.dataset.stage,
     ids: [...c.querySelectorAll('.crm-deal')].map(x => +x.dataset.deal),
   }));
   try { await api('/crm/pipeline/order', {method: 'POST', body: {columns}}); }
-  catch (err) { alert(err.message); crmPipeline(); }
+  catch (err) { alert(err.message); crmPipeline(crmCurFunnel); }
 }
 
 /* ---------- окно сделки ---------- */
@@ -648,12 +823,14 @@ async function crmOpenDeal(id) {
   const unlinkCompany = async kid => { try { await api(`/crm/deals/${d.id}/companies/${kid}`, {method: 'DELETE'}); await refreshLinks(); } catch (e) { alert(e.message); } };
 
   const paint = () => {
-    const cur = crmStage(d.stage);
+    const stages = d.stages || [];
+    const si = Math.max(stages.findIndex(s => s.id === d.stage), 0);
+    const cur = stages[si] || {name: '—', kind: 'work'};
     $('#crmprops').innerHTML = `
-      <div class="crm-prop"><div class="crm-pl">${CRM_ICO.funnel}<span>Воронка</span></div>
+      <div class="crm-prop"><div class="crm-pl">${CRM_ICO.funnel}<span>Этап</span></div>
         <div class="crm-pv"><div class="crm-dd" id="crmdd">
-          <button class="crm-dd-b" id="crmddb"><span class="crm-dot" style="--sc:${cur.c}"></span><span>${esc(cur.name)}</span><span class="crm-caret">${CRM_ICO.chev}</span></button>
-          <div class="crm-dd-m" id="crmddm" hidden>${CRM_STAGES_UI.map(s => `<button class="crm-dd-i${s.key === d.stage ? ' on' : ''}" data-stage="${s.key}"><span class="crm-dot" style="--sc:${s.c}"></span>${esc(s.name)}</button>`).join('')}</div>
+          <button class="crm-dd-b" id="crmddb"><span class="crm-dot" style="--sc:${crmColor(cur, si)}"></span><span>${esc(cur.name)}</span><span class="crm-caret">${CRM_ICO.chev}</span></button>
+          <div class="crm-dd-m" id="crmddm" hidden>${stages.map((s, i) => `<button class="crm-dd-i${s.id === d.stage ? ' on' : ''}" data-stage="${s.id}"><span class="crm-dot" style="--sc:${crmColor(s, i)}"></span>${esc(s.name)}</button>`).join('')}</div>
         </div></div></div>
       <div class="crm-prop"><div class="crm-pl">${CRM_ICO.rub}<span>Бюджет</span></div>
         <div class="crm-pv"><input class="crm-in crm-amount" id="crmamt" inputmode="numeric" placeholder="Не указан" value="${d.amount ? d.amount.toLocaleString('ru-RU') : ''}"><span class="crm-unit">₽</span></div></div>
@@ -673,8 +850,8 @@ async function crmOpenDeal(id) {
     $('#crmddb').onclick = e => { e.stopPropagation(); $('#crmddm').hidden = !$('#crmddm').hidden; };
     $('#crmdd').querySelectorAll('[data-stage]').forEach(b => b.onclick = async e => {
       e.stopPropagation();
-      d.stage = b.dataset.stage; paint();
-      await saveDeal({stage: d.stage});
+      d.stage = +b.dataset.stage; paint();
+      await saveDeal({stage_id: d.stage});
     });
     // формат: повторный клик снимает
     $('#crmprops').querySelectorAll('[data-fmt]').forEach(b => b.onclick = async () => {
@@ -1060,7 +1237,8 @@ async function crmTasksPage() {
 }
 
 /* ---------- маршруты CRM ---------- */
-function crmRoute(parts) {
+async function crmRoute(parts) {
+  await crmLoadFunnels();
   const [sec, id] = parts;
   if (sec === 'tasks') return crmTasksPage();
   if (sec === 'contacts') return crmContactsList();
@@ -1068,9 +1246,16 @@ function crmRoute(parts) {
   // ссылка на контакт или компанию: раздел под окном, окно поверх
   if (sec === 'contact') return crmContactsList().then(() => crmOpenWin('contact', () => crmContactView(+id, 'sheet')));
   if (sec === 'company') return crmCompaniesList().then(() => crmOpenWin('company', () => crmCompanyView(+id, 'sheet')));
+  if (sec === 'funnel') return crmPipeline(+id);
   if (sec === 'deal') {
     // воронка остаётся на фоне, окно сделки поверх
-    return crmPipeline().then(() => crmOpenWin('deal', () => crmOpenDeal(+id)));
+    let d;
+    try { d = await api(`/crm/deals/${id}`); }
+    catch (e) { alert(e.message); location.hash = '#/crm'; return; }
+    await crmPipeline(d.pipeline_id);
+    return crmOpenWin('deal', () => crmOpenDeal(+id));
   }
-  return crmPipeline();
+  // корень раздела: первая воронка, а если их нет — пустой экран
+  if (crmFunnels.length) { location.hash = '#/crm/funnel/' + crmFunnels[0].id; return; }
+  return crmNoFunnels();
 }

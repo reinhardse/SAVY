@@ -209,18 +209,54 @@ class Contact(Base):
     deals = relationship("Deal", secondary=deal_contacts, back_populates="contacts")
 
 
+class CrmPipeline(Base):
+    """Воронка: её название задаёт пользователь, этапы внутри — тоже."""
+    __tablename__ = "crm_pipelines"
+    id = Column(Integer, primary_key=True)
+    title = Column(String(200), default="")
+    sort = Column(Integer, default=0)
+    created_at = Column(DateTime, default=now)
+    stages = relationship("CrmStage", back_populates="pipeline", cascade="all, delete-orphan",
+                          order_by="CrmStage.sort, CrmStage.id")
+
+
+class CrmStage(Base):
+    """Этап воронки. kind: work — в работе, won — успешно, lost — потеряно (для блоков в контактах и компаниях)."""
+    __tablename__ = "crm_stages"
+    id = Column(Integer, primary_key=True)
+    pipeline_id = Column(Integer, ForeignKey("crm_pipelines.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = Column(String(200), default="")
+    kind = Column(String(10), default="work")
+    sort = Column(Integer, default=0)
+    created_at = Column(DateTime, default=now)
+    pipeline = relationship("CrmPipeline", back_populates="stages")
+
+
+# этапы, с которыми появилась воронка сделок: ключ прежнего поля stage, название, вид
+CRM_LEGACY_STAGES = [("new", "Новая заявка", "work"), ("later", "Когда-нибудь", "work"),
+                     ("talks", "Переговоры", "work"), ("work", "В работе", "work"),
+                     ("won", "Успешно", "won"), ("lost", "Закрыто и не реализовано", "lost")]
+# этапы новой воронки
+CRM_NEW_FUNNEL_STAGES = [("Новая заявка", "work"), ("В работе", "work"),
+                         ("Успешно", "won"), ("Закрыто и не реализовано", "lost")]
+
+
 class Deal(Base):
     __tablename__ = "deals"
     id = Column(Integer, primary_key=True)
     title = Column(String(200), default="")
     amount = Column(Integer, nullable=True)  # бюджет, рублей
-    stage = Column(String(20), default="new")  # ключ этапа воронки
+    pipeline_id = Column(Integer, ForeignKey("crm_pipelines.id", ondelete="CASCADE"), nullable=True, index=True)
+    stage_id = Column(Integer, ForeignKey("crm_stages.id", ondelete="SET NULL"), nullable=True, index=True)
+    stage = Column(String(20), default="new")  # прежний ключ этапа, после переноса не используется
     sort = Column(Integer, default=0)  # порядок карточки внутри этапа
     format = Column(String(10), nullable=True)  # white / black
     documents_url = Column(String(500), nullable=True)  # ссылка на Google Диск
     created_at = Column(DateTime, default=now)
     contacts = relationship("Contact", secondary=deal_contacts, back_populates="deals")
     companies = relationship("Company", secondary=deal_companies, back_populates="deals")
+    cstage = relationship("CrmStage")
+    pipeline = relationship("CrmPipeline")
     messages = relationship("DealMessage", back_populates="deal", cascade="all, delete-orphan",
                             order_by="DealMessage.created_at")
     tasks = relationship("CrmTask", back_populates="deal", cascade="all, delete-orphan",
@@ -277,8 +313,38 @@ def _migrate_crm(conn) -> None:
         conn.execute(text(f"DROP TABLE {table}__old"))
 
 
+def _migrate_pipelines(had_pipelines: bool) -> None:
+    """Воронки и этапы. Колонки сделки добавляем всегда; при первом появлении воронок
+    создаём «Воронку продаж» с прежними этапами и переносим в неё все сделки по старым ключам."""
+    from sqlalchemy import inspect as sa_inspect, text
+    from sqlalchemy.orm import Session as _Session
+    with engine.begin() as conn:
+        cols = [c["name"] for c in sa_inspect(conn).get_columns("deals")]
+        for col in ("pipeline_id", "stage_id"):
+            if col not in cols:
+                conn.execute(text(f"ALTER TABLE deals ADD COLUMN {col} INTEGER"))
+    if had_pipelines:
+        return
+    with _Session(engine) as db:
+        pipe = CrmPipeline(title="Воронка продаж", sort=1)
+        db.add(pipe)
+        db.flush()
+        stages = [CrmStage(pipeline_id=pipe.id, name=name, kind=kind, sort=i + 1)
+                  for i, (_, name, kind) in enumerate(CRM_LEGACY_STAGES)]
+        db.add_all(stages)
+        db.flush()
+        keymap = {key: st.id for (key, _, _), st in zip(CRM_LEGACY_STAGES, stages)}
+        for d in db.scalars(select(Deal)).all():
+            d.pipeline_id = pipe.id
+            d.stage_id = keymap.get(d.stage or "new", stages[0].id)
+        db.commit()
+
+
 def init_db():
+    from sqlalchemy import inspect as _pre
+    had_pipelines = "crm_pipelines" in _pre(engine).get_table_names()
     Base.metadata.create_all(engine)
+    _migrate_pipelines(had_pipelines)
     with engine.begin() as _conn:
         _migrate_crm(_conn)
         from sqlalchemy import inspect as _insp, text as _text

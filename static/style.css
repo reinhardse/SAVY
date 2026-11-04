@@ -1489,3 +1489,38 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .ks-sheet .kb-tools{position:relative}
 .ks-sheet .kt-crumbs{flex:1 1 0;min-width:0;overflow:hidden;flex-wrap:nowrap;white-space:nowrap}
 .ks-sheet .kb-tools{flex:none;z-index:2}
+
+/* ---------- воронки: список в меню, название воронки, этапы как колонки ---------- */
+.crm-fnav{display:flex;flex-direction:column;gap:2px;margin:2px 0 8px 22px;padding-left:10px;border-left:1px solid #ececf0}
+.crm-fnav-i{display:block;padding:6px 10px;border-radius:10px;color:var(--ink);text-decoration:none;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crm-fnav-i:hover{background:#f4f4f6}
+.crm-fnav-i.on{background:#f0f0f3;font-weight:600}
+.crm-fnav-add{display:inline-flex;align-items:center;gap:6px;border:0;background:none;padding:6px 10px;font:inherit;font-size:13px;color:var(--muted);cursor:pointer;border-radius:10px;text-align:left}
+.crm-fnav-add:hover{background:#f4f4f6;color:var(--ink)}
+.crm-fnav-add svg{width:14px;height:14px}
+.crm-fhead{display:flex;align-items:center;gap:8px;margin:4px 0 6px}
+.crm-ftitle{flex:1 1 auto;min-width:0;font-size:30px;font-weight:700;letter-spacing:-.01em;color:var(--ink);outline:none;padding:2px 6px 2px 0;border-radius:8px;overflow-wrap:anywhere}
+.crm-ftitle:empty:before{content:attr(data-ph);color:#b5b5be}
+.crm-ftitle:focus{box-shadow:0 0 0 2px #e4ecfb}
+.crm-fmore{position:static;opacity:1;flex:none}
+.crm-col-h{position:relative;padding-left:24px;padding-right:24px}
+.crm-col-t{outline:none;border-radius:6px;min-height:1.3em}
+.crm-col-t:empty:before{content:attr(data-ph);color:#b5b5be;text-transform:none;letter-spacing:0;font-weight:500}
+.crm-col-t:focus{box-shadow:0 0 0 2px #e4ecfb}
+.crm-col-more{position:absolute;top:8px;right:0;width:26px;height:26px;border:0;background:none;border-radius:8px;color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:opacity .15s}
+.crm-col-more svg{width:16px;height:16px}
+.crm-col-h:hover .crm-col-more,.crm-col-more:focus{opacity:1}
+.crm-col-more:hover{background:#ececf0;color:var(--ink)}
+.crm-addstage{flex:0 0 260px;width:260px;height:52px;margin-top:6px;border:1px dashed #cfcfd6;border-radius:14px;background:transparent;font:inherit;font-size:14px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer}
+.crm-addstage:hover{background:#fff;border-color:#b5b5be;color:var(--ink)}
+.crm-addstage svg{width:14px;height:14px}
+.crm-empty{display:flex;flex-direction:column;align-items:center;gap:16px;padding:60px 0;color:var(--muted)}
+.crm-empty-t{font-size:18px}
+.crm-fmenu{position:fixed;z-index:1200;min-width:200px;background:#fff;border:1px solid #e6e6ea;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:6px;display:flex;flex-direction:column}
+.crm-fmenu-i{display:flex;align-items:center;justify-content:space-between;gap:12px;border:0;background:none;padding:8px 10px;border-radius:8px;font:inherit;font-size:14px;color:var(--ink);text-align:left;cursor:pointer;white-space:nowrap}
+.crm-fmenu-i:hover:not(:disabled){background:#f4f4f6}
+.crm-fmenu-i:disabled{color:#b5b5be;cursor:default}
+.crm-fmenu-i.danger{color:#d23b3b}
+.crm-fmenu-i.on{font-weight:600}
+.crm-fmenu-i svg{width:14px;height:14px;flex:none}
+.crm-fmenu-sep{height:1px;background:#ececf0;margin:6px 4px}

@@ -20,8 +20,8 @@ from sqlalchemy.orm import Session
 from . import gcal, meta
 from types import SimpleNamespace
 from urllib.parse import urlparse
-from .db import (BASE_DIR, DATA_DIR, STATUSES, Board, BoardLink, Card, CardSub, Category, Company, Contact, CrmTask, Deal, DealMessage,
-                 GCalToken, Item, KColumn, SessionLocal, Tag, init_db)
+from .db import (BASE_DIR, DATA_DIR, STATUSES, Board, BoardLink, Card, CardSub, Category, Company, Contact, CrmPipeline, CrmStage,
+                 CrmTask, CRM_NEW_FUNNEL_STAGES, Deal, DealMessage, GCalToken, Item, KColumn, SessionLocal, Tag, init_db)
 
 PASSWORD = os.environ.get("LIBRARY_PASSWORD")
 API_TOKEN = os.environ.get("LIBRARY_API_TOKEN")  # для бота и «Быстрых команд» iOS
@@ -997,23 +997,38 @@ def index():
 
 
 
-# ---------- CRM: воронка сделок, контакты и компании ----------
-# этапы воронки: ключ, название; «won» — успешные, «lost» — потерянные, остальные — в работе
-CRM_STAGES = [("new", "Новая заявка"), ("later", "Когда-нибудь"), ("talks", "Переговоры"),
-              ("work", "В работе"), ("won", "Успешно"), ("lost", "Закрыто и не реализовано")]
-CRM_STAGE_KEYS = {k for k, _ in CRM_STAGES}
+# ---------- CRM: воронки, этапы, сделки, контакты и компании ----------
+CRM_KINDS = ("work", "won", "lost")  # в работе, успешно, потеряно
 CRM_FORMATS = ("white", "black")
+
+
+class CrmFunnelIn(BaseModel):
+    title: str = ""
+
+
+class CrmStageIn(BaseModel):
+    name: str = "Новый этап"
+    kind: str = "work"
+
+
+class CrmStagePatch(BaseModel):
+    name: str | None = None
+    kind: str | None = None
+
+
+class CrmIdsIn(BaseModel):
+    ids: list[int]
 
 
 class CrmDealIn(BaseModel):
     title: str = ""
-    stage: str = "new"
+    stage_id: int
 
 
 class CrmDealPatch(BaseModel):
     title: str | None = None
     amount: int | None = None
-    stage: str | None = None
+    stage_id: int | None = None
     format: str | None = None
     documents_url: str | None = None
 
@@ -1078,7 +1093,9 @@ def _crm_contact_brief(c: Contact) -> dict:
 
 
 def _crm_deal_brief(d: Deal) -> dict:
-    return {"id": d.id, "title": d.title or "Без названия", "amount": d.amount or 0, "stage": d.stage,
+    return {"id": d.id, "title": d.title or "Без названия", "amount": d.amount or 0, "stage": d.stage_id,
+            "stage_name": d.cstage.name if d.cstage else "", "stage_kind": d.cstage.kind if d.cstage else "work",
+            "pipeline_id": d.pipeline_id,
             "created_at": d.created_at.date().isoformat() if d.created_at else None,
             "contacts": [_crm_contact_brief(c) for c in d.contacts],
             "companies": [_crm_company_brief(c) for c in d.companies],
@@ -1102,9 +1119,16 @@ def _crm_msg_out(m: DealMessage) -> dict:
             "owner": _crm_owner_of(m)}
 
 
+def _crm_stage_out(s: CrmStage, deals: list[Deal]) -> dict:
+    return {"id": s.id, "name": s.name, "kind": s.kind, "sum": sum(d.amount or 0 for d in deals),
+            "deals": [_crm_deal_brief(d) for d in deals]}
+
+
 def _crm_deal_full(d: Deal, db: Session | None = None) -> dict:
     items = _crm_feed(db, "deals", d) if db is not None else []
-    return {**_crm_deal_brief(d), "format": d.format, "documents_url": d.documents_url, "items": items}
+    stages = [{"id": s.id, "name": s.name, "kind": s.kind} for s in d.pipeline.stages] if d.pipeline else []
+    return {**_crm_deal_brief(d), "format": d.format, "documents_url": d.documents_url, "items": items,
+            "stages": stages}
 
 
 CRM_OWNER_COL = {"deals": "deal_id", "contacts": "contact_id", "companies": "company_id"}
@@ -1173,7 +1197,8 @@ def _crm_company_full(db: Session, c: Company) -> dict:
 def _crm_group_deals(deals) -> dict:
     g = {"won": [], "lost": [], "active": []}
     for d in sorted(deals, key=lambda x: x.id, reverse=True):
-        key = "won" if d.stage == "won" else "lost" if d.stage == "lost" else "active"
+        kind = d.cstage.kind if d.cstage else "work"
+        key = "won" if kind == "won" else "lost" if kind == "lost" else "active"
         g[key].append(_crm_deal_brief(d))
     g["sums"] = {k: sum(x["amount"] for x in g[k]) for k in ("won", "lost", "active")}
     return g
@@ -1186,21 +1211,136 @@ def _crm_contact_fields(c: Contact, body) -> None:
             setattr(c, f, v.strip()[:200])
 
 
-@app.get("/api/crm/pipeline")
-def crm_pipeline(db: Session = Depends(get_db), _: int = Depends(require_auth)):
-    deals = db.scalars(select(Deal).order_by(Deal.sort, Deal.id.desc())).all()
-    stages = [{"key": k, "name": n, "deals": []} for k, n in CRM_STAGES]
-    by_key = {s["key"]: s for s in stages}
+def _crm_funnel_or_404(db: Session, fid: int) -> CrmPipeline:
+    f = db.get(CrmPipeline, fid)
+    if not f:
+        raise HTTPException(404, "Воронка не найдена")
+    return f
+
+
+def _crm_stage_or_404(db: Session, sid: int) -> CrmStage:
+    st = db.get(CrmStage, sid)
+    if not st:
+        raise HTTPException(404, "Этап не найден")
+    return st
+
+
+def _crm_check_kind(kind: str) -> str:
+    if kind not in CRM_KINDS:
+        raise HTTPException(400, "Неизвестный вид этапа")
+    return kind
+
+
+def _crm_renumber(rows: list) -> None:
+    for i, row in enumerate(rows):
+        row.sort = i + 1
+
+
+@app.get("/api/crm/funnels")
+def crm_funnels(db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    rows = db.scalars(select(CrmPipeline).order_by(CrmPipeline.sort, CrmPipeline.id)).all()
+    return {"funnels": [{"id": f.id, "title": f.title or "Без названия"} for f in rows]}
+
+
+@app.post("/api/crm/funnels")
+def crm_funnel_create(body: CrmFunnelIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    last = db.scalar(select(func.max(CrmPipeline.sort))) or 0
+    f = CrmPipeline(title=body.title.strip()[:200], sort=last + 1)
+    db.add(f)
+    db.flush()
+    for i, (name, kind) in enumerate(CRM_NEW_FUNNEL_STAGES):
+        db.add(CrmStage(pipeline_id=f.id, name=name, kind=kind, sort=i + 1))
+    db.commit()
+    return {"id": f.id, "title": f.title or "Без названия"}
+
+
+@app.patch("/api/crm/funnels/{fid}")
+def crm_funnel_patch(fid: int, body: CrmFunnelIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    f = _crm_funnel_or_404(db, fid)
+    title = body.title.strip()[:200]
+    if not title:
+        raise HTTPException(400, "Напишите название воронки")
+    f.title = title
+    db.commit()
+    return {"id": f.id, "title": f.title}
+
+
+@app.delete("/api/crm/funnels/{fid}")
+def crm_funnel_delete(fid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    f = _crm_funnel_or_404(db, fid)
+    if db.scalar(select(func.count(Deal.id)).where(Deal.pipeline_id == f.id)):
+        raise HTTPException(400, "В воронке есть сделки. Сначала перенесите их в другую воронку или удалите")
+    db.delete(f)
+    db.commit()
+    return {"ok": True}
+
+
+@app.get("/api/crm/funnels/{fid}/board")
+def crm_funnel_board(fid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    f = _crm_funnel_or_404(db, fid)
+    deals = db.scalars(select(Deal).where(Deal.pipeline_id == f.id).order_by(Deal.sort, Deal.id.desc())).all()
+    by_stage: dict[int, list[Deal]] = {}
     for d in deals:
-        if d.stage in by_key:
-            by_key[d.stage]["deals"].append(_crm_deal_brief(d))
-    for s in stages:
-        s["sum"] = sum(x["amount"] for x in s["deals"])
-    return {"stages": stages}
+        by_stage.setdefault(d.stage_id, []).append(d)
+    return {"id": f.id, "title": f.title or "Без названия",
+            "stages": [_crm_stage_out(s, by_stage.get(s.id, [])) for s in f.stages]}
+
+
+@app.post("/api/crm/funnels/{fid}/stages")
+def crm_stage_create(fid: int, body: CrmStageIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    f = _crm_funnel_or_404(db, fid)
+    last = db.scalar(select(func.max(CrmStage.sort)).where(CrmStage.pipeline_id == f.id)) or 0
+    st = CrmStage(pipeline_id=f.id, name=(body.name.strip() or "Новый этап")[:200],
+                  kind=_crm_check_kind(body.kind), sort=last + 1)
+    db.add(st)
+    db.commit()
+    return _crm_stage_out(st, [])
+
+
+@app.patch("/api/crm/stages/{sid}")
+def crm_stage_patch(sid: int, body: CrmStagePatch, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    st = _crm_stage_or_404(db, sid)
+    if body.name is not None:
+        name = body.name.strip()[:200]
+        if not name:
+            raise HTTPException(400, "Напишите название этапа")
+        st.name = name
+    if body.kind is not None:
+        st.kind = _crm_check_kind(body.kind)
+    db.commit()
+    return {"id": st.id, "name": st.name, "kind": st.kind}
+
+
+@app.post("/api/crm/funnels/{fid}/stage-order")
+def crm_stage_order(fid: int, body: CrmIdsIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    """Порядок этапов: как переставлены колонки на экране."""
+    f = _crm_funnel_or_404(db, fid)
+    by_id = {s.id: s for s in f.stages}
+    if sorted(body.ids) != sorted(by_id):
+        raise HTTPException(400, "Этапы не совпадают с воронкой")
+    _crm_renumber([by_id[i] for i in body.ids])
+    db.commit()
+    return {"ok": True}
+
+
+@app.delete("/api/crm/stages/{sid}")
+def crm_stage_delete(sid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    """Этап удаляется, его сделки переходят в соседний этап слева (а у первого — справа)."""
+    st = _crm_stage_or_404(db, sid)
+    rest = [s for s in st.pipeline.stages if s.id != st.id]
+    if not rest:
+        raise HTTPException(400, "В воронке должен остаться хотя бы один этап")
+    left = [s for s in rest if s.sort <= st.sort]
+    target = left[-1] if left else rest[0]
+    for d in db.scalars(select(Deal).where(Deal.stage_id == st.id)).all():
+        d.stage_id = target.id
+    db.delete(st)
+    db.commit()
+    return {"ok": True, "moved_to": target.id}
 
 
 class CrmColumn(BaseModel):
-    key: str
+    stage_id: int
     ids: list[int]
 
 
@@ -1212,12 +1352,12 @@ class CrmOrder(BaseModel):
 def crm_pipeline_order(body: CrmOrder, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     """Перенос карточек: этап и порядок внутри этапа, как на досках."""
     for col in body.columns:
-        if col.key not in CRM_STAGE_KEYS:
-            raise HTTPException(400, "Неизвестный этап")
+        st = _crm_stage_or_404(db, col.stage_id)
         for i, did in enumerate(col.ids):
             d = db.get(Deal, did)
             if d:
-                d.stage = col.key
+                d.stage_id = st.id
+                d.pipeline_id = st.pipeline_id
                 d.sort = i + 1
     db.commit()
     return {"ok": True}
@@ -1225,9 +1365,8 @@ def crm_pipeline_order(body: CrmOrder, db: Session = Depends(get_db), _: int = D
 
 @app.post("/api/crm/deals")
 def crm_deal_create(body: CrmDealIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
-    if body.stage not in CRM_STAGE_KEYS:
-        raise HTTPException(400, "Неизвестный этап")
-    d = Deal(title=body.title.strip()[:200], stage=body.stage)
+    st = _crm_stage_or_404(db, body.stage_id)
+    d = Deal(title=body.title.strip()[:200], stage_id=st.id, pipeline_id=st.pipeline_id)
     db.add(d)
     db.commit()
     return _crm_deal_brief(d)
@@ -1253,10 +1392,10 @@ def crm_deal_patch(did: int, body: CrmDealPatch, db: Session = Depends(get_db), 
         if body.amount is not None and body.amount < 0:
             raise HTTPException(400, "Бюджет не может быть отрицательным")
         d.amount = body.amount
-    if "stage" in f and body.stage is not None:
-        if body.stage not in CRM_STAGE_KEYS:
-            raise HTTPException(400, "Неизвестный этап")
-        d.stage = body.stage
+    if "stage_id" in f and body.stage_id is not None:
+        st = _crm_stage_or_404(db, body.stage_id)
+        d.stage_id = st.id
+        d.pipeline_id = st.pipeline_id
     if "format" in f:
         d.format = body.format if body.format in CRM_FORMATS else None
     if "documents_url" in f:
