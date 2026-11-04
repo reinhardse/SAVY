@@ -1585,3 +1585,39 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .card-sheet.note-ghost .kbul,.card-sheet.note-ghost .knum{padding-left:32px}
 .card-sheet.note-ghost .knum::before{left:10px}
 .card-sheet.note-ghost .kbul::before{left:17px}
+
+/* шапка и свойства карточки в стиле Notion: тонкие серые иконки, строки свойств с подсветкой при наведении,
+   статус — мягкая плашка с точкой, приоритет и теги — квадратные плашки с малым скруглением */
+.card-sheet .kb-top{min-height:36px;padding:10px 12px 0 16px}
+.card-sheet .kb-top .kb-saved{font-size:12px;color:#9b9a97;padding-left:6px}
+.card-sheet .kb-ib{width:28px;height:28px;border-radius:4px;color:#9b9a97}
+.card-sheet .kb-ib:hover{background:#efefed;color:#37352f}
+.card-sheet .kb-ib svg{width:16px;height:16px}
+.card-sheet .kb-props{margin:0 0 20px;gap:0}
+.card-sheet .kb-prop{grid-template-columns:168px minmax(0,1fr);align-items:center;min-height:32px;margin:0 -8px;padding:0 8px;border-radius:4px;transition:background-color .12s}
+.card-sheet .kb-prop:hover{background:#f7f7f5}
+.card-sheet .kb-pl{color:#787774;padding-top:0;line-height:20px;font-size:14px}
+.card-sheet .kb-pl svg{width:16px;height:16px;color:#9b9a97}
+.card-sheet .kb-pv{min-height:32px;padding-top:0;gap:4px}
+.card-sheet .kb-col,
+.card-sheet .kb-prio,
+.card-sheet .kb-tag{border-radius:4px;font-size:13px;line-height:18px;padding:2px 6px;border-color:transparent;transition:background-color .12s,color .12s}
+.card-sheet .kb-col{background:#f1f1ef;color:#37352f;display:inline-flex;align-items:center;gap:6px}
+.card-sheet .kb-col::before{content:"";width:8px;height:8px;border-radius:50%;background:#b4b4b0;flex:none}
+.card-sheet .kb-col:hover{background:#e6e6e3}
+.card-sheet .kb-col.on{background:#e7f3f8;color:#183347}
+.card-sheet .kb-col.on::before{background:#2383e2}
+.card-sheet .kb-col.done{background:#f1f1ef}
+.card-sheet .kb-col.done.on{background:#dbeddb;color:#1c3829}
+.card-sheet .kb-col.done.on::before{background:#4dab9a}
+.card-sheet .kb-prio{background:var(--tb,#f1f1ef);color:var(--tt,#37352f);border:0}
+.card-sheet .kb-prio:not(.on){opacity:1;background:transparent;color:#9b9a97}
+.card-sheet .kb-prio:not(.on):hover{background:#efefed}
+.card-sheet .kb-tag{background:#f1f1ef;color:#37352f}
+.card-sheet .kb-tag:hover{background:#e6e6e3}
+.card-sheet .kb-tag.on{background:var(--tb,#f1f1ef);color:var(--tt,#37352f)}
+.card-sheet .kb-tag.add{background:transparent;color:#9b9a97;padding-left:4px}
+.card-sheet .kb-tag.add:hover{color:#37352f;background:#efefed}
+.card-sheet .kb-tag-in{border-radius:4px;border-color:#e3e3e0;font-size:13px}
+.card-sheet .kb-dv{padding:2px 6px;margin-left:-6px;border-radius:4px;font-size:14px;line-height:20px}
+.card-sheet .kb-dv:not(.on){color:#9b9a97}
