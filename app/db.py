@@ -187,6 +187,10 @@ class Company(Base):
     card_url = Column(String(500), nullable=True)  # ссылка на карточку компании (Google Диск)
     inn = Column(String(20), nullable=True)  # ИНН
     website = Column(String(500), nullable=True)  # сайт компании
+    phone = Column(String(50), default="")
+    email = Column(String(200), default="")
+    extra_phones = Column(Text, default="[]")
+    extra_emails = Column(Text, default="[]")
     created_at = Column(DateTime, default=now)
     deals = relationship("Deal", secondary=deal_companies, back_populates="companies")
     contacts = relationship("Contact", secondary=contact_companies, back_populates="companies")
@@ -204,6 +208,8 @@ class Contact(Base):
     position = Column(String(200), default="")
     city = Column(String(100), default="")
     website = Column(String(500), nullable=True)  # сайт контакта
+    extra_phones = Column(Text, default="[]")  # дополнительные телефоны (JSON-список)
+    extra_emails = Column(Text, default="[]")  # дополнительные почты (JSON-список)
     created_at = Column(DateTime, default=now)
     companies = relationship("Company", secondary=contact_companies, back_populates="contacts")
     deals = relationship("Deal", secondary=deal_contacts, back_populates="contacts")
@@ -359,6 +365,17 @@ def init_db():
             if _tbl in _insp(_conn).get_table_names():
                 if "website" not in [c["name"] for c in _insp(_conn).get_columns(_tbl)]:
                     _conn.execute(_text(f"ALTER TABLE {_tbl} ADD COLUMN website VARCHAR(500)"))
+        # несколько телефонов и почт у контакта и компании
+        for _tbl, _cols in (
+            ("companies", ("phone VARCHAR(50) DEFAULT ''", "email VARCHAR(200) DEFAULT ''",
+                           "extra_phones TEXT DEFAULT '[]'", "extra_emails TEXT DEFAULT '[]'")),
+            ("contacts", ("extra_phones TEXT DEFAULT '[]'", "extra_emails TEXT DEFAULT '[]'")),
+        ):
+            if _tbl in _insp(_conn).get_table_names():
+                _have = [c["name"] for c in _insp(_conn).get_columns(_tbl)]
+                for _ddl in _cols:
+                    if _ddl.split()[0] not in _have:
+                        _conn.execute(_text(f"ALTER TABLE {_tbl} ADD COLUMN {_ddl}"))
     # колонка статуса появилась позже: добавляем в уже существующую таблицу
     from sqlalchemy import inspect, text
     if "board_links" in inspect(engine).get_table_names():

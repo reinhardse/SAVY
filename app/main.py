@@ -1122,6 +1122,8 @@ class CrmContactIn(BaseModel):
 
 
 class CrmContactPatch(CrmContactIn):
+    phones: list[str] | None = None
+    emails: list[str] | None = None
     first_name: str | None = None
     last_name: str | None = None
     middle_name: str | None = None
@@ -1146,6 +1148,8 @@ class CrmCompanyPatch(BaseModel):
     card_url: str | None = None
     inn: str | None = None
     website: str | None = None
+    phones: list[str] | None = None
+    emails: list[str] | None = None
 
 
 def _crm_name(c: Contact) -> str:
@@ -1246,9 +1250,27 @@ def _crm_feed(db: Session, kind: str, obj) -> list[dict]:
     return items
 
 
+def _crm_multi_get(obj, field: str, extra: str) -> list[str]:
+    """Основной телефон/почта плюс дополнительные из JSON-колонки."""
+    base = getattr(obj, field) or ""
+    try:
+        more = json.loads(getattr(obj, extra) or "[]")
+    except ValueError:
+        more = []
+    return ([base] if base else []) + [str(x) for x in more if str(x).strip()]
+
+
+def _crm_multi_set(obj, field: str, extra: str, values) -> None:
+    """Первое значение — в основную колонку, остальные — в дополнительную."""
+    vals = [v.strip()[:200] for v in (values or []) if v and v.strip()]
+    setattr(obj, field, vals[0] if vals else "")
+    setattr(obj, extra, json.dumps(vals[1:], ensure_ascii=False))
+
+
 def _crm_contact_full(db: Session, c: Contact) -> dict:
     return {"id": c.id, "name": _crm_name(c), "first_name": c.first_name, "last_name": c.last_name,
             "middle_name": c.middle_name, "phone": c.phone, "email": c.email, "telegram": c.telegram,
+            "phones": _crm_multi_get(c, "phone", "extra_phones"), "emails": _crm_multi_get(c, "email", "extra_emails"),
             "position": c.position, "city": c.city, "website": c.website or "",
             "companies": [_crm_company_brief(x) for x in c.companies],
             "deals": _crm_group_deals(c.deals),
@@ -1257,6 +1279,7 @@ def _crm_contact_full(db: Session, c: Contact) -> dict:
 
 def _crm_company_full(db: Session, c: Company) -> dict:
     return {"id": c.id, "name": c.name or "Без названия", "card_url": c.card_url, "inn": c.inn or "", "website": c.website or "",
+            "phones": _crm_multi_get(c, "phone", "extra_phones"), "emails": _crm_multi_get(c, "email", "extra_emails"),
             "contacts": [_crm_contact_brief(x) for x in c.contacts],
             "deals": _crm_group_deals(c.deals),
             "items": _crm_feed(db, "companies", c)}
@@ -1277,6 +1300,10 @@ def _crm_contact_fields(c: Contact, body) -> None:
         v = getattr(body, f, None)
         if v is not None:
             setattr(c, f, v.strip()[:200])
+    if getattr(body, "phones", None) is not None:
+        _crm_multi_set(c, "phone", "extra_phones", body.phones)
+    if getattr(body, "emails", None) is not None:
+        _crm_multi_set(c, "email", "extra_emails", body.emails)
 
 
 def _crm_funnel_or_404(db: Session, fid: int) -> CrmPipeline:
@@ -1680,7 +1707,7 @@ def crm_contacts(q: str = "", db: Session = Depends(get_db), _: int = Depends(re
     q = q.strip().lower()
     out = []
     for c in rows:
-        hay = " ".join([c.first_name, c.last_name, c.middle_name, c.phone, c.email, c.position, c.city]
+        hay = " ".join([c.first_name, c.last_name, c.middle_name, *_crm_multi_get(c, "phone", "extra_phones"), *_crm_multi_get(c, "email", "extra_emails"), c.position, c.city]
                        + [x.name for x in c.companies]).lower()
         if not q or q in hay:
             out.append(_crm_contact_brief(c) | {"phone": c.phone, "email": c.email, "position": c.position})
@@ -1778,6 +1805,10 @@ def crm_company_patch(kid: int, body: CrmCompanyPatch, db: Session = Depends(get
         c.inn = (body.inn or "").strip()[:20] or None
     if "website" in f:
         c.website = (body.website or "").strip()[:500] or None
+    if body.phones is not None:
+        _crm_multi_set(c, "phone", "extra_phones", body.phones)
+    if body.emails is not None:
+        _crm_multi_set(c, "email", "extra_emails", body.emails)
     db.commit()
     return _crm_company_full(db, c)
 

@@ -349,7 +349,7 @@ async function crmPipeline(fid) {
 
   document.querySelectorAll('[data-deal]').forEach(el => el.onclick = () => {
     if (crmSuppress) return;
-    crmReturn = null;
+    crmReturn = location.hash; // из окна сделки вернёмся в эту же воронку
     location.hash = '#/crm/deal/' + el.dataset.deal;
   });
   crmBindDrag();
@@ -1122,6 +1122,35 @@ document.addEventListener('focusout', e => {
 
 const crmTabsBar = () => '<div class="crm-tabs"><button class="crm-tab on" data-tab="info">Основное</button><button class="crm-tab" data-tab="deals">Сделки</button></div>';
 
+// несколько телефонов или почт: первая строка — основная, «+» добавляет строку ниже
+function crmMultiField(label, key, values, placeholder) {
+  const list = values && values.length ? values : [''];
+  const rows = list.map((v, i) => `<div class="crm-mrow"><input class="crm-in crm-wide" value="${esc(v)}" placeholder="${i ? '' : placeholder}">${i === list.length - 1 ? `<button class="crm-plus-x" data-mplus="${key}" type="button" aria-label="Добавить: ${esc(label)}">+</button>` : ''}</div>`).join('');
+  return `<div class="crm-prop"><div class="crm-pl"><span>${label}</span></div><div class="crm-pv crm-multi" data-mwrap="${key}">${rows}</div></div>`;
+}
+
+function crmBindMulti(path) {
+  document.querySelectorAll('[data-mwrap]').forEach(wrap => {
+    const key = wrap.dataset.mwrap;
+    const save = async () => {
+      const vals = [...wrap.querySelectorAll('input')].map(i => i.value.trim()).filter(Boolean);
+      try { await api(path, {method: 'PATCH', body: {[key]: vals}}); }
+      catch (e) { alert(e.message); }
+    };
+    wrap.addEventListener('change', e => { if (e.target.tagName === 'INPUT') save(); });
+    wrap.addEventListener('click', e => {
+      const b = e.target.closest('[data-mplus]');
+      if (!b) return;
+      const row = document.createElement('div');
+      row.className = 'crm-mrow';
+      row.innerHTML = `<input class="crm-in crm-wide"><button class="crm-plus-x" data-mplus="${key}" type="button" aria-label="Добавить">+</button>`;
+      b.remove();
+      wrap.appendChild(row);
+      row.querySelector('input').focus();
+    });
+  });
+}
+
 async function crmContactView(id, mode) {
   const c = await api('/crm/contacts/' + id);
   const refresh = () => crmContactView(id, mode);
@@ -1135,7 +1164,7 @@ async function crmContactView(id, mode) {
       ${crmTabsBar()}
       <div class="crm-panel" data-panel="info"><div class="crm-props">
         ${field('Имя', 'first_name')}${field('Фамилия', 'last_name')}${field('Отчество', 'middle_name')}${siteRow}
-        ${field('Телефон', 'phone', '+7…')}${field('Почта', 'email', 'name@mail.ru')}${field('Телеграм', 'telegram', '@username')}
+        ${crmMultiField('Телефон', 'phones', c.phones, '+7…')}${crmMultiField('Почта', 'emails', c.emails, 'name@mail.ru')}${field('Телеграм', 'telegram', '@username')}
         ${field('Должность', 'position')}${field('Город', 'city')}
         <div class="crm-prop"><div class="crm-pl"><span>Компании</span></div>
           <div class="crm-pv crm-links" id="crmlk-companies">${crmEntChips('companies', c.companies)}<button class="crm-add-btn" data-add-companies="1">+ компанию</button></div></div>
@@ -1144,6 +1173,7 @@ async function crmContactView(id, mode) {
     </div>`;
   crmShowPerson('contacts', mode, c.name, '#/crm/contacts', left, crmDelBtn('контакт'));
   $('#crmdelp').onclick = () => crmDeletePerson('contact', id, c.name);
+  crmBindMulti('/crm/contacts/' + id);
   document.querySelectorAll('[data-f]').forEach(inp => inp.onchange = async () => {
     try {
       const upd = await api('/crm/contacts/' + id, {method: 'PATCH', body: {[inp.dataset.f]: inp.value}});
@@ -1182,6 +1212,7 @@ async function crmCompanyView(id, mode) {
           <div class="crm-pv"><input class="crm-in crm-wide" id="crminn" inputmode="numeric" placeholder="10 или 12 цифр" value="${esc(k.inn || '')}"></div></div>
         <div class="crm-prop"><div class="crm-pl"><span>Сайт</span></div>
           <div class="crm-pv crm-docs">${crmLinkField('crmsite', k.website, 'example.ru')}</div></div>
+        ${crmMultiField('Телефон', 'phones', k.phones, '+7…')}${crmMultiField('Почта', 'emails', k.emails, 'name@mail.ru')}
         <div class="crm-prop"><div class="crm-pl"><span>Карточка</span></div>
           <div class="crm-pv crm-docs">${crmLinkField('crmcu', k.card_url, 'Вставить ссылку')}</div></div>
         <div class="crm-prop"><div class="crm-pl"><span>Контакты</span></div>
@@ -1191,6 +1222,7 @@ async function crmCompanyView(id, mode) {
     </div>`;
   crmShowPerson('companies', mode, k.name, '#/crm/companies', left, crmDelBtn('компанию'));
   $('#crmdelp').onclick = () => crmDeletePerson('company', id, k.name);
+  crmBindMulti('/crm/companies/' + id);
   $('#crmnm').onchange = async () => {
     try { const u = await api('/crm/companies/' + id, {method: 'PATCH', body: {name: $('#crmnm').value}}); $('#crmname').textContent = u.name; }
     catch (e) { alert(e.message); }
