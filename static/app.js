@@ -676,15 +676,17 @@ const CRM_ILL = '<svg viewBox="0 0 96 96"><defs><linearGradient id="ilCrm" x1="0
 // цвета досок на главной: квадрат градиентом, внутри белая иконка доски
 // пастельные цвета — те же, что у обложек досок
 const HUB_BPAL = ['#f4e3d7', '#dfeee3', '#e3e8f6', '#f6e8c8', '#efe0ef', '#dcecf0', '#f3dede'];
-// линейные знаки категорий сейва (внутренность круга, 24×24)
+// знаки категорий сейва: круг с градиентом, белый предмет и один цветной акцент (в одном семействе с календарём, досками, сейфом и CRM)
 const CAT_GLYPH = {
-  eye: '<path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
-  book: '<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H20v-3"/>',
-  pin: '<path d="M12 21s-6.5-5.8-6.5-11A6.5 6.5 0 0 1 18.5 10c0 5.2-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/>',
-  tool: '<path d="M14 6a4 4 0 0 0-5.2 4.9L4 16l4 4 5.1-4.8A4 4 0 0 0 18 10l-2.5 1-2.5-2.5L14 6z"/>',
-  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/>',
-  bulb: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
+  eye: {p: ['#ffa3b3', '#e5486a'], g: '<path d="M14 48c8-14 20-21 34-21s26 7 34 21c-8 14-20 21-34 21S22 62 14 48z" fill="#fff"/><circle cx="48" cy="48" r="12" style="fill:var(--c2)"/><circle cx="48" cy="48" r="5" fill="#2b2b33"/><circle cx="52" cy="44" r="3" fill="#fff"/>'},
+  book: {p: ['#86b7ff', '#3f6fe0'], g: '<path d="M48 30c-9-5-21-6-31-3v40c10-3 22-2 31 3z" fill="#fff"/><path d="M48 30c9-5 21-6 31-3v40c-10-3-22-2-31 3z" fill="#fff" fill-opacity=".88"/><path d="M24 38c6-1 11 0 17 2M24 47c6-1 11 0 17 2" stroke="#3f6fe0" stroke-opacity=".3" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M60 26v17l5-4 5 4V25z" fill="#ffc83d"/>'},
+  pin: {p: ['#6fdcb1', '#1f9d78'], g: '<path d="M48 16c-12.5 0-22 9.5-22 22 0 16 22 40 22 40s22-24 22-40c0-12.5-9.500-22-22-22z" fill="#fff"/><circle cx="48" cy="38" r="9" style="fill:var(--c2)"/><ellipse cx="48" cy="81" rx="14" ry="3.500" fill="#000" fill-opacity=".12"/>'},
+  tool: {p: ['#b9c0cf', '#667086'], g: '<path d="M62 18a17 17 0 0 0-16 22L20 66a7 7 0 0 0 10 10l26-26a17 17 0 0 0 22-16l-10 10-10-3-3-10z" fill="#fff"/><circle cx="25" cy="71" r="3.500" style="fill:var(--c2)" fill-opacity=".55"/>'},
+  image: {p: ['#c8aaff', '#7a52e0'], g: '<rect x="30" y="18" width="48" height="40" rx="8" fill="#fff" fill-opacity=".5"/><rect x="18" y="30" width="54" height="46" rx="9" fill="#fff"/><circle cx="35" cy="45" r="5.500" fill="#ffc83d"/><path d="M18 66l17-14 12 10 9-7 16 13v2a9 9 0 0 1-9 9H27a9 9 0 0 1-9-9z" style="fill:var(--c2)" fill-opacity=".75"/>'},
+  bulb: {p: ['#ffd978', '#ff9a3d'], g: '<path d="M48 14c-14.500 0-25 10.500-25 24 0 8.500 4 14.500 9 18.500 2.500 2 3.500 4.500 3.500 7.500h25c0-3 1-5.500 3.500-7.500 5-4 9-10 9-18.500 0-13.500-10.500-24-25-24z" fill="#fff"/><path d="M38 70h20v5a5 5 0 0 1-5 5H43a5 5 0 0 1-5-5z" fill="#fff" fill-opacity=".88"/><path d="M41 44l7 9 7-9" stroke="#ff9a3d" stroke-width="3.500" stroke-linecap="round" stroke-linejoin="round" fill="none"/>'},
 };
+// запасные цвета для категорий без знака — буква на градиенте
+const CAT_PAL = [['#8f7cf7', '#4a74f0'], ['#5fd3a6', '#1f9d78'], ['#ffb84d', '#ff8a3d'], ['#ff8fb1', '#e04f85'], ['#6bcdea', '#2f8fd1']];
 const HUB_COV = ['#f4e3d7', '#dfeee3', '#e3e8f6', '#f6e8c8', '#efe0ef', '#dcecf0', '#f3dede'];
 const INBOX_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 13l2.5-7.5A2 2 0 0 1 7.4 4h9.2a2 2 0 0 1 1.9 1.5L21 13"/><path d="M3 13v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5h-5l-1.5 2.5h-5L8 13z"/></svg>';
 const ALL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>';
@@ -704,14 +706,16 @@ async function hub() {
     if (/иде|мысл/.test(n)) return CAT_GLYPH.bulb;
     return null;
   };
-  const catIcon = c => {
+  const catIcon = (c, i) => {
     const g = catGlyph(c.name);
-    return g
-      ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${g}</svg>`
+    const p = g ? g.p : CAT_PAL[i % CAT_PAL.length];
+    const svg = g
+      ? `<svg viewBox="0 0 96 96" aria-hidden="true">${g.g}</svg>`
       : `<span class="hl-letter">${letter(c.name)}</span>`;
+    return {p, svg};
   };
-  const saveTiles = catsAll.map((c, i) => ({go: '#/cat/' + encodeURIComponent(c.slug), label: c.name, bg: HUB_BPAL[i % HUB_BPAL.length], ic: catIcon(c)}));
-  const slider = saveTiles.map(t => `<div class="htw"><button class="htile hcat" style="--c:${t.bg}" data-go="${t.go}" aria-label="${esc(t.label)}">${t.ic}</button><span class="htile-l">${esc(t.label)}</span></div>`).join('');
+  const slider = catsAll.map((c, i) => { const ic = catIcon(c, i);
+    return `<div class="htw"><button class="htile hcat" style="--c1:${ic.p[0]};--c2:${ic.p[1]}" data-go="#/cat/${encodeURIComponent(c.slug)}" aria-label="${esc(c.name)}">${ic.svg}</button><span class="htile-l">${esc(c.name)}</span></div>`; }).join('');
   const tile = (go, bg, ic, label) => `<div class="htw"><button class="htile" style="--c:${bg}" data-go="${go}" aria-label="${label}">${ic}</button><span class="htile-l">${label}</span></div>`;
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Приложения</div></div>
     <section class="hsec">
