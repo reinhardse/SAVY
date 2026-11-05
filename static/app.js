@@ -676,6 +676,15 @@ const CRM_ILL = '<svg viewBox="0 0 96 96"><defs><linearGradient id="ilCrm" x1="0
 // цвета досок на главной: квадрат градиентом, внутри белая иконка доски
 // пастельные цвета — те же, что у обложек досок
 const HUB_BPAL = ['#f4e3d7', '#dfeee3', '#e3e8f6', '#f6e8c8', '#efe0ef', '#dcecf0', '#f3dede'];
+// линейные знаки категорий сейва (внутренность круга, 24×24)
+const CAT_GLYPH = {
+  eye: '<path d="M2 12s3.6-6.5 10-6.5S22 12 22 12s-3.6 6.5-10 6.5S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  book: '<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H20v-3"/>',
+  pin: '<path d="M12 21s-6.5-5.8-6.5-11A6.5 6.5 0 0 1 18.5 10c0 5.2-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.4"/>',
+  tool: '<path d="M14 6a4 4 0 0 0-5.2 4.9L4 16l4 4 5.1-4.8A4 4 0 0 0 18 10l-2.5 1-2.5-2.5L14 6z"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/>',
+  bulb: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
+};
 const HUB_COV = ['#f4e3d7', '#dfeee3', '#e3e8f6', '#f6e8c8', '#efe0ef', '#dcecf0', '#f3dede'];
 const INBOX_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 13l2.5-7.5A2 2 0 0 1 7.4 4h9.2a2 2 0 0 1 1.9 1.5L21 13"/><path d="M3 13v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5h-5l-1.5 2.5h-5L8 13z"/></svg>';
 const ALL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>';
@@ -684,12 +693,25 @@ async function hub() {
   const boards = boardsAll.filter(b => (b.status || 'work') === 'work').slice(0, 4);
   // лента сейва: входящие, все материалы и все категории, листается вправо
   const letter = name => esc((name || '?').trim().charAt(0).toUpperCase());
-  const saveTiles = [
-    {go: '#/inbox', label: 'Входящие', ic: INBOX_SVG},
-    {go: '#/all', label: 'Все материалы', ic: ALL_SVG},
-    ...catsAll.map(c => ({go: '#/cat/' + encodeURIComponent(c.slug), label: c.name, ic: `<span class="hl-letter">${letter(c.name)}</span>`})),
-  ];
-  const slider = saveTiles.map(t => `<div class="htw"><button class="htile" data-go="${t.go}" aria-label="${esc(t.label)}">${t.ic}</button><span class="htile-l">${esc(t.label)}</span></div>`).join('');
+  // значок категории по её названию: круг с пастельным фоном и линейным знаком
+  const catGlyph = name => {
+    const n = (name || '').toLowerCase();
+    if (/смотр|видео|фильм/.test(n)) return CAT_GLYPH.eye;
+    if (/чит|книг|стать|текст/.test(n)) return CAT_GLYPH.book;
+    if (/мест|карт|адрес|путеш/.test(n)) return CAT_GLYPH.pin;
+    if (/инстр|сервис|софт/.test(n)) return CAT_GLYPH.tool;
+    if (/референс|образ|дизайн|визуал/.test(n)) return CAT_GLYPH.image;
+    if (/иде|мысл/.test(n)) return CAT_GLYPH.bulb;
+    return null;
+  };
+  const catIcon = c => {
+    const g = catGlyph(c.name);
+    return g
+      ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${g}</svg>`
+      : `<span class="hl-letter">${letter(c.name)}</span>`;
+  };
+  const saveTiles = catsAll.map((c, i) => ({go: '#/cat/' + encodeURIComponent(c.slug), label: c.name, bg: HUB_BPAL[i % HUB_BPAL.length], ic: catIcon(c)}));
+  const slider = saveTiles.map(t => `<div class="htw"><button class="htile hcat" style="--c:${t.bg}" data-go="${t.go}" aria-label="${esc(t.label)}">${t.ic}</button><span class="htile-l">${esc(t.label)}</span></div>`).join('');
   const tile = (go, bg, ic, label) => `<div class="htw"><button class="htile" style="--c:${bg}" data-go="${go}" aria-label="${label}">${ic}</button><span class="htile-l">${label}</span></div>`;
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Приложения</div></div>
     <section class="hsec">
