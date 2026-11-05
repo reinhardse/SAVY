@@ -53,6 +53,7 @@ let crmStack = [];      // окна под текущим: {fn, kind} — как
 let crmCurrent = null;  // функция, которая открывает текущее окно
 let crmCurKind = null;  // вид текущего окна: deal | contact | company
 let crmReturn = null;   // куда вернуться из окна сделки, открытого со страницы
+let crmDealBack = null; // куда вернуться после закрытия окна сделки (для крестика)
 const CRM_KIND_BACK = {deal: 'К сделке', contact: 'К контакту', company: 'К компании'};
 
 // kind — вид окна, которое открываем
@@ -78,7 +79,7 @@ function crmCloseAll() {
   // адрес окна не должен снова открыть его: возвращаемся к разделу
   const h = location.hash;
   const page = /^#\/crm\/(deal|contact|company)\//.test(h)
-    ? (h.startsWith('#/crm/deal/') ? '#/crm' : h.startsWith('#/crm/contact/') ? '#/crm/contacts' : '#/crm/companies')
+    ? (h.startsWith('#/crm/deal/') ? (crmDealBack || '#/crm') : h.startsWith('#/crm/contact/') ? '#/crm/contacts' : '#/crm/companies')
     : null;
   if (page && page !== h) location.hash = page;
   return closeSheet();
@@ -824,8 +825,11 @@ async function crmOpenDeal(id) {
   let d;
   try { d = await api(`/crm/deals/${id}`); }
   catch (e) { alert(e.message); location.hash = '#/crm'; return; }
-  const back = crmReturn || (location.hash.startsWith('#/crm/deal/') ? '#/crm' : location.hash);
+  // без явного места возврата остаёмся в воронке самой сделки, а не в основной
+  const back = crmReturn || (location.hash.startsWith('#/crm/deal/')
+    ? (d.pipeline_id ? '#/crm/funnel/' + d.pipeline_id : '#/crm') : location.hash);
   crmReturn = null;
+  crmDealBack = back;
 
   const saveDeal = async body => {
     try { await api(`/crm/deals/${d.id}`, {method: 'PATCH', body}); crmSaved(); }
