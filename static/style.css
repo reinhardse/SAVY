@@ -1688,3 +1688,8 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .overlay:has(> .sheet.card-sheet.kb-full){padding:0;background:#fff;backdrop-filter:none}
 /* канбан в обычном режиме шире: четвёртая колонка видна наполовину */
 #app:has(> .kcols):not(.kfull){max-width:1000px}
+
+/* прокрутка внутри окна карточки: без размытия фона за окном (оно пересчитывалось на каждом кадре прокрутки),
+   прокрутка не уходит на страницу под окном, окно на собственном слое */
+.overlay:has(> .sheet.card-sheet){backdrop-filter:none;-webkit-backdrop-filter:none}
+.card-sheet{overscroll-behavior:contain;will-change:scroll-position}
