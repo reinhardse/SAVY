@@ -677,7 +677,16 @@ const HUB_COV = ['#f4e3d7', '#dfeee3', '#e3e8f6', '#f6e8c8', '#efe0ef', '#dcecf0
 const INBOX_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 13l2.5-7.5A2 2 0 0 1 7.4 4h9.2a2 2 0 0 1 1.9 1.5L21 13"/><path d="M3 13v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5h-5l-1.5 2.5h-5L8 13z"/></svg>';
 const ALL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>';
 async function hub() {
-  const boards = (await api('/boards').catch(() => [])).filter(b => (b.status || 'work') === 'work').slice(0, 4);
+  const [boardsAll, catsAll] = await Promise.all([api('/boards').catch(() => []), api('/categories').catch(() => [])]);
+  const boards = boardsAll.filter(b => (b.status || 'work') === 'work').slice(0, 4);
+  // лента сейва: входящие, все материалы и все категории, листается вправо
+  const letter = name => esc((name || '?').trim().charAt(0).toUpperCase());
+  const saveTiles = [
+    {go: '#/inbox', label: 'Входящие', ic: INBOX_SVG},
+    {go: '#/all', label: 'Все материалы', ic: ALL_SVG},
+    ...catsAll.map(c => ({go: '#/cat/' + encodeURIComponent(c.slug), label: c.name, ic: `<span class="hl-letter">${letter(c.name)}</span>`})),
+  ];
+  const slider = saveTiles.map(t => `<div class="htw"><button class="htile" data-go="${t.go}" aria-label="${esc(t.label)}">${t.ic}</button><span class="htile-l">${esc(t.label)}</span></div>`).join('');
   const tile = (go, bg, ic, label) => `<div class="htw"><button class="htile" style="--c:${bg}" data-go="${go}" aria-label="${label}">${ic}</button><span class="htile-l">${label}</span></div>`;
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Приложения</div></div>
     <section class="hsec">
@@ -687,7 +696,7 @@ async function hub() {
       <div class="hrow hgrid">${boards.map(b => `<button class="hcard" data-go="#/board/${b.id}"><span class="hcard-cov" style="--cv:${HUB_COV[b.id % HUB_COV.length]}"></span><span class="hcard-n">${esc(b.name)}</span><span class="hcard-s">${b.count || 0} карт.</span></button>`).join('') || '<div class="hempty">Пока нет досок</div>'}</div>
     </section>
     <section class="hsec"><div class="hsec-h">Сейф</div>
-      <div class="hrow">${tile('#/inbox', '#f1f1f4', INBOX_SVG, 'Входящие')}${tile('#/all', '#f1f1f4', ALL_SVG, 'Все материалы')}</div>
+      <div class="hslider">${slider}</div>
     </section>`;
   document.querySelectorAll('[data-go]').forEach(t => t.onclick = () => { location.hash = t.dataset.go; });
 }
