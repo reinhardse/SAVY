@@ -1779,3 +1779,6 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 /* главная (Приложения): фон как у Яндекс Плюс, разделы белые */
 html:has(.hsec),body:has(.hsec){background:#eef3fb}
 .hsec{background:#fff !important}
+
+/* хаб, доски и «Сейв» — 820px; календарь и CRM остаются на общей 1000px */
+#app:has(> .hsec),#app:has(> .ypanel),#app:has(> .list){max-width:820px}
