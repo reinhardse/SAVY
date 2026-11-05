@@ -664,6 +664,11 @@ class BoardPatch(BaseModel):
     tags: list[str] | None = None
 
 
+class TagRenameIn(BaseModel):
+    old: str
+    new: str
+
+
 BOARD_STATUSES = ("work", "pause", "archive")
 
 
@@ -685,6 +690,25 @@ def board_rename(bid: int, body: BoardPatch, db: Session = Depends(get_db), _: i
         b.tags = json.dumps(new, ensure_ascii=False)
     db.commit()
     return {"id": b.id, "name": b.name, "status": b.status, "tags": _tags(b.tags)}
+
+
+@app.post("/api/boards/{bid}/tags/rename")
+def board_tag_rename(bid: int, body: TagRenameIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    """Переименовать тег на доске: новое имя получают и все карточки доски, где он был."""
+    b = _board(db, bid)
+    old, new = body.old.strip(), (body.new or "").strip()[:40]
+    tags = _tags(b.tags)
+    if old not in tags:
+        raise HTTPException(404, "Такого тега нет")
+    if not new:
+        raise HTTPException(400, "Пустое имя тега")
+    if new != old and new.lower() in [t.lower() for t in tags]:
+        raise HTTPException(400, "Такой тег уже есть")
+    b.tags = json.dumps(_clean_tags([new if t == old else t for t in tags]), ensure_ascii=False)
+    for k in db.scalars(select(Card).where(Card.board_id == b.id)).all():
+        k.tags = json.dumps(_clean_tags([new if t == old else t for t in _tags(k.tags)]), ensure_ascii=False)
+    db.commit()
+    return {"tags": _tags(b.tags)}
 
 
 @app.delete("/api/boards/{bid}")

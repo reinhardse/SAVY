@@ -1595,7 +1595,6 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .card-sheet .kb-ib svg{width:16px;height:16px}
 .card-sheet .kb-props{margin:0 0 20px;gap:0}
 .card-sheet .kb-prop{grid-template-columns:168px minmax(0,1fr);align-items:center;min-height:32px;margin:0 -8px;padding:0 8px;border-radius:4px;transition:background-color .12s}
-.card-sheet .kb-prop:hover{background:#f7f7f5}
 .card-sheet .kb-pl{color:#787774;padding-top:0;line-height:20px;font-size:14px}
 .card-sheet .kb-pl svg{width:16px;height:16px;color:#9b9a97}
 .card-sheet .kb-pv{min-height:32px;padding-top:0;gap:4px}
@@ -1626,7 +1625,6 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .card-sheet .kb-pl{font-size:13px;line-height:20px;color:#787774}
 .card-sheet .kb-pl svg{width:16px;height:16px}
 .card-sheet .kb-pv{cursor:pointer;min-height:30px;padding:3px 6px;margin-left:-6px;border-radius:4px;font-size:13px;transition:background-color .12s}
-.card-sheet .kb-pv:hover{background:#efefed}
 .card-sheet .kbp-ph{color:#9b9a97;font-size:13px}
 .card-sheet .kbp-name{font-size:13px;color:#37352f;margin-left:6px}
 /* текст заметки на 1px меньше прежнего (16 → 15) */
@@ -1654,7 +1652,7 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .kbp-lb{font-size:13px}
 .kbp-create{display:block;width:calc(100% - 8px);margin:0 4px 6px;border:0;background:transparent;text-align:left;padding:6px 8px;font:inherit;font-size:13px;color:#37352f;cursor:pointer;border-radius:4px}
 .kbp-create:hover{background:#f1f1ef}
-.kbp-sub{width:170px;padding:4px}
+.kbp-sub{width:240px;padding:4px}
 .kbp-mi{display:block;width:100%;text-align:left;border:0;background:transparent;padding:6px 8px;border-radius:4px;font:inherit;font-size:13px;color:#37352f;cursor:pointer}
 .kbp-mi:hover{background:#f1f1ef}
 .kbp-mi.bad{color:#eb5757}
@@ -1662,3 +1660,22 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 /* окно даты в стиле Notion: мягкая тень, меньше скругление */
 .kb-cal{border-radius:6px;border-color:transparent;box-shadow:0 0 0 1px rgba(15,15,15,.06),0 3px 6px rgba(15,15,15,.08),0 9px 24px rgba(15,15,15,.16)}
 .kb-cd{border-radius:4px}
+
+/* строки свойств не подсвечиваются при наведении: открываются по клику */
+/* меню «⋯» справа от строки — видно всегда */
+.kbp-more{flex:none;width:22px;height:26px;margin-right:2px;border:0;background:transparent;color:#9b9a97;border-radius:4px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
+.kbp-more:hover{background:#e6e6e3;color:#37352f}
+.kbp-more svg{width:14px;height:14px;display:block}
+.kbp-mhd{padding:4px}
+.kbp-mname{width:100%;box-sizing:border-box;border:1px solid transparent;border-radius:4px;padding:6px 8px;font:inherit;font-size:13px;color:#37352f;outline:none;background:#f1f1ef}
+.kbp-mname:focus{background:#fff;border-color:#2383e2;box-shadow:0 0 0 1px #2383e2}
+.kbp-mi{display:flex;align-items:center;gap:8px}
+.kbp-mi svg{width:16px;height:16px;flex:none;color:#787774}
+.kbp-mi.bad svg{color:#eb5757}
+/* окно на весь экран: растягивается на страницу, как полноэкранная страница в Notion */
+.sheet.card-sheet.kb-full{left:0!important;top:0!important;margin:0!important;transform:none!important;width:100vw!important;max-width:100vw!important;height:100vh!important;max-height:100vh!important;border-radius:0!important}
+.card-sheet.kb-full .kb-body{max-width:900px}
+/* чекбоксы заметки: синие, как в Notion; галочка по центру квадрата */
+.kb-edit .kcb{border-color:#c8c8c4;border-radius:3px}
+.kb-edit .kcheck.done .kcb{background:#2383e2;border-color:#2383e2}
+.kb-edit .kcheck.done .kcb::after{content:'';position:absolute;left:50%;top:50%;width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;box-sizing:content-box;transform:translate(-50%,-55%) rotate(45deg)}

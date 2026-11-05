@@ -1387,7 +1387,7 @@ async function openCard(kid) {
         <div class="kb-tools">
           <button class="kb-ib" id="kbmore" aria-label="Действия">${DOTS}</button>
           <button class="kb-ib" id="sx" aria-label="Закрыть">${XICON}</button>
-          <div class="kb-menu" id="kbmenu" hidden><button class="kb-mi bad" id="kbdel">Удалить карточку</button></div>
+          <div class="kb-menu" id="kbmenu" hidden><button class="kb-mi" id="kbfull">На весь экран</button><button class="kb-mi bad" id="kbdel">Удалить карточку</button></div>
         </div>
       </div>
       <div class="kb-body"><div class="kb-title" id="kbt" contenteditable="true" spellcheck="false" data-ph="Заголовок">${linkify((c.title || '').replace(/\s+/g, ' '))}</div>
@@ -1410,7 +1410,7 @@ async function openCard(kid) {
   const chipCol = name => `<span class="kbp-chip${/готов/i.test(name) ? ' done' : ''}">${esc(name)}</span>`;
   const chipTag = name => `<span class="kbp-chip" style="${tagStyle(name)}">${esc(name)}</span>`;
   const chipPrio = p => `<span class="kbp-chip" style="--tb:${KB_PRIO[p].bg};--tt:${KB_PRIO[p].tc}">${KB_PRIO[p].t}</span>`;
-  const rowHtml = (id, chip, grip, label = '') => `<div class="kbp-row" data-id="${esc(String(id))}">${grip ? `<button class="kbp-grip" tabindex="-1" aria-label="Перенести или изменить">${GRIP_SVG}</button>` : ''}<button class="kbp-opt">${chip}${label}</button></div>`;
+  const rowHtml = (id, chip, grip, label = '', more = false) => `<div class="kbp-row" data-id="${esc(String(id))}">${grip ? `<button class="kbp-grip" tabindex="-1" aria-label="Перенести">${GRIP_SVG}</button>` : ''}<button class="kbp-opt">${chip}${label}</button>${more ? `<button class="kbp-more" aria-label="Действия">${DOTS}</button>` : ''}</div>`;
 
   const kbpClose = () => {
     document.querySelectorAll('.kbp-pop,.kbp-sub').forEach(n => n.remove());
@@ -1434,13 +1434,19 @@ async function openCard(kid) {
     bind(p);
     document.addEventListener('mousedown', kbpOutside, true);
   };
-  const kbpSub = (anchor, html, bind) => {
+  const kbpPlaceSide = (p, r, side) => {
+    const w = p.offsetWidth, h = p.offsetHeight;
+    let left = side === 'right' && r.right + 6 + w <= innerWidth - 12 ? r.right + 6 : r.left - w - 6;
+    p.style.left = Math.max(12, Math.min(left, innerWidth - w - 12)) + 'px';
+    p.style.top = Math.max(12, Math.min(r.top - 4, innerHeight - h - 12)) + 'px';
+  };
+  const kbpSub = (anchor, html, bind, side = 'right') => {
     document.querySelectorAll('.kbp-sub').forEach(n => n.remove());
     const s = document.createElement('div');
     s.className = 'kbp-sub';
     s.innerHTML = html;
     document.body.appendChild(s);
-    kbpPlace(s, anchor.getBoundingClientRect());
+    kbpPlaceSide(s, anchor.getBoundingClientRect(), side);
     bind(s);
   };
 
@@ -1478,19 +1484,41 @@ async function openCard(kid) {
         document.removeEventListener('pointerup', up);
         row.classList.remove('kbp-drag');
         if (moved) saveOrder(kind, [...list.querySelectorAll('.kbp-row')].map(r => r.dataset.id));
-        else showRowMenu(g, row, kind);
       };
       document.addEventListener('pointermove', move);
       document.addEventListener('pointerup', up);
     };
   };
-  const showRowMenu = (g, row, kind) => {
+  // меню «⋯» справа от строки: имя (переименовать по Enter) и удаление тега; у статуса — только имя
+  const showRowMenu = (row, kind) => {
     const id = row.dataset.id;
-    const items = kind === 'col' ? [['rename', 'Переименовать']] : [['delete', 'Удалить']];
-    kbpSub(g, items.map(([k, l]) => `<button class="kbp-mi${k === 'delete' ? ' bad' : ''}" data-act="${k}">${l}</button>`).join(''), s => {
-      s.querySelector('[data-act="rename"]')?.addEventListener('click', () => { s.remove(); renameCol(row, id); });
-      s.querySelector('[data-act="delete"]')?.addEventListener('click', () => deleteTag(id));
+    const isTag = kind === 'tag';
+    const cur = isTag ? id : (cols.find(x => x.id === +id)?.name || '');
+    const trash = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5M10 11v5M14 11v5"/></svg>';
+    kbpSub(row.querySelector('.kbp-more'), `<div class="kbp-mhd"><input class="kbp-mname" value="${esc(cur)}" maxlength="${isTag ? 40 : 80}" aria-label="Название"></div>`
+      + (isTag ? `<button class="kbp-mi bad" data-act="delete">${trash}Удалить</button>` : ''), s => {
+      const inp = s.querySelector('.kbp-mname');
+      inp.focus(); inp.select();
+      let fin = false;
+      const save = async () => {
+        if (fin) return;
+        const v = inp.value.trim();
+        if (!v || v === cur) return;
+        fin = true;
+        if (isTag) { await renameTag(cur, v); renderTags(); openTagsPop($('#kbnewtag')?.value || ''); }
+        else { await renameCol(id, v); renderCols(); openColsPop(); }
+      };
+      inp.onkeydown = e => {
+        if (e.key === 'Enter') { e.preventDefault(); save(); }
+        if (e.key === 'Escape') { fin = true; s.remove(); }
+      };
+      inp.onblur = () => save();
+      s.querySelector('[data-act="delete"]')?.addEventListener('click', () => { fin = true; deleteTag(id); });
     });
+  };
+  const bindMore = (row, kind) => {
+    const m = row.querySelector('.kbp-more');
+    if (m) m.onclick = e => { e.stopPropagation(); showRowMenu(row, kind); };
   };
 
   // теги
@@ -1520,6 +1548,13 @@ async function openCard(kid) {
     } catch (e) { alert(e.message); }
     renderTags(); openTagsPop($('#kbnewtag')?.value || '');
   };
+  const renameTag = async (oldName, nu) => {
+    try {
+      const r = await api(`/boards/${c.board_id}/tags/rename`, {method: 'POST', body: {old: oldName, new: nu}});
+      boardTags = r.tags;
+      cardTags = [...new Set(cardTags.map(x => x === oldName ? nu : x))];
+    } catch (e) { alert(e.message); }
+  };
   const openTagsPop = (q = '') => {
     const box = $('#kbtags');
     const term = q.trim().toLowerCase();
@@ -1528,7 +1563,7 @@ async function openCard(kid) {
     const sel = cardTags.map(x => `<span class="kbp-chip" style="${tagStyle(x)}">${esc(x)}<button class="kbp-rm" data-rm="${esc(x)}" aria-label="Убрать">×</button></span>`).join('');
     const html = `<div class="kbp-top"><div class="kbp-sel">${sel}<input class="kbp-in" id="kbnewtag" value="${esc(q)}" maxlength="40" placeholder="${cardTags.length ? '' : 'Поиск или новый тег'}"></div></div>`
       + '<div class="kbp-cap">Выберите вариант или создайте новый</div>'
-      + `<div class="kbp-list">${shown.map(x => rowHtml(x, chipTag(x), true)).join('')}</div>`
+      + `<div class="kbp-list">${shown.map(x => rowHtml(x, chipTag(x), true, '', true)).join('')}</div>`
       + (term && !exact ? `<button class="kbp-create" data-create="1">Создать тег «${esc(q.trim())}»</button>` : '');
     kbpOpen(box, html, p => {
       const inp = p.querySelector('#kbnewtag');
@@ -1548,6 +1583,7 @@ async function openCard(kid) {
           setCardTags(cardTags.includes(name) ? cardTags.filter(x => x !== name) : [...cardTags, name], inp.value);
         };
         bindGrip(row, 'tag');
+        bindMore(row, 'tag');
       });
       p.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => setCardTags(cardTags.filter(x => x !== b.dataset.rm), inp.value));
       const cr = p.querySelector('[data-create]');
@@ -1592,26 +1628,11 @@ async function openCard(kid) {
       if (el && target) { target.appendChild(el); refreshColCounts(); }
     } catch (e) { alert(e.message); }
   };
-  const renameCol = (row, id) => {
+  const renameCol = async (id, nu) => {
     const col = cols.find(x => x.id === +id);
     if (!col) return;
-    const opt = row.querySelector('.kbp-opt');
-    opt.innerHTML = `<input class="kbp-edit" value="${esc(col.name)}" maxlength="80">`;
-    const inp = opt.querySelector('input');
-    inp.focus(); inp.select();
-    let fin = false;
-    const done = async save => {
-      if (fin) return;
-      fin = true;
-      const name = inp.value.trim();
-      if (save && name && name !== col.name) {
-        try { await api('/columns/' + id, {method: 'PATCH', body: {name}}); col.name = name; }
-        catch (e) { alert(e.message); }
-      }
-      renderCols(); openColsPop();
-    };
-    inp.onkeydown = e => { if (e.key === 'Enter') done(true); if (e.key === 'Escape') done(false); };
-    inp.onblur = () => done(true);
+    try { await api('/columns/' + id, {method: 'PATCH', body: {name: nu}}); col.name = nu; }
+    catch (e) { alert(e.message); }
   };
   const renderCols = () => {
     const box = $('#kbcols');
@@ -1624,10 +1645,11 @@ async function openCard(kid) {
     const cur = cols.find(x => x.id === curCol);
     const html = `<div class="kbp-top"><div class="kbp-sel">${cur ? chipCol(cur.name) : ''}</div></div>`
       + '<div class="kbp-cap">Выберите статус</div>'
-      + `<div class="kbp-list">${cols.map(col => rowHtml(col.id, chipCol(col.name), true)).join('')}</div>`;
+      + `<div class="kbp-list">${cols.map(col => rowHtml(col.id, chipCol(col.name), true, '', true)).join('')}</div>`;
     kbpOpen(box, html, p => p.querySelectorAll('.kbp-row').forEach(row => {
       row.querySelector('.kbp-opt').onclick = () => moveTo(+row.dataset.id);
       bindGrip(row, 'col');
+      bindMore(row, 'col');
     }));
   };
   renderCols();
@@ -2279,6 +2301,12 @@ async function openCard(kid) {
     if (!$('#kbmenu')) { document.removeEventListener('click', hideMenu); return; }
     if (!actMenu.contains(e.target)) actMenu.hidden = true;
   });
+  // «На весь экран» живёт в меню «⋯»: окно карточки растягивается на всю страницу
+  const sheetEl = document.querySelector('.card-sheet');
+  const fullBtn = $('#kbfull');
+  const syncFull = () => { fullBtn.textContent = sheetEl?.classList.contains('kb-full') ? 'Свернуть окно' : 'На весь экран'; };
+  fullBtn.onclick = () => { sheetEl?.classList.toggle('kb-full'); actMenu.hidden = true; syncFull(); };
+  syncFull();
   $('#kbdel').onclick = async () => {
     if (!confirm('Удалить карточку?')) return;
     beforeClose = null; clearTimeout(timer); dirty = false;
