@@ -2334,13 +2334,20 @@ const MON_RU = ['Январь', 'Февраль', 'Март', 'Апрель', '�
 const MON_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
 let calMode = +(localStorage.getItem('cal_mode') || 7);   // 7 — неделя, 31 — месяц
 let calAnchor = new Date();
-let calShift = 0; // режим 7 дней: сдвиг окна в днях от сегодня (стрелки по неделе)
+let calShift = 0; // режим 7 дней: сдвиг в неделях от текущей (0 — от сегодня до конца недели)
 let calHidden = new Set(JSON.parse(localStorage.getItem('cal_hidden') || '[]'));
 let calItems = [], calBoards = [], calMenu = null, calOverdue = [];
 
 function calDays() {
-  // режим 7 дней: первая колонка — «Просрочено», дальше сегодня и следующие дни; прошлые дни — стрелкой назад
-  if (calMode === 7) { const t0 = shiftDays(new Date(), 0); return Array.from({length: 7}, (_, i) => shiftDays(t0, calShift + i)); }
+  // режим 7 дней: первая колонка — «Просрочено»; без сдвига — от сегодня до конца недели (воскресенье),
+  // стрелки переключают недели по 7 дней (понедельник — воскресенье)
+  if (calMode === 7) {
+    const t0 = shiftDays(new Date(), 0);
+    const wd = (t0.getDay() + 6) % 7; // понедельник = 0
+    if (calShift === 0) return Array.from({length: 7 - wd}, (_, i) => shiftDays(t0, i));
+    const mon = shiftDays(t0, -wd + 7 * calShift);
+    return Array.from({length: 7}, (_, i) => shiftDays(mon, i));
+  }
   const s0 = weekStartOf(new Date(calAnchor.getFullYear(), calAnchor.getMonth(), 1));
   return Array.from({length: 42}, (_, i) => shiftDays(s0, i));
 }
@@ -2400,7 +2407,7 @@ function paintCal() {
     body = `<div class="cal-grid mo">${heads}${cells}</div>`;
   }
   const range = calMode === 7
-    ? `${days[0].getDate()} ${MON_GEN[days[0].getMonth()]} – ${days[6].getDate()} ${MON_GEN[days[6].getMonth()]} ’${String(days[6].getFullYear()).slice(2)}`
+    ? `${days[0].getDate()} ${MON_GEN[days[0].getMonth()]} – ${days[days.length - 1].getDate()} ${MON_GEN[days[days.length - 1].getMonth()]} ’${String(days[days.length - 1].getFullYear()).slice(2)}`
     : `${MON_RU[calAnchor.getMonth()]} ’${String(calAnchor.getFullYear()).slice(2)}`;
   $('#app').innerHTML = `<div class="titlerow cal-head"><div class="brand">Календарь</div>
       <div class="cal-tools">
@@ -2415,7 +2422,7 @@ function paintCal() {
   document.querySelectorAll('.cal-seg [data-m]').forEach(b => b.onclick = () => {
     calMode = +b.dataset.m; localStorage.setItem('cal_mode', calMode); calendarPage();
   });
-  const step = n => { if (calMode === 7) calShift += 7 * n; else calAnchor = new Date(calAnchor.getFullYear(), calAnchor.getMonth() + n, 1); calendarPage(); };
+  const step = n => { if (calMode === 7) calShift += n; else calAnchor = new Date(calAnchor.getFullYear(), calAnchor.getMonth() + n, 1); calendarPage(); };
   $('#calprev').onclick = () => step(-1);
   $('#calnext').onclick = () => step(1);
   $('#caltoday').onclick = () => { calAnchor = new Date(); calShift = 0; calendarPage(); };
