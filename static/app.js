@@ -2334,11 +2334,13 @@ const MON_RU = ['Январь', 'Февраль', 'Март', 'Апрель', '�
 const MON_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
 let calMode = +(localStorage.getItem('cal_mode') || 7);   // 7 — неделя, 31 — месяц
 let calAnchor = new Date();
+let calShift = 0; // режим 7 дней: сдвиг окна в днях от сегодня (стрелки по неделе)
 let calHidden = new Set(JSON.parse(localStorage.getItem('cal_hidden') || '[]'));
 let calItems = [], calBoards = [], calMenu = null, calOverdue = [];
 
 function calDays() {
-  if (calMode === 7) { const s = weekStartOf(calAnchor); return Array.from({length: 7}, (_, i) => shiftDays(s, i)); }
+  // режим 7 дней: первая колонка — «Просрочено», дальше сегодня и следующие дни; прошлые дни — стрелкой назад
+  if (calMode === 7) { const t0 = shiftDays(new Date(), 0); return Array.from({length: 7}, (_, i) => shiftDays(t0, calShift + i)); }
   const s0 = weekStartOf(new Date(calAnchor.getFullYear(), calAnchor.getMonth(), 1));
   return Array.from({length: 42}, (_, i) => shiftDays(s0, i));
 }
@@ -2413,10 +2415,10 @@ function paintCal() {
   document.querySelectorAll('.cal-seg [data-m]').forEach(b => b.onclick = () => {
     calMode = +b.dataset.m; localStorage.setItem('cal_mode', calMode); calendarPage();
   });
-  const step = n => { calAnchor = calMode === 7 ? shiftDays(calAnchor, 7 * n) : new Date(calAnchor.getFullYear(), calAnchor.getMonth() + n, 1); calendarPage(); };
+  const step = n => { if (calMode === 7) calShift += 7 * n; else calAnchor = new Date(calAnchor.getFullYear(), calAnchor.getMonth() + n, 1); calendarPage(); };
   $('#calprev').onclick = () => step(-1);
   $('#calnext').onclick = () => step(1);
-  $('#caltoday').onclick = () => { calAnchor = new Date(); calendarPage(); };
+  $('#caltoday').onclick = () => { calAnchor = new Date(); calShift = 0; calendarPage(); };
   $('#calfilter').onclick = e => { e.stopPropagation(); openCalMenu(); };
   document.querySelectorAll('.cal-card').forEach(el => { el.onclick = () => { if (!calDragging) openCard(+el.dataset.card); }; });
   document.querySelectorAll('.cal-crm').forEach(el => { el.onclick = () => { location.hash = el.dataset.href; }; });
