@@ -602,7 +602,8 @@ const closeHubMenu = () => { if (hubMenu) { hubMenu.remove(); hubMenu = null; } 
 const openHubMenu = async () => {
   if (hubMenu) { closeHubMenu(); return; }
   const btn = $('#hubbtn');
-  const boards = await api('/boards').catch(() => []);
+  // в меню справа — только доски в работе; на паузе и в архиве не показываются
+  const boards = (await api('/boards').catch(() => [])).filter(b => (b.status || 'work') === 'work');
   const gc = await api('/gcal/status').catch(() => ({configured: false, connected: false}));
   if (hubMenu) return;
   const app = (go, icon, label) => `<button class="hm-app" data-go="${go}"><span class="hm-ic">${icon}</span><span class="hm-lb">${esc(label)}</span></button>`;
@@ -700,24 +701,27 @@ function openStatus(bid, cur) {
   });
 }
 
-// список досок: карточки в сетке, в том же языке, что карточки колонок на доске
+// список досок в духе Notion: строки без рамок; в работе сверху, пауза и архив — ниже под подписью
+const BGROUPS = [['work', 'В работе'], ['pause', 'На паузе'], ['archive', 'Архив']];
 async function boards() {
   const list = await api('/boards');
-  const item = b => {
-    const st = BSTATUS[b.status || 'work'];
-    const n = b.count || 0;
-    return `<div class="bcard" data-open="${b.id}">
-      <div class="bcard-top"><div class="bn">${esc(b.name)}</div>
-        <button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button></div>
-      <div class="bcard-foot">
-        <button class="bstatus" data-stb="${b.id}" data-cur="${b.status || 'work'}" style="--sb:${st.bg};--st:${st.tc}">${st.label}</button>
-        <span class="bcount">${n} карт.</span></div>
+  const row = b => {
+    const s = b.status || 'work';
+    const st = BSTATUS[s];
+    return `<div class="nrow${s === 'work' ? '' : ' off'}" data-open="${b.id}">
+      <span class="nrow-ic">${KB_ICON}</span>
+      <span class="nrow-n">${esc(b.name)}</span>
+      <span class="nrow-c">${b.count || 0}</span>
+      <button class="bstatus" data-stb="${b.id}" data-cur="${s}" style="--sb:${st.bg};--st:${st.tc}">${st.label}</button>
+      <button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button>
     </div>`;
   };
+  const groups = BGROUPS.map(([k, cap]) => ({cap, items: list.filter(b => (b.status || 'work') === k)})).filter(g => g.items.length);
+  const body = groups.map(g => (groups.length > 1 ? `<div class="nl-cap">${g.cap}</div>` : '') + g.items.map(row).join('')).join('');
   $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
-  $('#app').innerHTML = `<div class="titlerow"><div class="brand">Доски</div>
-      <div class="tr-actions"><button class="iconbtn" id="addboard" aria-label="Новая доска" title="Новая доска">${PLUS_ICON}</button></div></div>
-    <div class="bgrid">${list.length ? list.map(item).join('') : '<div class="empty">Пока нет досок. Нажмите + справа вверху.</div>'}</div>`;
+  $('#app').innerHTML = `<div class="titlerow"><div class="brand">Доски</div></div>
+    <div class="nlist">${body || '<div class="nl-empty">Пока нет досок</div>'}
+      <button class="nrow nadd" id="addboard"><span class="nrow-ic">${PLUS_ICON}</span><span class="nrow-n">Новая доска</span></button></div>`;
   $('#addboard').onclick = newBoard;
   document.querySelectorAll('[data-open]').forEach(r => r.onclick = e => {
     if (e.target.closest('[data-delb], [data-stb]')) return;

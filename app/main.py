@@ -568,7 +568,10 @@ def overdue_items(today: str | None = None, db: Session = Depends(get_db), _: in
 @app.get("/api/boards")
 def boards_list(db: Session = Depends(get_db), _: int = Depends(require_auth)):
     out = []
-    for b in db.scalars(select(Board).where(Board.user_id == USER_ID).order_by(Board.id)).all():
+    rank = {"work": 0, "pause": 1, "archive": 2}
+    boards = db.scalars(select(Board).where(Board.user_id == USER_ID).order_by(Board.id)).all()
+    # пауза и архив всегда в конце списка; внутри группы сохраняется порядок создания
+    for b in sorted(boards, key=lambda x: rank.get(x.status or "work", 0)):
         n = db.scalar(select(func.count()).select_from(Card).where(Card.board_id == b.id))
         out.append({"id": b.id, "name": b.name, "count": n, "status": b.status or "work"})
     return out
