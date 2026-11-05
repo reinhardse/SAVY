@@ -1407,7 +1407,9 @@ async function openCard(kid) {
   const PRIO_NAME = {3: 'Высокий', 2: 'Средний', 1: 'Низкий', 0: 'Без приоритета'};
   const GRIP_SVG = '<svg viewBox="0 0 10 16" aria-hidden="true"><circle cx="2.5" cy="2.5" r="1.3"/><circle cx="7.5" cy="2.5" r="1.3"/><circle cx="2.5" cy="8" r="1.3"/><circle cx="7.5" cy="8" r="1.3"/><circle cx="2.5" cy="13.5" r="1.3"/><circle cx="7.5" cy="13.5" r="1.3"/></svg>';
   const tagStyle = name => { const k = tagColor(name); return `--tb:${k.bg};--tt:${k.tc}`; };
-  const chipCol = name => `<span class="kbp-chip${/готов/i.test(name) ? ' done' : ''}">${esc(name)}</span>`;
+  // статусы цветом: открыто — жёлтый, в работе — синий, готово — зелёный; остальные — серые
+  const colKind = name => /открыт/i.test(name) ? 'y' : /работ/i.test(name) ? 'b' : /готов/i.test(name) ? 'g' : '';
+  const chipCol = name => `<span class="kbp-chip${colKind(name) ? ' st-' + colKind(name) : ''}">${esc(name)}</span>`;
   const chipTag = name => `<span class="kbp-chip" style="${tagStyle(name)}">${esc(name)}</span>`;
   const chipPrio = p => `<span class="kbp-chip" style="--tb:${KB_PRIO[p].bg};--tt:${KB_PRIO[p].tc}">${KB_PRIO[p].t}</span>`;
   const rowHtml = (id, chip, grip, label = '', more = false) => `<div class="kbp-row" data-id="${esc(String(id))}">${grip ? `<button class="kbp-grip" tabindex="-1" aria-label="Перенести">${GRIP_SVG}</button>` : ''}<button class="kbp-opt">${chip}${label}</button>${more ? `<button class="kbp-more" aria-label="Действия">${DOTS}</button>` : ''}</div>`;

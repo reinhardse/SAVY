@@ -536,7 +536,7 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 
 /* окно карточки: меньше скругление; содержимое по центру с воздухом по всем сторонам; кнопки в правом верхнем углу */
 .sheet.card-sheet{border-radius:14px}
-.card-sheet .kb-body{max-width:720px;margin:0 auto;padding:28px 40px 48px;box-sizing:border-box}
+.card-sheet .kb-body{max-width:708px;margin:0 auto;padding:28px 40px 48px;box-sizing:border-box}
 .card-sheet .kb-title{font-size:32px;line-height:1.2;margin-bottom:24px}
 /* меню «/» в стиле Notion: заголовок секции, строки с иконкой, названием и подсказкой; подсветка стрелками/мышью */
 .slash{position:fixed;z-index:80;width:260px;min-width:0;background:#fff;border:1px solid #e6e6ea;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:6px}
@@ -1674,8 +1674,17 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .kbp-mi.bad svg{color:#eb5757}
 /* окно на весь экран: растягивается на страницу, как полноэкранная страница в Notion */
 .sheet.card-sheet.kb-full{left:0!important;top:0!important;margin:0!important;transform:none!important;width:100vw!important;max-width:100vw!important;height:100vh!important;max-height:100vh!important;border-radius:0!important}
-.card-sheet.kb-full .kb-body{max-width:900px}
+.card-sheet.kb-full .kb-body{max-width:708px}
 /* чекбоксы заметки: синие, как в Notion; галочка по центру квадрата */
 .kb-edit .kcb{border-color:#c8c8c4;border-radius:3px}
 .kb-edit .kcheck.done .kcb{background:#2383e2;border-color:#2383e2}
 .kb-edit .kcheck.done .kcb::after{content:'';position:absolute;left:50%;top:50%;width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;box-sizing:content-box;transform:translate(-50%,-55%) rotate(45deg)}
+
+/* статусы: открыто — жёлтый, в работе — синий, готово — зелёный */
+.kbp-chip.st-y{--tb:#fbf3db;--tt:#956400}
+.kbp-chip.st-b{--tb:#ddebf1;--tt:#183347}
+.kbp-chip.st-g{--tb:#dbeddb;--tt:#1c3829}
+/* окно на весь экран: без серых полос по краям, фон — белый */
+.overlay:has(> .sheet.card-sheet.kb-full){padding:0;background:#fff;backdrop-filter:none}
+/* канбан в обычном режиме шире: четвёртая колонка видна наполовину */
+#app:has(> .kcols):not(.kfull){max-width:1000px}
