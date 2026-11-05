@@ -1775,3 +1775,7 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .bgrid.bcar::-webkit-scrollbar{display:none}
 .bgrid.bcar .bcard{flex:0 0 190px;scroll-snap-align:start}
 .bgrid.bcar .bcard.off{opacity:1}
+
+/* главная (Приложения): фон как у Яндекс Плюс, разделы белые */
+html:has(.hsec),body:has(.hsec){background:#eef3fb}
+.hsec{background:#fff !important}
