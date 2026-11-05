@@ -1741,3 +1741,24 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .crm-plus-x::after{width:1.5px;height:10px}
 .crm-plus-x:hover{border-color:#8a8a93}
 .crm-plus-x:hover::before,.crm-plus-x:hover::after{background:#37352f}
+
+/* главная (Приложения) в стиле Яндекс ID: разделы, ряды плиток, подписи под плитками */
+#app:has(> .hsec){max-width:900px}
+.hsec{margin-top:28px}
+.hsec-h{display:flex;align-items:center;gap:4px;margin:0 0 14px;padding:0;border:0;background:none;font:inherit;font-size:20px;font-weight:700;color:var(--ink);text-align:left}
+.hsec-link{cursor:pointer}
+.hsec-chev{font-size:22px;font-weight:500;color:var(--muted);line-height:1}
+.hrow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.htw{display:flex;flex-direction:column;min-width:0}
+.htile{width:100%;aspect-ratio:1.45;border:0;border-radius:20px;background:var(--c);display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:transform .15s,box-shadow .15s}
+.htile:hover{transform:translateY(-1px);box-shadow:var(--sh-md)}
+.htile svg{width:40px;height:40px;color:#37352f}
+.htile-l{display:block;text-align:center;font-size:14px;margin-top:8px;color:var(--ink)}
+.hgrid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.hcard{display:flex;flex-direction:column;border:0;padding:0;border-radius:20px;overflow:hidden;background:#f5f5f7;text-align:left;cursor:pointer;font:inherit;color:var(--ink);transition:transform .15s,box-shadow .15s}
+.hcard:hover{transform:translateY(-1px);box-shadow:var(--sh-md)}
+.hcard-cov{height:86px;background:linear-gradient(135deg,var(--cv),#fff)}
+.hcard-n{padding:10px 14px 0;font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hcard-s{padding:2px 14px 14px;font-size:13px;color:var(--muted)}
+.hempty{color:var(--muted);padding:12px 4px}
+@media (max-width:620px){.hrow,.hgrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}

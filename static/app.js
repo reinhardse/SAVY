@@ -667,15 +667,23 @@ function openHub() {
 }
 
 /* ---------- хаб приложений ---------- */
-function hub() {
-  $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
+// главная: разделы с шевроном и ряды плиток, как на главной Яндекс ID
+const HUB_COV = ['#f4e3d7', '#dfeee3', '#e3e8f6', '#f6e8c8', '#efe0ef', '#dcecf0', '#f3dede'];
+const INBOX_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 13l2.5-7.5A2 2 0 0 1 7.4 4h9.2a2 2 0 0 1 1.9 1.5L21 13"/><path d="M3 13v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5h-5l-1.5 2.5h-5L8 13z"/></svg>';
+const ALL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>';
+async function hub() {
+  const boards = (await api('/boards').catch(() => [])).filter(b => (b.status || 'work') === 'work').slice(0, 4);
+  const tile = (go, bg, ic, label) => `<div class="htw"><button class="htile" style="--c:${bg}" data-go="${go}" aria-label="${label}">${ic}</button><span class="htile-l">${label}</span></div>`;
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Приложения</div></div>
-    <div class="tiles apps">
-      <button class="tile" style="--c:#eef3ff;--tc:#2f4bb0" data-go="#/calendar"><div class="ic">${CAL_SVG}</div><div class="tf"><div class="l2">Календарь</div><div class="l">Все задачи по дням</div></div></button>
-      <button class="tile" style="--c:#e7f6ee;--tc:#2f6446" data-go="#/kanban"><div class="ic">${KB_ICON}</div><div class="tf"><div class="l2">Доски</div><div class="l">Доски и задачи</div></div></button>
-      <button class="tile" style="--c:#fff0f3;--tc:#c1173f" data-go="#/home"><div class="ic">${APP_ICON_SAVE}</div><div class="tf"><div class="l2">Сейв</div><div class="l">Закладки</div></div></button>
-      <button class="tile" style="--c:#f3f0ff;--tc:#5b3fbf" data-go="#/crm"><div class="ic">${CRM_ICO.funnel}</div><div class="tf"><div class="l2">CRM</div><div class="l">Воронка и контакты</div></div></button>
-    </div>`;
+    <section class="hsec"><div class="hsec-h">Приложения</div>
+      <div class="hrow">${tile('#/calendar', '#eef3ff', CAL_SVG, 'Календарь')}${tile('#/kanban', '#e7f6ee', KB_ICON, 'Доски')}${tile('#/home', '#fff0f3', APP_ICON_SAVE, 'Сейв')}${tile('#/crm', '#f3f0ff', CRM_ICO.funnel, 'CRM')}</div>
+    </section>
+    <section class="hsec"><button class="hsec-h hsec-link" data-go="#/kanban">Доски<span class="hsec-chev">›</span></button>
+      <div class="hrow hgrid">${boards.map(b => `<button class="hcard" data-go="#/board/${b.id}"><span class="hcard-cov" style="--cv:${HUB_COV[b.id % HUB_COV.length]}"></span><span class="hcard-n">${esc(b.name)}</span><span class="hcard-s">${b.count || 0} карт.</span></button>`).join('') || '<div class="hempty">Пока нет досок</div>'}</div>
+    </section>
+    <section class="hsec"><div class="hsec-h">Сейф</div>
+      <div class="hrow">${tile('#/inbox', '#f1f1f4', INBOX_SVG, 'Входящие')}${tile('#/all', '#f1f1f4', ALL_SVG, 'Все материалы')}</div>
+    </section>`;
   document.querySelectorAll('[data-go]').forEach(t => t.onclick = () => { location.hash = t.dataset.go; });
 }
 
