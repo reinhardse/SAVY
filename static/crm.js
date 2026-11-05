@@ -1125,7 +1125,7 @@ const crmTabsBar = () => '<div class="crm-tabs"><button class="crm-tab on" data-
 // несколько телефонов или почт: первая строка — основная, «+» добавляет строку ниже
 function crmMultiField(label, key, values, placeholder) {
   const list = values && values.length ? values : [''];
-  const rows = list.map((v, i) => `<div class="crm-mrow"><input class="crm-in crm-wide" value="${esc(v)}" placeholder="${i ? '' : placeholder}">${i === list.length - 1 ? `<button class="crm-plus-x" data-mplus="${key}" type="button" aria-label="Добавить: ${esc(label)}">+</button>` : ''}</div>`).join('');
+  const rows = list.map((v, i) => `<div class="crm-mrow"><input class="crm-in crm-wide" value="${esc(v)}" placeholder="${i ? '' : placeholder}">${i === list.length - 1 ? `<button class="crm-plus-x" data-mplus="${key}" type="button" aria-label="Добавить: ${esc(label)}"></button>` : ''}</div>`).join('');
   return `<div class="crm-prop"><div class="crm-pl"><span>${label}</span></div><div class="crm-pv crm-multi" data-mwrap="${key}">${rows}</div></div>`;
 }
 
@@ -1143,7 +1143,7 @@ function crmBindMulti(path) {
       if (!b) return;
       const row = document.createElement('div');
       row.className = 'crm-mrow';
-      row.innerHTML = `<input class="crm-in crm-wide"><button class="crm-plus-x" data-mplus="${key}" type="button" aria-label="Добавить">+</button>`;
+      row.innerHTML = `<input class="crm-in crm-wide"><button class="crm-plus-x" data-mplus="${key}" type="button" aria-label="Добавить"></button>`;
       b.remove();
       wrap.appendChild(row);
       row.querySelector('input').focus();
