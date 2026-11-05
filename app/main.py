@@ -495,29 +495,71 @@ def board_out(b: Board) -> dict:
         {"id": col.id, "name": col.name, "cards": [card_out(k) for k in col.cards]} for col in b.columns]}
 
 
+def _today_key(today: str | None) -> str:
+    """Сегодняшняя дата клиента (чтобы просрочка считалась по его часовому поясу)."""
+    if today:
+        try:
+            return _date.fromisoformat(today).isoformat()
+        except ValueError:
+            raise HTTPException(400, "Неверная дата")
+    return _date.today().isoformat()
+
+
+def _is_done_col(name: str | None) -> bool:
+    return "готов" in (name or "").lower()
+
+
+def _board_card_item(c: Card, names: dict, col_name: str | None, t0: str) -> dict:
+    return {"id": c.id, "title": c.title or "", "due_date": c.due_date, "due_time": c.due_time,
+            "duration_min": c.duration_min, "board_id": c.board_id, "board_name": names.get(c.board_id, ""),
+            "overdue": bool(c.due_date and c.due_date < t0 and not _is_done_col(col_name))}
+
+
+def _crm_task_item(db: Session, t: CrmTask, t0: str) -> dict:
+    kind_name, owner_title, href = _crm_task_owner(db, t)
+    done = t.status == "done"
+    return {"id": t.id, "kind": "crm", "title": t.title, "due_date": t.due_date, "due_time": t.due_time,
+            "duration_min": None, "board_id": None, "board_name": "CRM", "owner_title": owner_title,
+            "owner_kind": kind_name, "href": href, "done": done,
+            "overdue": bool(t.due_date and t.due_date < t0 and not done)}
+
+
 @app.get("/api/calendar")
-def calendar_items(frm: str, to: str, db: Session = Depends(get_db), _: int = Depends(require_auth)):
-    """Все карточки с датой из всех досок за период: для экрана «Календарь»."""
+def calendar_items(frm: str, to: str, today: str | None = None, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    """Все карточки с датой из всех досок за период: для экрана «Календарь». overdue — срок прошёл, не готово."""
     try:
         a = _date.fromisoformat(frm).isoformat()
         b = _date.fromisoformat(to).isoformat()
     except ValueError:
         raise HTTPException(400, "Неверная дата")
+    t0 = _today_key(today)
     names = {bd.id: bd.name for bd in db.scalars(select(Board).where(Board.user_id == USER_ID)).all()}
-    rows = db.scalars(select(Card).join(Board, Card.board_id == Board.id)
+    rows = db.execute(select(Card, KColumn.name).join(Board, Card.board_id == Board.id)
+                      .outerjoin(KColumn, Card.column_id == KColumn.id)
                       .where(Board.user_id == USER_ID, Card.due_date >= a, Card.due_date <= b)
                       .order_by(Card.due_date, Card.due_time)).all()
-    out = [{"id": c.id, "title": c.title or "", "due_date": c.due_date, "due_time": c.due_time,
-            "duration_min": c.duration_min, "board_id": c.board_id, "board_name": names.get(c.board_id, "")}
-           for c in rows]
+    out = [_board_card_item(c, names, col_name, t0) for c, col_name in rows]
     # задачи CRM: метка CRM и название сделки; открываются сделкой
     tasks = db.scalars(select(CrmTask).where(CrmTask.due_date >= a, CrmTask.due_date <= b)
                        .order_by(CrmTask.due_date, CrmTask.due_time)).all()
-    for t in tasks:
-        kind_name, owner_title, href = _crm_task_owner(db, t)
-        out.append({"id": t.id, "kind": "crm", "title": t.title, "due_date": t.due_date, "due_time": t.due_time,
-                    "duration_min": None, "board_id": None, "board_name": "CRM", "owner_title": owner_title,
-                    "owner_kind": kind_name, "href": href, "done": t.status == "done"})
+    out += [_crm_task_item(db, t, t0) for t in tasks]
+    return out
+
+
+@app.get("/api/overdue")
+def overdue_items(today: str | None = None, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    """Просроченное: карточки досок и задачи CRM, у которых срок прошёл и которые не готовы."""
+    t0 = _today_key(today)
+    names = {bd.id: bd.name for bd in db.scalars(select(Board).where(Board.user_id == USER_ID)).all()}
+    rows = db.execute(select(Card, KColumn.name).join(Board, Card.board_id == Board.id)
+                      .outerjoin(KColumn, Card.column_id == KColumn.id)
+                      .where(Board.user_id == USER_ID, Card.due_date < t0)
+                      .order_by(Card.due_date, Card.due_time)).all()
+    out = [_board_card_item(c, names, col_name, t0) for c, col_name in rows if not _is_done_col(col_name)]
+    tasks = db.scalars(select(CrmTask).where(CrmTask.due_date < t0, CrmTask.status != "done")
+                       .order_by(CrmTask.due_date, CrmTask.due_time)).all()
+    out += [_crm_task_item(db, t, t0) for t in tasks]
+    out.sort(key=lambda x: (x["due_date"] or "", x.get("due_time") or ""))
     return out
 
 

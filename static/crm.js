@@ -1231,12 +1231,14 @@ async function crmCompanyView(id, mode) {
 }
 
 /* ---------- календарь: задача CRM — метка CRM и название владельца ---------- */
-function crmCalItem(it, big) {
-  const time = it.due_time ? `<span class="${big ? 'kc-tag kc-date' : 'cal-t'}">${esc(it.due_time)}</span>` : '';
+function crmCalItem(it, big, withDate = false) {
+  const od = it.overdue ? ' od' : '';
+  const time = it.due_time ? `<span class="${big ? 'kc-tag kc-date' + od : 'cal-t'}">${esc(it.due_time)}</span>` : '';
+  const dtag = withDate ? `<span class="kc-tag kc-date od">${esc(odDateLabel(it.due_date))}</span>` : '';
   const tag = '<span class="kc-tag crm-cal-tag">CRM</span>';
   return big
-    ? `<div class="kcard cal-crm${it.done ? ' done' : ''}" data-href="${esc(it.href)}"><div class="kct">${esc(it.title)}</div><div class="kc-tags">${time}${tag}</div><div class="cal-sub">${esc(it.owner_title)}</div></div>`
-    : `<div class="cal-item cal-crm${it.done ? ' done' : ''}" data-href="${esc(it.href)}">${time}<span class="cal-title">${esc(it.title)}</span>${tag}<span class="cal-sub">${esc(it.owner_title)}</span></div>`;
+    ? `<div class="kcard cal-crm${it.done ? ' done' : ''}${od}" data-href="${esc(it.href)}"><div class="kct">${esc(it.title)}</div><div class="kc-tags">${dtag}${time}${tag}</div><div class="cal-sub">${esc(it.owner_title)}</div></div>`
+    : `<div class="cal-item cal-crm${it.done ? ' done' : ''}${od}" data-href="${esc(it.href)}">${time}<span class="cal-title">${esc(it.title)}</span>${tag}<span class="cal-sub">${esc(it.owner_title)}</span></div>`;
 }
 
 /* ---------- раздел «Задачи»: просроченные, сегодня, завтра, неделя, месяц, будущее ---------- */

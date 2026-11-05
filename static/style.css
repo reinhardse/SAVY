@@ -1693,3 +1693,12 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
    прокрутка не уходит на страницу под окном, окно на собственном слое */
 .overlay:has(> .sheet.card-sheet){backdrop-filter:none;-webkit-backdrop-filter:none}
 .card-sheet{overscroll-behavior:contain;will-change:scroll-position}
+
+/* просроченное: красная дата и приглушённый красный фон карточки; снимается сменой даты или переносом в «Готово» */
+.kc-tag.kc-date.od{background:#fbe4e2;color:#b4493f}
+.kcard.od,.cal-card.od,.cal-crm.od{background:#fdf4f3;border-color:#f0d2ce}
+.kcard.od:hover,.cal-card.od:hover,.cal-crm.od:hover{border-color:#e6b9b3}
+.card-sheet .kb-dv.od{color:#b4493f}
+#app .cal-od .kcn.cal-od-t{color:#b4493f}
+.cal-od-empty{font-size:13px;color:#9b9a97;padding:10px 4px}
+#app .cal-od .kcard,#app .cal-od .cal-crm{cursor:pointer}

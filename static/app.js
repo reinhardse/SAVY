@@ -800,18 +800,23 @@ const cardDateText = c => {
   return t;
 };
 
+// просрочка: срок прошёл, а карточка не в колонке «Готово»; снимается сменой даты или переносом в «Готово»
+const isOverdue = (due, colName = '') => !!due && due < dkey(new Date()) && !/готов/i.test(colName || '');
+const odDateLabel = due => { const [, m, d] = due.split('-').map(Number); return `${d} ${MONTHS_GEN_SHORT[m - 1]}`; };
+const MONTHS_GEN_SHORT = ['янв.', 'февр.', 'мар.', 'апр.', 'мая', 'июн.', 'июл.', 'авг.', 'сент.', 'окт.', 'нояб.', 'дек.'];
 // карточка доски: заголовок, дата и теги
 const NOTE_ICON = '<svg class="kc-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/></svg>';
 // приоритеты: 3, 2, 1 — значки; 0 — «пустой», то есть без приоритета (не выводится на карточке)
 const KB_PRIO = {3: {t: '!!!', bg: '#ffe1e1', tc: '#b42318', bd: '#f5b5b5'}, 2: {t: '!!', bg: '#fff3c4', tc: '#8a6100', bd: '#f3dc85'}, 1: {t: '!', bg: '#dfeafe', tc: '#2f4bb0', bd: '#b5ccf5'}, 0: {t: '—', bg: '#f2f2f4', tc: '#6b6b74', bd: '#e3e3e8'}};
-const cardHtml = c => {
+const cardHtml = (c, colName = '') => {
   const dt = cardDateText(c);
-  const dateChip = dt ? `<span class="kc-tag kc-date">${esc(dt)}</span>` : '';
+  const od = isOverdue(c.due_date, colName);
+  const dateChip = dt ? `<span class="kc-tag kc-date${od ? ' od' : ''}">${esc(dt)}</span>` : '';
   const tags = (c.tags || []).map(t => { const k = tagColor(t); return `<span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(t)}</span>`; }).join('');
   const prioChip = c.priority > 0 ? `<span class="kc-tag kc-prio" style="background:${KB_PRIO[c.priority].bg};color:${KB_PRIO[c.priority].tc}">${KB_PRIO[c.priority].t}</span>` : '';
   const row = prioChip + dateChip + tags;
   const hasNote = !!(c.note || '').trim(); // значок «есть заметка», как в Notion
-  return `<div class="kcard" data-card="${c.id}"><div class="kct${c.title ? '' : ' ph'}">${hasNote ? NOTE_ICON : ''}${esc(c.title || 'Без названия')}</div>${row ? `<div class="kc-tags">${row}</div>` : ''}</div>`;
+  return `<div class="kcard${od ? ' od' : ''}" data-card="${c.id}"><div class="kct${c.title ? '' : ' ph'}">${hasNote ? NOTE_ICON : ''}${esc(c.title || 'Без названия')}</div>${row ? `<div class="kc-tags">${row}</div>` : ''}</div>`;
 };
 
 async function board(bid) {
@@ -821,7 +826,7 @@ async function board(bid) {
   const cols = b.columns.map(col => `<div class="kcol${/готов/i.test(col.name) ? ' kdone' : ''}" data-col="${col.id}">
       <div class="kch"><span class="kcname"><span class="kcn" data-rencol="${col.id}" title="Нажмите, чтобы переименовать">${esc(col.name)}</span><span class="kcnt">${col.cards.length}</span></span>
         <button class="rb del" data-delcol="${col.id}" aria-label="Удалить колонку">${XICON}</button></div>
-      <div class="kcards">${col.cards.map(cardHtml).join('')}</div>
+      <div class="kcards">${col.cards.map(c => cardHtml(c, col.name)).join('')}</div>
       <button class="kadd" data-addcard="${col.id}">+ Добавить карточку</button>
     </div>`).join('');
   $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
@@ -1621,7 +1626,7 @@ async function openCard(kid) {
   const moveTo = async id => {
     kbpClose();
     if (id === curCol) return;
-    curCol = id; renderCols();
+    curCol = id; renderCols(); renderDate();
     try {
       await api('/cards/' + kid, {method: 'PATCH', body: {column_id: id}});
       // карточка на доске под окном переезжает в новую колонку, счётчики меняются сразу
@@ -1720,7 +1725,8 @@ async function openCard(kid) {
         if (dueDur) { const e = h * 60 + mi + dueDur; txt += '–' + String(Math.floor(e / 60) % 24).padStart(2, '0') + ':' + String(e % 60).padStart(2, '0'); }
       }
     }
-    $('#kbdate').innerHTML = `<button class="kb-dv${dueDate ? ' on' : ''}" id="kbdv">${txt}</button>`;
+    const curName = (cols.find(x => x.id === curCol) || {}).name || '';
+    $('#kbdate').innerHTML = `<button class="kb-dv${dueDate ? ' on' : ''}${isOverdue(dueDate, curName) ? ' od' : ''}" id="kbdv">${txt}</button>`;
     $('#kbdv').onclick = e => { e.stopPropagation(); openCal(); };
   };
   const setDate = async val => {
@@ -2329,7 +2335,7 @@ const MON_GEN = ['января', 'февраля', 'марта', 'апреля',
 let calMode = +(localStorage.getItem('cal_mode') || 7);   // 7 — неделя, 31 — месяц
 let calAnchor = new Date();
 let calHidden = new Set(JSON.parse(localStorage.getItem('cal_hidden') || '[]'));
-let calItems = [], calBoards = [], calMenu = null;
+let calItems = [], calBoards = [], calMenu = null, calOverdue = [];
 
 function calDays() {
   if (calMode === 7) { const s = weekStartOf(calAnchor); return Array.from({length: 7}, (_, i) => shiftDays(s, i)); }
@@ -2340,11 +2346,13 @@ function calDays() {
 async function calendarPage() {
   $('#app').classList.add('kfull'); // календарь всегда во всю ширину
   const days = calDays();
-  const [items, boards] = await Promise.all([
-    api(`/calendar?frm=${dkey(days[0])}&to=${dkey(days[days.length - 1])}`),
+  const todayK = dkey(new Date());
+  const [items, boards, od] = await Promise.all([
+    api(`/calendar?frm=${dkey(days[0])}&to=${dkey(days[days.length - 1])}&today=${todayK}`),
     api('/boards'),
+    api(`/overdue?today=${todayK}`),
   ]);
-  calItems = items; calBoards = boards;
+  calItems = items; calBoards = boards; calOverdue = od;
   paintCal();
 }
 
@@ -2354,24 +2362,28 @@ function paintCal() {
   const byDay = {};
   calItems.filter(it => !calHidden.has(it.board_id)).forEach(it => { (byDay[it.due_date] ||= []).push(it); });
   // карточка задачи — как карточка доски: заголовок, время и метка доски
-  const cardHtml = it => {
-    if (it.kind === 'crm') return crmCalItem(it, true);
+  // withDate — карточка в колонке «Просрочено»: у неё сверху красная дата, когда срок вышел
+  const cardHtml = (it, withDate = false) => {
+    if (it.kind === 'crm') return crmCalItem(it, true, withDate);
     const k = tagColor(it.board_name);
-    const time = it.due_time ? `<span class="kc-tag kc-date">${esc(it.due_time)}</span>` : '';
-    return `<div class="kcard cal-card" data-card="${it.id}"><div class="kct">${esc(it.title || 'Без названия')}</div><div class="kc-tags">${time}<span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(it.board_name)}</span></div></div>`;
+    const time = it.due_time ? `<span class="kc-tag kc-date${it.overdue ? ' od' : ''}">${esc(it.due_time)}</span>` : '';
+    const dtag = withDate ? `<span class="kc-tag kc-date od">${esc(odDateLabel(it.due_date))}</span>` : '';
+    return `<div class="kcard cal-card${it.overdue ? ' od' : ''}" data-card="${it.id}"><div class="kct">${esc(it.title || 'Без названия')}</div><div class="kc-tags">${dtag}${time}<span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(it.board_name)}</span></div></div>`;
   };
   const wd = d => (d.getDay() + 6) % 7;
   const cardMini = it => {
     if (it.kind === 'crm') return crmCalItem(it, false);
     const k = tagColor(it.board_name);
     const time = it.due_time ? `<span class="cal-t">${esc(it.due_time)}</span>` : '';
-    return `<div class="cal-item cal-card" data-card="${it.id}">${time}<span class="cal-title">${esc(it.title || 'Без названия')}</span><span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(it.board_name)}</span></div>`;
+    return `<div class="cal-item cal-card${it.overdue ? ' od' : ''}" data-card="${it.id}">${time}<span class="cal-title">${esc(it.title || 'Без названия')}</span><span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(it.board_name)}</span></div>`;
   };
   let body;
   if (calMode === 7) {
-    const cols = days.map(d => {
+    const odItems = calOverdue.filter(it => !calHidden.has(it.board_id));
+    const odCol = `<div class="kcol cal-col cal-od"><div class="kch"><span class="kcname"><span class="kcn cal-od-t">Просрочено</span><span class="kcnt">${odItems.length}</span></span></div><div class="kcards">${odItems.length ? odItems.map(it => cardHtml(it, true)).join('') : '<div class="cal-od-empty">Просроченных нет</div>'}</div></div>`;
+    const cols = odCol + days.map(d => {
       const k = dkey(d);
-      const items = (byDay[k] || []).map(cardHtml).join('');
+      const items = (byDay[k] || []).map(it => cardHtml(it)).join('');
       const sub = `${d.getDate()} ${MON_GEN[d.getMonth()]} ’${String(d.getFullYear()).slice(2)}`;
       return `<div class="kcol cal-col${k === todayKey ? ' today' : ''}" data-day="${k}"><div class="kch"><span class="kcname"><span class="kcn">${WD_FULL[wd(d)]}</span><span class="kcnt">${sub}</span></span></div><div class="kcards">${items}</div></div>`;
     }).join('');
@@ -2416,6 +2428,7 @@ let calDrag = null;
 // перенос карточки — как на доске: призрак за курсором, серый прямоугольник на месте будущего дня
 function bindCalDrag() {
   document.querySelectorAll('.cal-card').forEach(el => el.onpointerdown = e => {
+    if (el.closest('.cal-od')) return; // просроченные переносятся через свою дату, не колонкой
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     calDrag = {el, id: +el.dataset.card, x0: e.clientX, y0: e.clientY, started: false, ph: null, ghost: null, sx: 0, sy: 0, cx: 0, cy: 0, tx: 0, ty: 0, raf: 0};
     window.addEventListener('pointermove', calMove);
