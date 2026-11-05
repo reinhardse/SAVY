@@ -1168,7 +1168,7 @@ async function crmContactView(id, mode) {
       ${crmTabsBar()}
       <div class="crm-panel" data-panel="info"><div class="crm-props">
         ${field('Имя', 'first_name')}${field('Фамилия', 'last_name')}${field('Отчество', 'middle_name')}${siteRow}
-        ${crmMultiField('Телефон', 'phones', c.phones, '+7…')}${crmMultiField('Почта', 'emails', c.emails, 'name@mail.ru')}${field('Телеграм', 'telegram', '@username')}
+        ${crmMultiField('Телефон', 'phones', c.phones, '+7…')}${crmMultiField('Почта', 'emails', c.emails, 'name@mail.ru')}${field('Телеграм', 'telegram', '@username')}${field('ВКонтакте', 'vk', 'vk.com/…')}
         ${field('Должность', 'position')}${field('Город', 'city')}
         <div class="crm-prop"><div class="crm-pl"><span>Компании</span></div>
           <div class="crm-pv crm-links" id="crmlk-companies">${crmEntChips('companies', c.companies)}<button class="crm-add-btn" data-add-companies="1">+ компанию</button></div></div>
@@ -1205,6 +1205,8 @@ async function crmContactView(id, mode) {
 async function crmCompanyView(id, mode) {
   const k = await api('/crm/companies/' + id);
   const refresh = () => crmCompanyView(id, mode);
+  const cfield = (label, key, val, ph) => `<div class="crm-prop"><div class="crm-pl"><span>${label}</span></div>
+      <div class="crm-pv"><input class="crm-in crm-wide" data-k="${key}" value="${esc(val || '')}" placeholder="${ph}"></div></div>`;
   const left = `<div class="crm-body">
       <div class="crm-head-p">${`<span class="crm-av lg crm-av-ic">${CRM_ICO.building}</span>`}<div><div class="crm-card-t" id="crmname">${esc(k.name)}</div>
         <div class="crm-sub">Компания</div></div></div>
@@ -1217,6 +1219,7 @@ async function crmCompanyView(id, mode) {
         <div class="crm-prop"><div class="crm-pl"><span>Сайт</span></div>
           <div class="crm-pv crm-docs">${crmLinkField('crmsite', k.website, 'example.ru')}</div></div>
         ${crmMultiField('Телефон', 'phones', k.phones, '+7…')}${crmMultiField('Почта', 'emails', k.emails, 'name@mail.ru')}
+        ${cfield('Телеграм', 'telegram', k.telegram, '@username')}${cfield('MAX', 'max_messenger', k.max_messenger, '@username')}${cfield('ВКонтакте', 'vk', k.vk, 'vk.com/…')}
         <div class="crm-prop"><div class="crm-pl"><span>Карточка</span></div>
           <div class="crm-pv crm-docs">${crmLinkField('crmcu', k.card_url, 'Вставить ссылку')}</div></div>
         <div class="crm-prop"><div class="crm-pl"><span>Контакты</span></div>
@@ -1235,6 +1238,10 @@ async function crmCompanyView(id, mode) {
     try { await api('/crm/companies/' + id, {method: 'PATCH', body: {inn: $('#crminn').value.replace(/\D/g, '')}}); refresh(); }
     catch (e) { alert(e.message); }
   };
+  document.querySelectorAll('[data-k]').forEach(inp => inp.onchange = async () => {
+    try { await api('/crm/companies/' + id, {method: 'PATCH', body: {[inp.dataset.k]: inp.value}}); }
+    catch (e) { alert(e.message); }
+  });
   $('#crmsite').onchange = async () => {
     try { await api('/crm/companies/' + id, {method: 'PATCH', body: {website: $('#crmsite').value}}); refresh(); }
     catch (e) { alert(e.message); }

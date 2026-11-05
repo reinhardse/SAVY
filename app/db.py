@@ -189,6 +189,9 @@ class Company(Base):
     website = Column(String(500), nullable=True)  # сайт компании
     phone = Column(String(50), default="")
     email = Column(String(200), default="")
+    telegram = Column(String(200), default="")
+    max_messenger = Column(String(200), default="")  # MAX
+    vk = Column(String(200), default="")  # ВКонтакте
     extra_phones = Column(Text, default="[]")
     extra_emails = Column(Text, default="[]")
     created_at = Column(DateTime, default=now)
@@ -208,6 +211,7 @@ class Contact(Base):
     position = Column(String(200), default="")
     city = Column(String(100), default="")
     website = Column(String(500), nullable=True)  # сайт контакта
+    vk = Column(String(200), default="")  # ВКонтакте
     extra_phones = Column(Text, default="[]")  # дополнительные телефоны (JSON-список)
     extra_emails = Column(Text, default="[]")  # дополнительные почты (JSON-список)
     created_at = Column(DateTime, default=now)
@@ -370,6 +374,17 @@ def init_db():
             ("companies", ("phone VARCHAR(50) DEFAULT ''", "email VARCHAR(200) DEFAULT ''",
                            "extra_phones TEXT DEFAULT '[]'", "extra_emails TEXT DEFAULT '[]'")),
             ("contacts", ("extra_phones TEXT DEFAULT '[]'", "extra_emails TEXT DEFAULT '[]'")),
+        ):
+            if _tbl in _insp(_conn).get_table_names():
+                _have = [c["name"] for c in _insp(_conn).get_columns(_tbl)]
+                for _ddl in _cols:
+                    if _ddl.split()[0] not in _have:
+                        _conn.execute(_text(f"ALTER TABLE {_tbl} ADD COLUMN {_ddl}"))
+        # мессенджеры и соцсети: ВКонтакте у контакта, Telegram, MAX и ВКонтакте у компании
+        for _tbl, _cols in (
+            ("contacts", ("vk VARCHAR(200) DEFAULT ''",)),
+            ("companies", ("telegram VARCHAR(200) DEFAULT ''", "max_messenger VARCHAR(200) DEFAULT ''",
+                           "vk VARCHAR(200) DEFAULT ''")),
         ):
             if _tbl in _insp(_conn).get_table_names():
                 _have = [c["name"] for c in _insp(_conn).get_columns(_tbl)]

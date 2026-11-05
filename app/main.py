@@ -1116,12 +1116,14 @@ class CrmContactIn(BaseModel):
     phone: str = ""
     email: str = ""
     telegram: str = ""
+    vk: str = ""
     position: str = ""
     city: str = ""
     website: str = ""
 
 
 class CrmContactPatch(CrmContactIn):
+    vk: str | None = None
     phones: list[str] | None = None
     emails: list[str] | None = None
     first_name: str | None = None
@@ -1141,6 +1143,9 @@ class CrmCompanyIn(BaseModel):
     card_url: str | None = None
     inn: str | None = None
     website: str | None = None
+    telegram: str | None = None
+    max_messenger: str | None = None
+    vk: str | None = None
 
 
 class CrmCompanyPatch(BaseModel):
@@ -1148,6 +1153,9 @@ class CrmCompanyPatch(BaseModel):
     card_url: str | None = None
     inn: str | None = None
     website: str | None = None
+    telegram: str | None = None
+    max_messenger: str | None = None
+    vk: str | None = None
     phones: list[str] | None = None
     emails: list[str] | None = None
 
@@ -1270,6 +1278,7 @@ def _crm_multi_set(obj, field: str, extra: str, values) -> None:
 def _crm_contact_full(db: Session, c: Contact) -> dict:
     return {"id": c.id, "name": _crm_name(c), "first_name": c.first_name, "last_name": c.last_name,
             "middle_name": c.middle_name, "phone": c.phone, "email": c.email, "telegram": c.telegram,
+            "vk": c.vk or "",
             "phones": _crm_multi_get(c, "phone", "extra_phones"), "emails": _crm_multi_get(c, "email", "extra_emails"),
             "position": c.position, "city": c.city, "website": c.website or "",
             "companies": [_crm_company_brief(x) for x in c.companies],
@@ -1279,6 +1288,7 @@ def _crm_contact_full(db: Session, c: Contact) -> dict:
 
 def _crm_company_full(db: Session, c: Company) -> dict:
     return {"id": c.id, "name": c.name or "Без названия", "card_url": c.card_url, "inn": c.inn or "", "website": c.website or "",
+            "telegram": c.telegram or "", "max_messenger": c.max_messenger or "", "vk": c.vk or "",
             "phones": _crm_multi_get(c, "phone", "extra_phones"), "emails": _crm_multi_get(c, "email", "extra_emails"),
             "contacts": [_crm_contact_brief(x) for x in c.contacts],
             "deals": _crm_group_deals(c.deals),
@@ -1296,7 +1306,7 @@ def _crm_group_deals(deals) -> dict:
 
 
 def _crm_contact_fields(c: Contact, body) -> None:
-    for f in ("first_name", "last_name", "middle_name", "phone", "email", "telegram", "position", "city", "website"):
+    for f in ("first_name", "last_name", "middle_name", "phone", "email", "telegram", "vk", "position", "city", "website"):
         v = getattr(body, f, None)
         if v is not None:
             setattr(c, f, v.strip()[:200])
@@ -1805,6 +1815,9 @@ def crm_company_patch(kid: int, body: CrmCompanyPatch, db: Session = Depends(get
         c.inn = (body.inn or "").strip()[:20] or None
     if "website" in f:
         c.website = (body.website or "").strip()[:500] or None
+    for name in ("telegram", "max_messenger", "vk"):
+        if name in f and getattr(body, name) is not None:
+            setattr(c, name, getattr(body, name).strip()[:200])
     if body.phones is not None:
         _crm_multi_set(c, "phone", "extra_phones", body.phones)
     if body.emails is not None:
