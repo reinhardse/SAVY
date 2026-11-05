@@ -675,7 +675,7 @@ async function hub() {
   const boards = (await api('/boards').catch(() => [])).filter(b => (b.status || 'work') === 'work').slice(0, 4);
   const tile = (go, bg, ic, label) => `<div class="htw"><button class="htile" style="--c:${bg}" data-go="${go}" aria-label="${label}">${ic}</button><span class="htile-l">${label}</span></div>`;
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Приложения</div></div>
-    <section class="hsec"><div class="hsec-h">Приложения</div>
+    <section class="hsec">
       <div class="hrow">${tile('#/calendar', '#eef3ff', CAL_SVG, 'Календарь')}${tile('#/kanban', '#e7f6ee', KB_ICON, 'Доски')}${tile('#/home', '#fff0f3', APP_ICON_SAVE, 'Сейв')}${tile('#/crm', '#f3f0ff', CRM_ICO.funnel, 'CRM')}</div>
     </section>
     <section class="hsec"><button class="hsec-h hsec-link" data-go="#/kanban">Доски<span class="hsec-chev">›</span></button>
@@ -729,13 +729,17 @@ async function boards() {
       </div>
     </div>`;
   };
-  const groups = BGROUPS.map(([k, cap]) => ({cap, items: list.filter(b => (b.status || 'work') === k)})).filter(g => g.items.length);
-  const body = groups.map(g => (groups.length > 1 ? `<div class="nl-cap">${g.cap}</div>` : '')
-    + `<div class="bgrid">${g.items.map(tile).join('')}</div>`).join('');
+  // активные — плиткой вниз; пауза и архив — в карусели (сервер отдаёт паузу раньше архива)
+  const active = list.filter(b => (b.status || 'work') === 'work');
+  const rest = list.filter(b => (b.status || 'work') !== 'work');
   $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Доски</div></div>
-    ${body || '<div class="nl-empty">Пока нет досок</div>'}
-    <div class="bgrid bgrid-add"><button class="bcard badd" id="addboard"><span class="badd-ic">${PLUS_ICON}</span><span>Новая доска</span></button></div>`;
+    <section class="ypanel"><div class="ypanel-h">Активные <span class="ypanel-n">${active.length}</span></div>
+      <div class="bgrid">${active.map(tile).join('')}
+        <button class="bcard badd" id="addboard"><span class="badd-ic">${PLUS_ICON}</span><span>Новая доска</span></button></div>
+    </section>
+    ${rest.length ? `<section class="ypanel"><div class="ypanel-h">На паузе и в архиве <span class="ypanel-n">${rest.length}</span></div>
+      <div class="bgrid bcar">${rest.map(tile).join('')}</div></section>` : ''}`;
   $('#addboard').onclick = newBoard;
   document.querySelectorAll('[data-open]').forEach(r => r.onclick = e => {
     if (e.target.closest('[data-delb], [data-stb]')) return;
