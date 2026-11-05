@@ -674,7 +674,8 @@ const BOARD_ILL = '<svg viewBox="0 0 96 96"><defs><linearGradient id="ilBrd" x1=
 const SAFE_ILL = '<svg viewBox="0 0 96 96"><defs><linearGradient id="ilSafe" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9aa2b2"/><stop offset="1" stop-color="#4b5364"/></linearGradient></defs><rect x="12" y="14" width="72" height="68" rx="14" fill="url(#ilSafe)"/><rect x="19" y="21" width="58" height="54" rx="10" fill="none" stroke="#fff" stroke-opacity=".28" stroke-width="2"/><circle cx="46" cy="48" r="16" fill="#d5dae4"/><circle cx="46" cy="48" r="10" fill="#8e97a8"/><circle cx="46" cy="48" r="3.5" fill="#fff"/><rect x="72" y="40" width="6" height="16" rx="3" fill="#2a2f3a"/></svg>';
 const CRM_ILL = '<svg viewBox="0 0 96 96"><defs><linearGradient id="ilCrm" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9d7bff"/><stop offset="1" stop-color="#5b3fd0"/></linearGradient></defs><rect x="10" y="14" width="76" height="68" rx="18" fill="url(#ilCrm)"/><path d="M22 28h30l-11 13v12l-8 4V41z" fill="#fff"/><path d="M26 31h22" stroke="#5b3fd0" stroke-opacity=".35" stroke-width="2.5" stroke-linecap="round"/><circle cx="66" cy="50" r="8" fill="#fff"/><path d="M52 74c1.5-8 26.5-8 28 0z" fill="#fff"/></svg>';
 // цвета досок на главной: квадрат градиентом, внутри белая иконка доски
-const HUB_BPAL = [['#8f7cf7','#4a74f0'], ['#34c59b','#1f9d78'], ['#ffb84d','#ff8a3d'], ['#ff7fa8','#e04f85'], ['#5ec7e8','#2f8fd1'], ['#a5a9b8','#6b7080']];
+// пастельные цвета — те же, что у обложек досок
+const HUB_BPAL = ['#f4e3d7', '#dfeee3', '#e3e8f6', '#f6e8c8', '#efe0ef', '#dcecf0', '#f3dede'];
 const HUB_COV = ['#f4e3d7', '#dfeee3', '#e3e8f6', '#f6e8c8', '#efe0ef', '#dcecf0', '#f3dede'];
 const INBOX_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 13l2.5-7.5A2 2 0 0 1 7.4 4h9.2a2 2 0 0 1 1.9 1.5L21 13"/><path d="M3 13v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5h-5l-1.5 2.5h-5L8 13z"/></svg>';
 const ALL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2"/></svg>';
@@ -695,7 +696,7 @@ async function hub() {
       <div class="hrow">${tile('#/calendar', '#eef3ff', CAL_ILL, 'Календарь')}${tile('#/kanban', '#e7f6ee', BOARD_ILL, 'Доски')}${tile('#/home', '#fff0f3', SAFE_ILL, 'Сейв')}${tile('#/crm', '#f3f0ff', CRM_ILL, 'CRM')}</div>
     </section>
     <section class="hsec"><button class="hsec-h hsec-link" data-go="#/kanban">Доски<span class="hsec-chev">›</span></button>
-      <div class="hrow">${boards.map(b => { const p = HUB_BPAL[b.id % HUB_BPAL.length]; return `<div class="htw"><button class="htile hboard" style="--c1:${p[0]};--c2:${p[1]}" data-go="#/board/${b.id}" aria-label="${esc(b.name)}">${KB_ICON}</button><span class="htile-l">${esc(b.name)}</span><span class="htile-s">${b.count || 0} карт.</span></div>`; }).join('') || '<div class="hempty">Пока нет досок</div>'}</div>
+      <div class="hrow">${boards.map(b => { const p = HUB_BPAL[b.id % HUB_BPAL.length]; return `<div class="htw"><button class="htile hboard" style="--c1:${p}" data-go="#/board/${b.id}" aria-label="${esc(b.name)}"><span class="hb-n">${esc(b.name)}</span><span class="hb-c">${b.count || 0}</span></button></div>`; }).join('') || '<div class="hempty">Пока нет досок</div>'}</div>
     </section>
     <section class="hsec"><div class="hsec-h">Сейф</div>
       <div class="hslider">${slider}</div>

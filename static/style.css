@@ -1790,7 +1790,8 @@ html:has(.hsec),body:has(.hsec){background:#eef3fb}
 .htile .hl-letter{font-size:40px;font-weight:700;color:#37352f;line-height:1}
 
 /* доски на главной: цветные квадраты с иконкой, как значки хаба */
-.htile.hboard{background:linear-gradient(135deg,var(--c1),var(--c2));border:0;color:#fff}
-.htile.hboard svg{width:44px;height:44px;color:#fff}
-.htile-s{display:block;text-align:center;font-size:12.5px;color:var(--muted);margin-top:2px}
+/* доска на главной: пастельный квадрат, название внутри, счётчик справа вверху */
+.htile.hboard{background:var(--c1);border:0;color:#2b2f3a;display:block;position:relative;text-align:left;padding:14px 14px 0;box-sizing:border-box}
+.htile.hboard .hb-n{display:block;font-size:15px;font-weight:600;line-height:1.25;padding-right:30px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
+.htile.hboard .hb-c{position:absolute;top:12px;right:14px;font-size:13px;color:#2b2f3a;opacity:.6}
 .htw .htile-l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
