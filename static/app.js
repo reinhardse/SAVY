@@ -701,27 +701,33 @@ function openStatus(bid, cur) {
   });
 }
 
-// список досок в духе Notion: строки без рамок; в работе сверху, пауза и архив — ниже под подписью
+// список досок в духе Notion: плитки; в работе сверху, пауза и архив — ниже под подписью
 const BGROUPS = [['work', 'В работе'], ['pause', 'На паузе'], ['archive', 'Архив']];
 async function boards() {
   const list = await api('/boards');
-  const row = b => {
+  // обложка плитки: цвет выбирается по номеру доски, чтобы плитки различались
+  const BCOV = ['#f4e3d7', '#dfeee3', '#e3e8f6', '#f6e8c8', '#efe0ef', '#dcecf0', '#f3dede'];
+  const tile = b => {
     const s = b.status || 'work';
     const st = BSTATUS[s];
-    return `<div class="nrow${s === 'work' ? '' : ' off'}" data-open="${b.id}">
-      <span class="nrow-ic">${KB_ICON}</span>
-      <span class="nrow-n">${esc(b.name)}</span>
-      <span class="nrow-c">${b.count || 0}</span>
-      <button class="bstatus" data-stb="${b.id}" data-cur="${s}" style="--sb:${st.bg};--st:${st.tc}">${st.label}</button>
-      <button class="rb del" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button>
+    return `<div class="bcard${s === 'work' ? '' : ' off'}" data-open="${b.id}">
+      <div class="bcov" style="--cv:${BCOV[b.id % BCOV.length]}"></div>
+      <button class="rb del bdel" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button>
+      <div class="bcard-body">
+        <div class="bn">${esc(b.name)}</div>
+        <div class="bcard-foot">
+          <button class="bstatus" data-stb="${b.id}" data-cur="${s}" style="--sb:${st.bg};--st:${st.tc}">${st.label}</button>
+          <span class="bcount">${b.count || 0} карт.</span></div>
+      </div>
     </div>`;
   };
   const groups = BGROUPS.map(([k, cap]) => ({cap, items: list.filter(b => (b.status || 'work') === k)})).filter(g => g.items.length);
-  const body = groups.map(g => (groups.length > 1 ? `<div class="nl-cap">${g.cap}</div>` : '') + g.items.map(row).join('')).join('');
+  const body = groups.map(g => (groups.length > 1 ? `<div class="nl-cap">${g.cap}</div>` : '')
+    + `<div class="bgrid">${g.items.map(tile).join('')}</div>`).join('');
   $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Доски</div></div>
-    <div class="nlist">${body || '<div class="nl-empty">Пока нет досок</div>'}
-      <button class="nrow nadd" id="addboard"><span class="nrow-ic">${PLUS_ICON}</span><span class="nrow-n">Новая доска</span></button></div>`;
+    ${body || '<div class="nl-empty">Пока нет досок</div>'}
+    <div class="bgrid bgrid-add"><button class="bcard badd" id="addboard"><span class="badd-ic">${PLUS_ICON}</span><span>Новая доска</span></button></div>`;
   $('#addboard').onclick = newBoard;
   document.querySelectorAll('[data-open]').forEach(r => r.onclick = e => {
     if (e.target.closest('[data-delb], [data-stb]')) return;
