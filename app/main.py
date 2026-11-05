@@ -7,6 +7,7 @@ import re
 import secrets
 from contextlib import asynccontextmanager
 from datetime import date as _date, datetime, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request, Response
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
@@ -502,7 +503,8 @@ def _today_key(today: str | None) -> str:
             return _date.fromisoformat(today).isoformat()
         except ValueError:
             raise HTTPException(400, "Неверная дата")
-    return _date.today().isoformat()
+    # без параметра — «сегодня» по Москве, как и в интерфейсе
+    return datetime.now(ZoneInfo("Europe/Moscow")).date().isoformat()
 
 
 def _is_done_col(name: str | None) -> bool:

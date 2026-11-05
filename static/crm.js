@@ -40,7 +40,7 @@ const crmMoney = n => (n || 0).toLocaleString('ru-RU') + ' ₽';
 const crmDate = iso => (iso ? iso.split('-').reverse().join('.') : '');
 const crmStamp = iso => new Date(iso).toLocaleString('ru-RU', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'});
 const crmDebounce = (fn, ms = 220) => { let t = null; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
-const crmToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const crmToday = () => { const d = nowMsk(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const crmCap = s => s.charAt(0).toUpperCase() + s.slice(1);
 const crmInitials = name => String(name || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase() || '?';
 const crmAvatar = (name, cls = '') => {

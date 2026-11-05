@@ -1,4 +1,10 @@
 const SRC = {instagram: 'Instagram', youtube: 'YouTube', telegram: 'Telegram', tiktok: 'TikTok', litres: 'Литрес', kinopoisk: 'Кинопоиск', web: 'Сайт'};
+// «сегодня» и смена дня — по Москве, на любом устройстве: все даты приложения считаются по московскому времени
+const MSK_TZ = 'Europe/Moscow';
+const nowMsk = () => {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', {timeZone: MSK_TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'}).formatToParts(new Date()).map(x => [x.type, x.value]));
+  return new Date(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second);
+};
 const TYPE = {video: 'Видео', article: 'Статья', book: 'Книга', place: 'Место', product: 'Товар', image: 'Изображение', note: 'Заметка', other: 'Материал'};
 const SV = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"';
 const NAV = [
@@ -801,7 +807,7 @@ const cardDateText = c => {
 };
 
 // просрочка: срок прошёл, а карточка не в колонке «Готово»; снимается сменой даты или переносом в «Готово»
-const isOverdue = (due, colName = '') => !!due && due < dkey(new Date()) && !/готов/i.test(colName || '');
+const isOverdue = (due, colName = '') => !!due && due < dkey(nowMsk()) && !/готов/i.test(colName || '');
 const odDateLabel = due => { const [, m, d] = due.split('-').map(Number); return `${d} ${MONTHS_GEN_SHORT[m - 1]}`; };
 const MONTHS_GEN_SHORT = ['янв.', 'февр.', 'мар.', 'апр.', 'мая', 'июн.', 'июл.', 'авг.', 'сент.', 'окт.', 'нояб.', 'дек.'];
 // карточка доски: заголовок, дата и теги
@@ -1753,7 +1759,7 @@ async function openCard(kid) {
   };
   const openCal = () => {
     if (cal) { closeCal(); return; }
-    const base = dueDate ? new Date(dueDate + 'T00:00:00') : new Date();
+    const base = dueDate ? new Date(dueDate + 'T00:00:00') : nowMsk();
     let view = new Date(base.getFullYear(), base.getMonth(), 1);
     cal = document.createElement('div');
     cal.className = 'kb-cal';
@@ -1761,7 +1767,7 @@ async function openCard(kid) {
       const y = view.getFullYear(), mo = view.getMonth();
       const lead = (new Date(y, mo, 1).getDay() + 6) % 7;
       const days = new Date(y, mo + 1, 0).getDate();
-      const tkey = keyOf(new Date());
+      const tkey = keyOf(nowMsk());
       let cells = '';
       for (let i = 0; i < lead; i++) cells += '<span></span>';
       for (let d = 1; d <= days; d++) {
@@ -2333,7 +2339,7 @@ const WD_SHORT = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС'];
 const MON_RU = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 const MON_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
 let calMode = +(localStorage.getItem('cal_mode') || 7);   // 7 — неделя, 31 — месяц
-let calAnchor = new Date();
+let calAnchor = nowMsk();
 let calShift = 0; // режим 7 дней: сдвиг в неделях от текущей (0 — от сегодня до конца недели)
 let calHidden = new Set(JSON.parse(localStorage.getItem('cal_hidden') || '[]'));
 let calItems = [], calBoards = [], calMenu = null, calOverdue = [];
@@ -2342,7 +2348,7 @@ function calDays() {
   // режим 7 дней: первая колонка — «Просрочено»; без сдвига — от сегодня до конца недели (воскресенье),
   // стрелки переключают недели по 7 дней (понедельник — воскресенье)
   if (calMode === 7) {
-    const t0 = shiftDays(new Date(), 0);
+    const t0 = shiftDays(nowMsk(), 0);
     const wd = (t0.getDay() + 6) % 7; // понедельник = 0
     if (calShift === 0) return Array.from({length: 7 - wd}, (_, i) => shiftDays(t0, i));
     const mon = shiftDays(t0, -wd + 7 * calShift);
@@ -2355,7 +2361,7 @@ function calDays() {
 async function calendarPage() {
   $('#app').classList.add('kfull'); // календарь всегда во всю ширину
   const days = calDays();
-  const todayK = dkey(new Date());
+  const todayK = dkey(nowMsk());
   const [items, boards, od] = await Promise.all([
     api(`/calendar?frm=${dkey(days[0])}&to=${dkey(days[days.length - 1])}&today=${todayK}`),
     api('/boards'),
@@ -2367,7 +2373,7 @@ async function calendarPage() {
 
 function paintCal() {
   const days = calDays();
-  const todayKey = dkey(new Date());
+  const todayKey = dkey(nowMsk());
   const byDay = {};
   calItems.filter(it => !calHidden.has(it.board_id)).forEach(it => { (byDay[it.due_date] ||= []).push(it); });
   // карточка задачи — как карточка доски: заголовок, время и метка доски
@@ -2425,7 +2431,7 @@ function paintCal() {
   const step = n => { if (calMode === 7) calShift += n; else calAnchor = new Date(calAnchor.getFullYear(), calAnchor.getMonth() + n, 1); calendarPage(); };
   $('#calprev').onclick = () => step(-1);
   $('#calnext').onclick = () => step(1);
-  $('#caltoday').onclick = () => { calAnchor = new Date(); calShift = 0; calendarPage(); };
+  $('#caltoday').onclick = () => { calAnchor = nowMsk(); calShift = 0; calendarPage(); };
   $('#calfilter').onclick = e => { e.stopPropagation(); openCalMenu(); };
   document.querySelectorAll('.cal-card').forEach(el => { el.onclick = () => { if (!calDragging) openCard(+el.dataset.card); }; });
   document.querySelectorAll('.cal-crm').forEach(el => { el.onclick = () => { location.hash = el.dataset.href; }; });
