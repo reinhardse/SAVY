@@ -677,6 +677,8 @@ const CRM_ILL = '<svg viewBox="0 0 96 96"><defs><linearGradient id="ilCrm" x1="0
 // цвета досок на главной: квадрат градиентом, внутри белая иконка доски
 // пастельные цвета — те же, что у обложек досок
 const HUB_BPAL = ['#f4e3d7', '#dfeee3', '#e3e8f6', '#f6e8c8', '#efe0ef', '#dcecf0', '#f3dede'];
+// доски на главной: фронт и два слоя за ним; у каждой доски свой цвет
+const HUB_BOARD3D = [['#c8bcff','#9cc1ff','#8b6cf0'], ['#bff0d6','#8fe0c0','#4fc9a0'], ['#ffd9c2','#ffb38a','#ff8a6b'], ['#cfe9ff','#9fd0ff','#5aa8f0'], ['#f7c9e8','#f0a3d6','#d86fb8'], ['#ffeeb0','#ffd86b','#f5b83d'], ['#d9f2f5','#a8e0e8','#6cc3d0']];
 // значки категорий сейва: настоящие 3D-рендеры (static/ico), подбираются по названию категории
 const HUB_COV = ['#f4e3d7', '#dfeee3', '#e3e8f6', '#f6e8c8', '#efe0ef', '#dcecf0', '#f3dede'];
 const INBOX_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 13l2.5-7.5A2 2 0 0 1 7.4 4h9.2a2 2 0 0 1 1.9 1.5L21 13"/><path d="M3 13v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5h-5l-1.5 2.5h-5L8 13z"/></svg>';
@@ -705,7 +707,7 @@ async function hub() {
       <div class="hrow">${tile('#/calendar', '#eef3ff', '<img src="/static/ico/app-calendar.png?v=1" alt="" draggable="false">', 'Календарь')}${tile('#/kanban', '#e7f6ee', '<img src="/static/ico/app-boards.png?v=1" alt="" draggable="false">', 'Доски')}${tile('#/home', '#fff0f3', '<img src="/static/ico/app-safe.png?v=1" alt="" draggable="false">', 'Сейв')}${tile('#/crm', '#f3f0ff', '<img src="/static/ico/app-crm.png?v=1" alt="" draggable="false">', 'CRM')}</div>
     </section>
     <section class="hsec"><button class="hsec-h hsec-link" data-go="#/kanban">Доски<span class="hsec-chev">›</span></button>
-      <div class="hrow">${boards.map(b => { const p = HUB_BPAL[b.id % HUB_BPAL.length]; return `<div class="htw"><button class="htile hboard" style="--c1:${p}" data-go="#/board/${b.id}" aria-label="${esc(b.name)}"><span class="hb-n">${esc(b.name)}</span><span class="hb-c">${b.count || 0}</span></button></div>`; }).join('') || '<div class="hempty">Пока нет досок</div>'}</div>
+      <div class="hrow">${boards.map(b => { const [f, b1, b2] = HUB_BOARD3D[b.id % HUB_BOARD3D.length]; return `<div class="htw"><button class="htile hboard" style="--c1:${f};--b1:${b1};--b2:${b2}" data-go="#/board/${b.id}" aria-label="${esc(b.name)}"><span class="hb-face"></span><span class="hb-n">${esc(b.name)}</span><span class="hb-c">${b.count || 0}</span></button></div>`; }).join('') || '<div class="hempty">Пока нет досок</div>'}</div>
     </section>
     <section class="hsec"><div class="hsec-h">Сейф</div>
       <div class="hslider">${slider}</div>

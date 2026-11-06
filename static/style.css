@@ -1795,9 +1795,13 @@ html:has(.hsec),body:has(.hsec){background:#eef3fb}
 /* доски на главной: цветные квадраты с иконкой, как значки хаба */
 /* доска на главной: пастельный квадрат, название внутри, счётчик справа вверху */
 /* доска на главной: полноценный квадрат как у верхних плиток; название — внизу слева, счётчик в белом кружке справа вверху */
-.htile.hboard{background:var(--c1);border:0;color:#2b2f3a;position:relative;aspect-ratio:1;padding:0;box-sizing:border-box;text-align:left}
+.htile.hboard{position:relative;isolation:isolate;background:none;border:0;color:#2b2f3a;aspect-ratio:1;padding:0;box-sizing:border-box;text-align:left;overflow:visible}
+.htile.hboard::before,.htile.hboard::after{content:"";position:absolute;inset:5%;border-radius:24%;z-index:-2;pointer-events:none}
+.htile.hboard::before{background:var(--b1);transform:rotate(-8deg) translate(-4%,-1%)}
+.htile.hboard::after{background:var(--b2);transform:rotate(7deg) translate(4%,2%);z-index:-3}
+.htile.hboard .hb-face{position:absolute;inset:0;border-radius:24%;background:linear-gradient(155deg,rgba(255,255,255,.55),rgba(255,255,255,0) 55%),var(--c1)}
 .htile.hboard .hb-n{position:absolute;left:14px;right:14px;bottom:12px;font-size:15px;font-weight:600;line-height:1.25;text-align:left;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
-.htile.hboard .hb-c{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#2b2f3a}
+.htile.hboard .hb-c{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;background:#fff;box-shadow:none;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#2b2f3a}
 
 /* сейф на главной: все плитки круглые, знак категории на пастельном круге */
 .hslider .htw{flex:0 0 150px}
