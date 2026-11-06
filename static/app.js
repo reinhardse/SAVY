@@ -218,7 +218,7 @@ async function openInboxCard(id) {
   const it = await api('/items/' + id);
   const catName = it.category ? ((cats.find(c => c.slug === it.category) || {}).name || it.category) : 'Входящие';
   const desc0 = it.description || '';
-  sheet(`<div class="ibcard"><input class="ib-title" id="ibT" value="${esc(it.title || '')}" placeholder="${esc(titleOf(it))}" autocomplete="off"><textarea class="ib-desc" id="ibD" placeholder="Описание">${esc(desc0)}</textarea>${it.url ? `<a class="ib-link" href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.url)}</a>` : ''}<div class="ib-foot"><button class="inchip" id="ibDest">${esc(catName)} ▾</button></div></div>`, 'ib');
+  sheet(`<div class="ibcard"><input class="ib-title" id="ibT" value="${esc(it.title || '')}" placeholder="${esc(titleOf(it))}" autocomplete="off"><textarea class="ib-desc" id="ibD" placeholder="Описание">${esc(desc0)}</textarea>${it.url ? `<a class="ib-link" href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.url)}</a>` : ''}<div class="ib-foot"><button class="inchip" id="ibDest">${esc(catName)} ▾</button><button class="inchip ib-done" id="ibDone">Выполнено</button></div></div>`, 'ib');
   const d = $('#ibD');
   autosize(d);
   d.oninput = () => autosize(d);
@@ -230,6 +230,14 @@ async function openInboxCard(id) {
     if (Object.keys(body).length) await api('/items/' + id, {method: 'PATCH', body});
   };
   beforeClose = save;
+  $('#ibDone').onclick = async () => {
+    try {
+      beforeClose = null;
+      await api('/items/' + id, {method: 'PATCH', body: {done: true}});
+      $('#sheet-root').innerHTML = '';
+      route();
+    } catch (err) { alert(err.message); }
+  };
   $('#ibDest').onclick = () => openInPop($('#ibDest'), async dest => {
     try {
       await save();
@@ -310,12 +318,13 @@ function bindInbox() {
 
 // строка материала: обложка, название, источник и карандаш, теги под ними; справа глаз и крестик
 function row(i) {
-  // входящие: простой список задач — кружок выполняет, справа при наведении карандаш и «⋯»
+  // входящие: лента сообщений — каждая запись пузырём, нажатие открывает карточку, «⋯» справа при наведении
   if (listParams && listParams.inbox) {
     const d = (i.description || '').replace(/\s+/g, ' ').trim();
     const cat = cats.find(c => c.slug === i.category);
     const info = [SRC[i.source], cat ? cat.name : 'Без категории', ...i.tags.map(t => '#' + t)].filter(Boolean).join(' · ');
-    return `<div class="row ibrow" data-id="${i.id}" data-url="${esc(i.url)}"><button class="ck" data-check="${i.id}" aria-label="Выполнить"></button><div class="ibtxt"><div class="it">${esc(titleOf(i))}</div>${d ? `<div class="ibd">${esc(d)}</div>` : ''}<div class="ibm">${esc(info)}</div></div><div class="hov"><button class="rb pen" data-id="${i.id}" data-inbox="1" aria-label="Открыть карточку">${PEN}</button><button class="rb inmore" data-more="${i.id}" aria-label="Ещё">⋯</button></div></div>`;
+    const time = new Date(i.created_at).toLocaleTimeString('ru', {hour: '2-digit', minute: '2-digit'});
+    return `<div class="row ibrow" data-id="${i.id}" data-url="${esc(i.url)}"><div class="ibtxt"><div class="it">${esc(titleOf(i))}</div>${d ? `<div class="ibd">${esc(d)}</div>` : ''}<div class="ibm">${esc(info)} · ${time}</div></div><div class="hov"><button class="rb inmore" data-more="${i.id}" aria-label="Ещё">⋯</button></div></div>`;
   }
   const wait = i.meta_state === 'pending' ? ' · собираю данные…' : '';
   const cat = cats.find(c => c.slug === i.category);
@@ -352,8 +361,12 @@ const viewBtn = () => `<button class="iconbtn" id="vbtn" aria-label="Вид сп
 
 function paintList(el, items, empty) {
   lastItems = items; lastEmpty = empty;
-  el.classList.toggle('grid', viewMode === 'tiles');
-  paint(el, items.length ? items.map(row).join('') : empty);
+  // входящие всегда списком задач: плитки для них не применяем
+  el.classList.toggle('grid', viewMode === 'tiles' && !(listParams && listParams.inbox));
+  // входящие — лента как в мессенджере: старые сверху, новые внизу, при открытии страница прокручивается вниз
+  const inbox = listParams && listParams.inbox;
+  paint(el, items.length ? (inbox ? [...items].reverse() : items).map(row).join('') : empty);
+  if (inbox && !el.dataset.scrolled) { el.dataset.scrolled = '1'; window.scrollTo(0, document.body.scrollHeight); }
 }
 
 function toggleView() {
@@ -448,10 +461,9 @@ async function listView(title, params, active, withTags = false) {
       <button class="iconbtn" id="hbtn" aria-label="Главная">${HOME_ICON}</button>
       ${viewBtn()}<button class="iconbtn" id="sbtn" aria-label="Поиск">${LOUPE}</button></div></div>
     ${params.category || params.inbox ? '<div class="catsub" id="csub"></div>' : ''}
-    ${active === 'inbox' ? inboxAddHtml() : ''}
     <input class="search" id="q" placeholder="Поиск" style="display:${q || wantSearch ? 'block' : 'none'}" value="${esc(q)}">
     ${withTags ? '<div class="tags" id="tags"></div>' : ''}
-    <div class="list${viewMode === 'tiles' ? ' grid' : ''}" id="list"></div>${nav(active)}`;
+    <div class="list${viewMode === 'tiles' ? ' grid' : ''}" id="list"></div>${active === 'inbox' ? inboxAddHtml() : ''}${nav(active)}`;
   if (active === 'inbox') bindInbox(); else bindPaste();
   $('#vbtn').onclick = toggleView;
   // «Входящие» — отдельный раздел: кнопка «домой» ведёт на главную хаба, а не в Сейв

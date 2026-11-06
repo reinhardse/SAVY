@@ -1854,13 +1854,12 @@ html:has(.hsec),body:has(.hsec){background:#eef3fb}
 .ib-foot{margin-top:14px;display:flex;gap:8px}
 /* входящие как в Todoist: серый фон, по центру колонка как у хаба, каждая задача — своя белая панелька */
 body.inbox-pg{background:#f2f2f5}
-body.inbox-pg .inadd{background:#fff;border-radius:16px;padding:12px 12px 12px 16px;margin:8px 0 14px;box-shadow:0 1px 3px rgba(0,0,0,.06);padding-right:12px}
+body.inbox-pg .inadd{position:sticky;bottom:12px;z-index:5;background:#fff;border-radius:22px;padding:10px 10px 10px 16px;margin:14px 0 0;box-shadow:0 4px 18px rgba(0,0,0,.09)}
 body.inbox-pg .inadd input{border:0;outline:none;background:transparent;padding:8px 4px;font-size:16px}
-body.inbox-pg .list{gap:10px;padding:0 0 24px}
-body.inbox-pg .ibrow{background:#fff;border-radius:16px;padding:14px 16px;border-bottom:0;box-shadow:0 1px 3px rgba(0,0,0,.06);align-items:flex-start;gap:14px}
+body.inbox-pg .list{display:flex;flex-direction:column;gap:8px;padding:12px 0 16px}
+body.inbox-pg .ibrow{align-self:flex-start;max-width:82%;background:#fff;border-radius:18px 18px 18px 6px;padding:10px 14px;border-bottom:0;box-shadow:0 1px 2px rgba(0,0,0,.06);align-items:flex-end;gap:8px}
 body.inbox-pg .ibrow:hover{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.08)}
-body.inbox-pg .ibrow .ck{margin-top:2px}
-body.inbox-pg .ibrow .ibtxt{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+body.inbox-pg .ibrow .ibtxt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 body.inbox-pg .ibrow .it{white-space:normal;overflow:visible;text-overflow:clip;font-size:16px;font-weight:500;line-height:1.35;word-break:break-word}
 body.inbox-pg .ibrow .ibd{font-size:14px;color:#6b6f7b;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 body.inbox-pg .ibrow .ibm{font-size:12px;color:#9a9eab}
