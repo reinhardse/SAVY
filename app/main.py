@@ -142,10 +142,15 @@ def process_item(item_id: int, hint: str | None = None):
         db.commit()
 
 
+def _same_place(folder_id: int | None):
+    """Дубли ищем только в том же месте: в общем каталоге или в одной папке доски."""
+    return Item.folder_id == folder_id if folder_id else Item.folder_id.is_(None)
+
+
 def save_url(db: Session, url: str, note: str | None, category: str | None, tasks: BackgroundTasks,
-             hint: str | None = None) -> tuple[dict, bool]:
+             hint: str | None = None, folder_id: int | None = None) -> tuple[dict, bool]:
     norm = meta.normalize_url(url)
-    exists = db.scalars(select(Item).where(Item.user_id == USER_ID, Item.url_norm == norm)).first()
+    exists = db.scalars(select(Item).where(Item.user_id == USER_ID, Item.url_norm == norm, _same_place(folder_id))).first()
     if exists:
         return item_out(exists), False
     source = meta.detect_source(norm)
@@ -153,13 +158,13 @@ def save_url(db: Session, url: str, note: str | None, category: str | None, task
     # новая ссылка без выбранной категории попадает в «Без категории» (входящие), категорию не угадываем
     cat = cat_by_slug(db, category)
     item = Item(user_id=USER_ID, url=url.strip(), url_norm=norm, source=source, content_type=ctype,
-                note=note, category_id=cat.id if cat else None)
+                note=note, category_id=cat.id if cat else None, folder_id=folder_id or None)
     db.add(item)
     try:
         db.commit()
     except IntegrityError:
         db.rollback()
-        return item_out(db.scalars(select(Item).where(Item.user_id == USER_ID, Item.url_norm == norm)).first()), False
+        return item_out(db.scalars(select(Item).where(Item.user_id == USER_ID, Item.url_norm == norm, _same_place(folder_id))).first()), False
     tasks.add_task(process_item, item.id, hint)
     return item_out(item), True
 
@@ -198,6 +203,8 @@ def save_note(db: Session, text: str, category: str | None) -> dict:
 def add_item(body: ItemIn, tasks: BackgroundTasks, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     """Добавляет ссылку (если в тексте несколько адресов — берёт первый) или, если ссылки нет, текст как заметку."""
     urls = meta.extract_urls(body.url) or ([body.url] if "." in body.url and " " not in body.url.strip() else [])
+    if body.folder_id:
+        _folder(db, body.folder_id)
     if not urls:
         if not body.url.strip():
             raise HTTPException(400, "Пустой текст")
@@ -206,10 +213,10 @@ def add_item(body: ItemIn, tasks: BackgroundTasks, db: Session = Depends(get_db)
         hint = meta.service_link_hint(urls[0])
         if hint:
             raise HTTPException(400, hint)
-        item, created = save_url(db, urls[0], body.note, body.category, tasks, meta.share_title(body.url))
-    if body.folder_id:
-        if not created:
-            raise HTTPException(409, "Эта ссылка уже есть в библиотеке")
+        item, created = save_url(db, urls[0], body.note, body.category, tasks, meta.share_title(body.url), body.folder_id)
+        if body.folder_id and not created:
+            raise HTTPException(409, "Эта ссылка уже есть в этой папке")
+    if body.folder_id and not urls:
         item = _put_in_folder(db, item, body.folder_id)
     return {"item": item, "created": created}
 

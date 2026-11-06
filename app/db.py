@@ -1,10 +1,11 @@
 """Модели и подключение к базе. По умолчанию SQLite; для PostgreSQL достаточно задать DATABASE_URL."""
 import os
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlalchemy import (JSON, Boolean, Column, DateTime, ForeignKey, Integer, String, Table, Text,
-                        UniqueConstraint, create_engine, select)
+                        Index, UniqueConstraint, create_engine, func, select)
 from sqlalchemy.orm import DeclarativeBase, relationship, sessionmaker
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -84,7 +85,8 @@ class Item(Base):
     updated_at = Column(DateTime, default=now, onupdate=now)
     category = relationship("Category", lazy="joined")
     tags = relationship("Tag", secondary=item_tags, lazy="selectin")
-    __table_args__ = (UniqueConstraint("user_id", "url_norm"),)
+    # одна и та же ссылка — один раз в каталоге и один раз в каждой папке; в разных папках она может повторяться
+    __table_args__ = (Index("uq_items_user_url_folder", "user_id", "url_norm", func.coalesce(folder_id, 0), unique=True),)
 
 
 class CardSub(Base):
@@ -362,6 +364,32 @@ def _migrate_pipelines(had_pipelines: bool) -> None:
         db.commit()
 
 
+def _migrate_items_unique(conn):
+    """Раньше адрес был уникален на весь каталог вместе с папками. Теперь уникален внутри каталога и внутри каждой папки."""
+    from sqlalchemy import inspect as insp, text
+    if "items" not in insp(conn).get_table_names():
+        return
+    old = any(sorted(u["column_names"]) == ["url_norm", "user_id"] for u in insp(conn).get_unique_constraints("items"))
+    if conn.dialect.name == "sqlite":
+        row = conn.execute(text("SELECT sql FROM sqlite_master WHERE type='table' AND name='items'")).first()
+        if row and "UNIQUE (user_id, url_norm)" in row[0]:
+            old = True
+            ddl = re.sub(r",\s*UNIQUE \(user_id, url_norm\)", "", row[0])
+            assert "UNIQUE (user_id, url_norm)" not in ddl
+            ddl = ddl.replace("CREATE TABLE items", "CREATE TABLE items_new", 1)
+            conn.execute(text(ddl))
+            conn.execute(text("INSERT INTO items_new SELECT * FROM items"))
+            conn.execute(text("DROP TABLE items"))
+            conn.execute(text("ALTER TABLE items_new RENAME TO items"))
+            for name, col in (("ix_items_user_id", "user_id"), ("ix_items_status", "status"), ("ix_items_folder_id", "folder_id")):
+                conn.execute(text(f"CREATE INDEX IF NOT EXISTS {name} ON items ({col})"))
+    elif old:
+        for u in insp(conn).get_unique_constraints("items"):
+            if sorted(u["column_names"]) == ["url_norm", "user_id"]:
+                conn.execute(text(f'ALTER TABLE items DROP CONSTRAINT "{u["name"]}"'))
+    conn.execute(text("CREATE UNIQUE INDEX IF NOT EXISTS uq_items_user_url_folder ON items (user_id, url_norm, COALESCE(folder_id, 0))"))
+
+
 def init_db():
     from sqlalchemy import inspect as _pre
     had_pipelines = "crm_pipelines" in _pre(engine).get_table_names()
@@ -381,6 +409,7 @@ def init_db():
             if "folder_id" not in [c["name"] for c in _insp(_conn).get_columns("items")]:
                 _conn.execute(_text("ALTER TABLE items ADD COLUMN folder_id INTEGER REFERENCES folders(id) ON DELETE SET NULL"))
                 _conn.execute(_text("CREATE INDEX IF NOT EXISTS ix_items_folder_id ON items (folder_id)"))
+        _migrate_items_unique(_conn)
         # сайт у компании и контакта
         for _tbl in ("companies", "contacts"):
             if _tbl in _insp(_conn).get_table_names():
