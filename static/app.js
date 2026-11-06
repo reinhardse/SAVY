@@ -822,8 +822,25 @@ async function closeSheet() {
   $('#sheet-root').innerHTML = '';
   const back = foReturn; foReturn = null;
   route();
-  if (back) openFolder(back); // карточка материала закрыта — папка остаётся на месте
+  if (back) await openFolder(back); // карточка материала закрыта — папка остаётся на месте
+  dropGhost();
 }
+
+// пока открыта карточка материала из папки, папка остаётся на месте: приглушённая копия чуть позади карточки
+let foGhost = null;
+const dropGhost = () => { if (foGhost) { foGhost.remove(); foGhost = null; } };
+function ghostFolder() {
+  const ov = $('#ov');
+  if (!ov) return;
+  dropGhost();
+  foGhost = ov.cloneNode(true);
+  foGhost.removeAttribute('id');
+  foGhost.classList.add('ov-ghost');
+  document.body.appendChild(foGhost);
+}
+new MutationObserver(() => {
+  if (foGhost && !$('#ov')) setTimeout(() => { if (foGhost && !$('#ov')) dropGhost(); }, 1500);
+}).observe($('#sheet-root'), {childList: true});
 
 function sheet(html, cls = '') {
   beforeClose = null;
@@ -1346,6 +1363,7 @@ async function renderFolder(fid) {
   const [f, items] = await Promise.all([api('/folders/' + fid), api('/items?folder=' + fid + '&limit=200')]);
   foReturn = null;
   sheet(folderHtml(f, items), 'card-sheet fo-sheet');
+  dropGhost();
   const box = $('#ov .sheet');
   if (foFull) box.classList.add('kb-full');
   // закрытие окна: состояние папок сбрасывается, доска перерисуется через route()
@@ -1428,6 +1446,7 @@ function bindFolder(f) {
   box.querySelectorAll('.fo-list .rb.pen, .fo-list .more-d').forEach(b => b.onclick = e => {
     e.stopPropagation();
     foReturn = f.id;
+    ghostFolder();
     openItem(+b.dataset.id);
   });
   box.querySelectorAll('.fo-list .rb.del').forEach(b => b.onclick = async e => {

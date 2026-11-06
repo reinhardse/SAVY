@@ -2054,4 +2054,15 @@ body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
 .sheet .fo-add .fo-d{display:block}
 .fo-sub-ic svg{width:18px;height:18px;display:block;color:#2f4bb0}
 
-.sheet.card-sheet.fo-sheet:not(.kb-full){min-height:min(86vh,820px)}
+/* окно папки всегда одной высоты, что бы внутри ни лежало — строки или плитки */
+.sheet.card-sheet.fo-sheet:not(.kb-full){height:min(92vh,900px);min-height:0}
+/* в папке материалов нет значка «прочитано» ни у строк, ни у плиток */
+.fo-list .eyechip{display:none}
+/* крестик удаления: меньше и ближе к правому верхнему углу */
+.sheet .fo-list .rb.del{top:8px;right:-8px;width:22px;height:22px}
+.sheet .fo-list .rb.del svg{width:9px;height:9px}
+.sheet .fo-list.grid .rb.del{top:6px;right:6px;width:20px;height:20px;box-shadow:none}
+.sheet .fo-list.grid .rb.del svg{width:9px;height:9px}
+/* папка под карточкой материала: затемнена и чуть отодвинута назад, не пропадает */
+.overlay.ov-ghost{z-index:19;animation:none;pointer-events:none;background:rgba(0,0,0,.2)}
+.overlay.ov-ghost > .sheet{animation:none;transform:scale(.95) translateY(-2.2vh);filter:brightness(.82)}
