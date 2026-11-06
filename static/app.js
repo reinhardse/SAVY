@@ -165,7 +165,7 @@ function bindPaste() {
 
 // ===== входящие: строка добавления и перенос в Сейв или на доску =====
 let inDest = {kind: 'inbox', name: 'Входящие'};
-const inboxAddHtml = () => `<div class="inadd"><input id="inTxt" placeholder="Вставить ссылку или написать задачу" autocapitalize="off"><button class="inchip" id="inDestBtn">${esc(inDest.name)} ▾</button></div>`;
+const inboxAddHtml = () => `<div class="inadd"><div class="inrow"><input id="inTxt" placeholder="Вставить ссылку или написать задачу" autocapitalize="off"><button class="inchip" id="inDestBtn">${esc(inDest.name)} ▾</button></div></div>`;
 let inPop = null;
 const closeInPop = () => { if (inPop) { inPop.remove(); inPop = null; } document.removeEventListener('mousedown', inPopOut, true); };
 const inPopOut = e => { if (inPop && !inPop.contains(e.target) && !e.target.closest('#inDestBtn, [data-mvitem], [data-more], [data-mv]')) closeInPop(); };
@@ -232,9 +232,8 @@ async function openInPop(anchor, onPick, {mode = 'move'} = {}) {
     }
   };
   const first = await render('root');
-  vt(() => { addBar.before(pop); pop.innerHTML = first; });
-  // прокручиваем вниз, чтобы выбор и строка ввода были на экране вместе
-  addBar.scrollIntoView({block: 'end', behavior: 'smooth'});
+  // выбор раскрывает саму белую строку ввода вверх: серое поле сверху уменьшается
+  vt(() => { addBar.prepend(pop); pop.innerHTML = first; });
   showInPop(pop);
 }
 // раскрытая карточка входящих: расширяется на месте строки, без всплывающего окна
@@ -459,7 +458,7 @@ function paintList(el, items, empty) {
   // входящие — лента как в мессенджере: старые сверху, новые внизу, при открытии страница прокручивается вниз
   const inbox = listParams && listParams.inbox;
   paint(el, items.length ? (inbox ? [...items].reverse() : items).map(row).join('') : empty);
-  if (inbox && !el.dataset.scrolled) { el.dataset.scrolled = '1'; window.scrollTo(0, document.body.scrollHeight); }
+  if (inbox && !el.dataset.scrolled) { el.dataset.scrolled = '1'; el.scrollTop = el.scrollHeight; }
 }
 
 function toggleView() {

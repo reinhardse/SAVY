@@ -1917,3 +1917,12 @@ body.inbox-pg .inpanel .inpick{flex:none;margin:0 16px 4px;background:#fff;borde
 .inpick .pk-sel{font-size:13px;color:#4a4f5e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .inpick .pk-go{flex:none;border:0;border-radius:999px;background:#2f4bb0;color:#fff;font:inherit;font-size:13px;font-weight:600;padding:8px 16px;cursor:pointer}
 
+/* белая строка ввода растёт вверх при выборе места; всё по левому краю */
+body.inbox-pg .inpanel .inadd{display:flex;flex-direction:column;align-items:stretch;align-self:stretch;width:auto;margin:12px;padding:0;background:#fff;border:1px solid #e3e3ea;border-radius:22px;box-shadow:0 2px 10px rgba(0,0,0,.05);overflow:hidden}
+body.inbox-pg .inadd .inrow{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 16px}
+body.inbox-pg .inpanel .inpick{margin:0;border:0;border-bottom:1px solid #ececf0;border-radius:0;box-shadow:none;max-height:42vh;overflow:auto;padding:12px 16px 10px;background:#fff}
+.inpick .pk-root{justify-content:flex-start;gap:20px;padding:4px 0 2px}
+/* вся панель помещается в экран: серая лента прокручивается внутри и уменьшается, когда белая строка растёт вверх */
+body.inbox-pg .inpanel{flex:0 0 calc(100vh - 200px);height:calc(100vh - 200px);min-height:320px;box-sizing:border-box}
+body.inbox-pg .inpanel .list{min-height:0;overflow-y:auto}
+
