@@ -688,16 +688,16 @@ async function hub() {
   // значок категории по её названию; для остальных категорий — объёмная папка
   const catKey = name => {
     const n = (name || '').toLowerCase();
-    if (/смотр|видео|фильм|кино|сериал/.test(n)) return 'play';
+    if (/смотр|видео|фильм|кино|сериал/.test(n)) return 'eye';
     if (/чит|книг|стать|текст/.test(n)) return 'book';
     if (/мест|карт|адрес|путеш|гео/.test(n)) return 'pin';
     if (/инстр|сервис|софт/.test(n)) return 'tool';
-    if (/референс|образ|дизайн|визуал|фото/.test(n)) return 'image';
+    if (/референс|образ|дизайн|визуал|фото/.test(n)) return 'gem';
     if (/иде|мысл/.test(n)) return 'bulb';
     if (/куп|покуп|товар|магазин|шоп|заказ/.test(n)) return 'bag';
     return 'folder';
   };
-  const slider = catsAll.map(c => `<div class="htw"><button class="htile hcat" data-go="#/cat/${encodeURIComponent(c.slug)}" aria-label="${esc(c.name)}"><img src="/static/ico/${catKey(c.name)}.png" alt="" draggable="false"></button><span class="htile-l">${esc(c.name)}</span></div>`).join('');
+  const slider = catsAll.map(c => `<div class="htw"><button class="htile hcat" data-go="#/cat/${encodeURIComponent(c.slug)}" aria-label="${esc(c.name)}"><img src="/static/ico/${catKey(c.name)}.png?v=2" alt="" draggable="false"></button><span class="htile-l">${esc(c.name)}</span></div>`).join('');
   const tile = (go, bg, ic, label) => `<div class="htw"><button class="htile" style="--c:${bg}" data-go="${go}" aria-label="${label}">${ic}</button><span class="htile-l">${label}</span></div>`;
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Приложения</div></div>
     <section class="hsec">
