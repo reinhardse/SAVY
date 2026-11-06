@@ -1971,3 +1971,5 @@ body.inbox-pg .ibrow.open .ib-title{font-size:15px}
 body.inbox-pg .ibrow.open .ib-desc{font-size:14px}
 body.inbox-pg .ibday{align-self:center;font-size:11px;color:#8a8fa0;background:#fff;border-radius:999px;padding:3px 10px;margin:2px 0}
 body.inbox-pg .ibday span{display:block}
+body.inbox-pg .ibrow.open .ib-title{color:#2b2f3a}
+body.inbox-pg .ibrow.open .ib-desc{color:#2b2f3a}
