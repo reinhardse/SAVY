@@ -165,7 +165,7 @@ function bindPaste() {
 
 // ===== входящие: строка добавления и перенос в Сейв или на доску =====
 let inDest = {kind: 'inbox', name: 'Входящие'};
-const inboxAddHtml = () => `<div class="inadd"><div class="inrow"><input id="inTxt" placeholder="Вставить ссылку или написать задачу" autocapitalize="off"><button class="inchip" id="inDestBtn" title="${esc(inDest.name)}">Добавить задачу</button></div></div>`;
+const inboxAddHtml = () => `<div class="inadd" id="inAdd"><div class="inrow"><input id="inTxt" placeholder="Название задачи" autocapitalize="off"><button class="inchip" id="inDestBtn" title="${esc(inDest.name)}">Добавить задачу</button><textarea id="inDesc" class="indesc" placeholder="Описание" rows="3"></textarea></div></div>`;
 let inPop = null;
 const closeInPop = () => { if (inPop) { inPop.remove(); inPop = null; } document.removeEventListener('mousedown', inPopOut, true); const pn = document.querySelector('.inpanel'); if (pn) pn.classList.remove('picking'); document.querySelectorAll('.ibrow.active').forEach(r => r.classList.remove('active')); };
 const inPopOut = e => { if (inPop && !inPop.contains(e.target) && !e.target.closest('#inDestBtn, [data-mvitem], [data-more], [data-mv]')) closeInPop(); };
@@ -302,6 +302,8 @@ async function inboxClose() {
   if (inboxOpen === null) return;
   const id = inboxOpen;
   try { await inboxSaveDraft(id); } catch (err) { alert(err.message); }
+  const oc = document.querySelector('.ibrow.open');
+  if (oc) { oc.classList.add('closing'); await new Promise(r => setTimeout(r, 240)); }
   inboxOpen = null;
   loadList();
 }
@@ -367,6 +369,7 @@ const looksLikeLink = s => /^https?:\/\//i.test(s) || /^[^\s]+\.[^\s]{2,}/.test(
 async function inboxSend() {
   const inp = $('#inTxt');
   const txt = inp.value.trim();
+  const desc = ($('#inDesc') ? $('#inDesc').value : '').trim();
   if (!txt) return;
   try {
     if (inDest.kind === 'col') {
@@ -377,8 +380,11 @@ async function inboxSend() {
       if (inDest.kind === 'cat') body.category = inDest.slug;
       const r = await api('/items', {method: 'POST', body});
       if (!r.created && looksLikeLink(txt)) alert('Эта ссылка уже в библиотеке');
+      if (desc && r.created && r.item) await api('/items/' + r.item.id, {method: 'PATCH', body: {description: desc}});
     }
     inp.value = '';
+    if ($('#inDesc')) $('#inDesc').value = '';
+    inboxSyncOpen();
     loadList();
   } catch (err) { alert(err.message); }
 }
@@ -394,7 +400,23 @@ async function inboxMove(id, d) {
     loadList();
   } catch (err) { alert(err.message); }
 }
+// поле ввода раскрывается, когда в него ставят курсор, и сворачивается, когда оно пустое и курсор ушёл
+function inboxSyncOpen() {
+  setTimeout(() => {
+    const add = $('#inAdd'), ti = $('#inTxt'), de = $('#inDesc');
+    if (!add || !ti || !de) return;
+    const f = document.activeElement;
+    const keep = f === ti || f === de || ti.value.trim() || de.value.trim();
+    add.classList.toggle('open', !!keep);
+  }, 0);
+}
 function bindInbox() {
+  const ti0 = $('#inTxt'), de0 = $('#inDesc'), add0 = $('#inAdd');
+  if (ti0 && add0) {
+    ti0.onfocus = () => add0.classList.add('open');
+    ti0.onblur = inboxSyncOpen;
+    if (de0) { de0.onfocus = () => add0.classList.add('open'); de0.onblur = inboxSyncOpen; }
+  }
   const btn = $('#inDestBtn');
   if (btn) btn.onclick = () => { inDest = {kind: 'inbox', name: 'Входящие'}; inboxSend(); };
   const go = $('#inGo');
