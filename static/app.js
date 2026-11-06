@@ -164,7 +164,7 @@ function bindPaste() {
 
 // ===== входящие: строка добавления и перенос в Сейв или на доску =====
 let inDest = {kind: 'inbox', name: 'Входящие'};
-const inboxAddHtml = () => `<div class="inadd"><input id="inTxt" placeholder="Вставить ссылку или написать задачу" autocapitalize="off"><button class="inchip" id="inDestBtn">${esc(inDest.name)} ▾</button><button class="paste-go" id="inGo" aria-label="Добавить"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button></div>`;
+const inboxAddHtml = () => `<div class="inadd"><input id="inTxt" placeholder="Вставить ссылку или написать задачу" autocapitalize="off"><button class="inchip" id="inDestBtn">${esc(inDest.name)} ▾</button></div>`;
 let inPop = null;
 const closeInPop = () => { if (inPop) { inPop.remove(); inPop = null; } document.removeEventListener('mousedown', inPopOut, true); };
 const inPopOut = e => { if (inPop && !inPop.contains(e.target) && !e.target.closest('#inDestBtn, [data-mvitem], [data-more]')) closeInPop(); };
@@ -528,7 +528,7 @@ async function listView(title, params, active, withTags = false) {
       ${viewBtn()}<button class="iconbtn" id="sbtn" aria-label="Поиск">${LOUPE}</button></div></div>
     ${params.category || params.inbox ? '<div class="catsub" id="csub"></div>' : ''}
     <input class="search" id="q" placeholder="Поиск" style="display:${q || wantSearch ? 'block' : 'none'}" value="${esc(q)}">
-    ${withTags ? '<div class="tags" id="tags"></div>' : ''}
+    ${withTags && active !== 'inbox' ? '<div class="tags" id="tags"></div>' : ''}
     ${active === 'inbox' ? '<div class="inpanel">' : ''}<div class="list${viewMode === 'tiles' ? ' grid' : ''}" id="list"></div>${active === 'inbox' ? inboxAddHtml() + '</div>' : ''}${nav(active)}`;
   if (active === 'inbox') bindInbox(); else bindPaste();
   $('#vbtn').onclick = toggleView;
@@ -946,7 +946,7 @@ async function hub() {
   const tile = (go, bg, ic, label) => `<div class="htw"><button class="htile" style="--c:${bg}" data-go="${go}" aria-label="${label}">${ic}</button><span class="htile-l">${label}</span></div>`;
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Приложения</div></div>
     <section class="hsec">
-      <div class="hrow">${tile('#/inbox', '#e7edff', `<span class="hi-flat">${INBOX_SVG}</span>`, 'Входящие')}${tile('#/calendar', '#eef3ff', '<img src="/static/ico/app-calendar.png?v=1" alt="" draggable="false">', 'Календарь')}${tile('#/kanban', '#e7f6ee', '<img src="/static/ico/app-boards.png?v=1" alt="" draggable="false">', 'Доски')}${tile('#/home', '#fff0f3', '<img src="/static/ico/app-safe.png?v=1" alt="" draggable="false">', 'Сейв')}${tile('#/crm', '#f3f0ff', '<img src="/static/ico/app-crm.png?v=1" alt="" draggable="false">', 'CRM')}</div>
+      <div class="hrow happs">${tile('#/inbox', '#e7edff', `<span class="hi-flat">${INBOX_SVG}</span>`, 'Входящие')}${tile('#/calendar', '#eef3ff', '<img src="/static/ico/app-calendar.png?v=1" alt="" draggable="false">', 'Календарь')}${tile('#/kanban', '#e7f6ee', '<img src="/static/ico/app-boards.png?v=1" alt="" draggable="false">', 'Доски')}${tile('#/home', '#fff0f3', '<img src="/static/ico/app-safe.png?v=1" alt="" draggable="false">', 'Сейв')}${tile('#/crm', '#f3f0ff', '<img src="/static/ico/app-crm.png?v=1" alt="" draggable="false">', 'CRM')}</div>
     </section>
     <section class="hsec"><button class="hsec-h hsec-link" data-go="#/kanban">Доски<span class="hsec-chev">›</span></button>
       <div class="hrow">${boards.map(b => { const p = HUB_BPAL[b.id % HUB_BPAL.length]; return `<div class="htw"><button class="htile hboard" style="--c1:${p}" data-go="#/board/${b.id}" aria-label="${esc(b.name)}"><span class="hb-n">${esc(b.name)}</span><span class="hb-c">${b.count || 0}</span></button></div>`; }).join('') || '<div class="hempty">Пока нет досок</div>'}</div>

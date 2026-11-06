@@ -1854,9 +1854,9 @@ html:has(.hsec),body:has(.hsec){background:#eef3fb}
 .ib-foot{margin-top:14px;display:flex;gap:8px}
 /* входящие как в Todoist: серый фон, по центру колонка как у хаба, каждая задача — своя белая панелька */
 html.inbox-pg,body.inbox-pg{background:#f2f2f5;min-height:100vh}
-body.inbox-pg #app{display:flex;flex-direction:column;min-height:100vh;box-sizing:border-box;padding-bottom:calc(16px + env(safe-area-inset-bottom))}
+body.inbox-pg #app{display:flex;flex-direction:column;min-height:100vh;box-sizing:border-box;max-width:720px;padding-bottom:calc(16px + env(safe-area-inset-bottom))}
 body.inbox-pg .inpanel{flex:1;display:flex;flex-direction:column;background:#fff;border-radius:24px;padding:12px 0 0;min-height:calc(100vh - 210px);box-shadow:0 1px 3px rgba(0,0,0,.05)}
-body.inbox-pg .inadd{flex:none;align-self:center;width:min(640px,calc(100% - 48px));margin:12px 0 18px;background:#fff;border:1px solid #e6e6ec;border-radius:22px;padding:10px 10px 10px 16px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+body.inbox-pg .inadd{flex:none;margin:12px 16px 16px;background:#f4f4f7;border:1px solid #dcdce3;border-radius:22px;padding:8px 10px 8px 16px;box-shadow:none}
 body.inbox-pg .inadd input{border:0;outline:none;background:transparent;padding:8px 4px;font-size:16px}
 body.inbox-pg .list{flex:1;display:flex;flex-direction:column;gap:8px;margin:0 12px;padding:14px 14px 16px;background:#f4f4f7;border-radius:18px}
 body.inbox-pg .ibrow{align-self:flex-start;max-width:82%;background:#fff;border-radius:18px 18px 18px 6px;padding:10px 14px;border-bottom:0;box-shadow:0 1px 2px rgba(0,0,0,.06);align-items:flex-end;gap:8px}
@@ -1873,3 +1873,8 @@ body.inbox-pg .ibrow .ibd{font-size:14px;color:#6b6f7b;line-height:1.4;display:-
 body.inbox-pg .ibrow .ibm{font-size:12px;color:#9a9eab}
 body.inbox-pg .ibrow .hov{align-self:center}
 .inmove{flex:none;border:1px solid #d9dde8;background:#fff;border-radius:999px;padding:5px 11px;font:inherit;font-size:12px;color:#2f4bb0;font-weight:600;cursor:pointer;margin-left:6px}
+
+/* главная: ряд приложений — 4 в ряд, остальные прокручиваются вбок; ширина как у входящих (720px) */
+.hrow.happs{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;max-width:720px;margin:0 auto}
+.hrow.happs::-webkit-scrollbar{display:none}
+.hrow.happs>*{flex:0 0 calc((100% - 36px) / 4);scroll-snap-align:start;min-width:0}
