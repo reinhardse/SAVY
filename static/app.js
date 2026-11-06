@@ -165,7 +165,7 @@ function bindPaste() {
 
 // ===== входящие: строка добавления и перенос в Сейв или на доску =====
 let inDest = {kind: 'inbox', name: 'Входящие'};
-const inboxAddHtml = () => `<div class="inadd" id="inAdd"><div class="inrow"><input id="inTxt" placeholder="Название задачи" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"><button class="inchip" id="inDestBtn" title="${esc(inDest.name)}">Добавить задачу</button><textarea id="inDesc" class="indesc" placeholder="Описание" rows="3" autocomplete="off" autocorrect="off" spellcheck="false"></textarea></div></div>`;
+const inboxAddHtml = () => `<div class="inadd" id="inAdd"><div class="inrow"><textarea id="inTxt" class="intitle" rows="1" placeholder="Название задачи" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea><button class="inchip" id="inDestBtn" title="${esc(inDest.name)}">Добавить задачу</button><textarea id="inDesc" class="indesc" placeholder="Описание" rows="3" autocomplete="off" autocorrect="off" spellcheck="false"></textarea></div></div>`;
 let inPop = null;
 const closeInPop = () => { if (inPop) { inPop.remove(); inPop = null; } document.removeEventListener('mousedown', inPopOut, true); const pn = document.querySelector('.inpanel'); if (pn) pn.classList.remove('picking'); document.querySelectorAll('.ibrow.active').forEach(r => r.classList.remove('active')); };
 const inPopOut = e => { if (inPop && !inPop.contains(e.target) && !e.target.closest('#inDestBtn, [data-mvitem], [data-more], [data-mv]')) closeInPop(); };
@@ -383,11 +383,42 @@ function openMorePop(anchor, id) {
   showInPop(pop);
 }
 const looksLikeLink = s => /^https?:\/\//i.test(s) || /^[^\s]+\.[^\s]{2,}/.test(s);
+// высота названия растёт вместе с текстом, не выходя за потолок
+function fitTitle() {
+  const t = $('#inTxt');
+  if (!t) return;
+  t.style.height = 'auto';
+  t.style.height = Math.min(t.scrollHeight, 160) + 'px';
+}
+// копия текста вылетает из поля вверх к низу ленты, как сообщение в мессенджере
+function flyToFeed(txt) {
+  const src = $('#inTxt'), list = $('#list');
+  if (!src || !list) return;
+  const s = src.getBoundingClientRect(), l = list.getBoundingClientRect();
+  const g = document.createElement('div');
+  g.className = 'sendghost';
+  g.textContent = txt;
+  g.style.left = s.left + 'px';
+  g.style.top = s.top + 'px';
+  g.style.width = s.width + 'px';
+  g.style.height = s.height + 'px';
+  document.body.appendChild(g);
+  const dx = (l.right - 40) - s.right;
+  const dy = (l.bottom - 56) - s.bottom;
+  const a = g.animate([
+    {transform: 'translate(0,0) scale(1)', opacity: 1},
+    {transform: `translate(${dx * 0.55}px, ${dy * 0.6}px) scale(.96)`, opacity: .9, offset: .5},
+    {transform: `translate(${dx}px, ${dy}px) scale(.7)`, opacity: 0}
+  ], {duration: 480, easing: 'cubic-bezier(.22,.7,.2,1)', fill: 'forwards'});
+  a.onfinish = () => g.remove();
+}
 async function inboxSend() {
   const inp = $('#inTxt');
   const txt = inp.value.trim();
   const desc = ($('#inDesc') ? $('#inDesc').value : '').trim();
   if (!txt) return;
+  const before = new Set((lastItems || []).map(x => String(x.id)));
+  flyToFeed(txt);
   try {
     if (inDest.kind === 'col') {
       await api('/columns/' + inDest.col + '/cards', {method: 'POST', body: {title: txt}});
@@ -400,9 +431,16 @@ async function inboxSend() {
       if (desc && r.created && r.item) await api('/items/' + r.item.id, {method: 'PATCH', body: {description: desc}});
     }
     inp.value = '';
+    fitTitle();
     if ($('#inDesc')) $('#inDesc').value = '';
     inboxSyncOpen();
-    loadList();
+    await loadList();
+    // новая строка появляется плавно снизу, лента прокручивается к ней
+    document.querySelectorAll('#list .ibrow[data-id]').forEach(el => {
+      if (!before.has(el.dataset.id)) el.classList.add('ibnew');
+    });
+    const feed = $('#list');
+    if (feed) feed.scrollTo({top: feed.scrollHeight, behavior: 'smooth'});
   } catch (err) { alert(err.message); }
 }
 async function inboxMove(id, d) {
@@ -439,11 +477,15 @@ function bindInbox() {
   const go = $('#inGo');
   if (go) go.onclick = inboxSend;
   const inp = $('#inTxt');
-  if (inp) inp.onkeydown = e => {
-    if (e.isComposing) return;
-    if (e.key === 'Enter') { e.preventDefault(); inboxSend(); }
-    else if (e.key === 'ArrowDown' && $('#inDesc')) { e.preventDefault(); $('#inDesc').focus(); }
-  };
+  if (inp) {
+    inp.oninput = fitTitle;
+    inp.onkeydown = e => {
+      if (e.isComposing) return;
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); inboxSend(); }
+      else if (e.key === 'ArrowDown' && $('#inDesc') && !inp.value.slice(inp.selectionStart).includes('\n')) { e.preventDefault(); $('#inDesc').focus(); }
+    };
+    fitTitle();
+  }
   const descKey = $('#inDesc');
   if (descKey) descKey.onkeydown = e => {
     if (e.isComposing) return;

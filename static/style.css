@@ -1995,3 +1995,13 @@ body.inbox-pg .inpanel .inadd.open .indesc{max-height:110px;opacity:1;padding:2p
 
 /* название и описание: один цвет текста и общий левый край */
 body.inbox-pg .inadd #inTxt{color:#2b2f3a}
+
+/* название: многострочное, растёт по высоте */
+body.inbox-pg .inadd .intitle{flex:1 1 auto;min-width:0;width:auto;border:0;outline:none;resize:none;background:transparent;font:inherit;font-size:16px;line-height:1.4;color:#2b2f3a;padding:8px 4px;margin:0;max-height:160px;overflow-y:auto;box-shadow:none;box-sizing:border-box}
+body.inbox-pg .inadd .intitle::placeholder{color:#9a9eab}
+body.inbox-pg .inadd .intitle:focus,body.inbox-pg .inadd .intitle:focus-visible{outline:none;box-shadow:none;border:0}
+/* полёт отправленного текста к ленте */
+.sendghost{position:fixed;z-index:60;margin:0;padding:8px 4px;font:inherit;font-size:16px;line-height:1.4;color:#2b2f3a;white-space:pre-wrap;overflow:hidden;pointer-events:none;transform-origin:right bottom;box-sizing:border-box}
+/* новая строка ленты появляется снизу */
+body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
+@keyframes ibIn{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
