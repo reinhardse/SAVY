@@ -609,7 +609,8 @@ const openHubMenu = async () => {
   const app = (go, icon, label) => `<button class="hm-app" data-go="${go}"><span class="hm-ic">${icon}</span><span class="hm-lb">${esc(label)}</span></button>`;
   const m = document.createElement('div');
   m.className = 'hubmenu';
-  m.innerHTML = `<div class="hm-grid">${app('#/hub', GRID_ICON, 'Хаб')}${app('#/calendar', CAL_SVG, 'Календарь')}${app('#/home', APP_ICON_SAVE, 'Сейв')}${app('#/kanban', KB_ICON, 'Доски')}${app('#/crm', CRM_ICO.funnel, 'CRM')}</div>`
+  const appImg = n => `<img class="hm-img" src="/static/ico/app-${n}.png?v=1" alt="" draggable="false">`;
+  m.innerHTML = `<div class="hm-grid">${app('#/hub', GRID_ICON, 'Хаб')}${app('#/calendar', appImg('calendar'), 'Календарь')}${app('#/home', appImg('safe'), 'Сейв')}${app('#/kanban', appImg('boards'), 'Доски')}${app('#/crm', appImg('crm'), 'CRM')}</div>`
     + (boards.length ? `<div class="hm-head">Проекты</div><div class="hm-grid">${boards.map(b => app('#/board/' + b.id, KB_ICON, b.name)).join('')}</div>` : '');
   const gcTxt = !gc.configured ? 'Google Календарь · не настроен' : gc.connected ? 'Google Календарь · подключён, отключить' : 'Подключить Google Календарь';
   m.innerHTML += `<div class="hm-foot"><button class="hm-gc" id="hmgc">${gcTxt}</button></div>`;

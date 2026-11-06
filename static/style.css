@@ -590,6 +590,8 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .hubmenu .hm-app:hover{background:#f4f4f6}
 .hubmenu .hm-ic{width:48px;height:48px;border-radius:50%;background:#f4f4f6;display:flex;align-items:center;justify-content:center;flex:none}
 .hubmenu .hm-ic svg{width:24px;height:24px;display:block}
+.hubmenu .hm-ic:has(.hm-img){background:none;width:56px;height:56px}
+.hubmenu .hm-img{width:56px;height:56px;object-fit:contain;display:block;pointer-events:none;user-select:none}
 .hubmenu .hm-lb{font-size:13px;line-height:1.25;width:100%;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* количество карточек в колонке рядом с названием */
