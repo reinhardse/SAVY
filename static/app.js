@@ -1463,11 +1463,40 @@ function bindFolder(f) {
     bindFolderRows(box, f);
   });
 }
+// инстаграм-видео: окно поверх папки, папка уходит назад; проигрывание — встроенный плеер инстаграма
+const IG_RE = /instagram\.com\/(p|reel|reels|tv)\/([\w-]+)/i;
+function igEmbed(url) {
+  const m = IG_RE.exec(url || '');
+  if (!m) return null;
+  const kind = m[1].toLowerCase() === 'reels' ? 'reel' : m[1].toLowerCase();
+  return `https://www.instagram.com/${kind}/${m[2]}/embed/`;
+}
+function closeVideo() {
+  $('#pl-ov')?.remove();
+  $('#ov .sheet')?.classList.remove('pl-under');
+}
+function openVideo(url) {
+  const src = igEmbed(url);
+  if (!src) return false;
+  closeVideo();
+  $('#ov .sheet')?.classList.add('pl-under');
+  $('#sheet-root').insertAdjacentHTML('beforeend', `<div class="overlay pl-ov" id="pl-ov"><div class="sheet pl-sheet"><div class="pl-top"><span class="kb-saved">Видео</span><button class="kb-ib pl-x" aria-label="Закрыть">${XICON}</button></div><iframe class="pl-frame" src="${esc(src)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div></div>`);
+  const ov = $('#pl-ov');
+  ov.onclick = e => { if (e.target === ov) closeVideo(); };
+  ov.querySelector('.pl-x').onclick = closeVideo;
+  return true;
+}
+// Esc закрывает верхнее окно — видео, а папка остаётся
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('#pl-ov')) { e.stopImmediatePropagation(); closeVideo(); }
+}, true);
+
 function bindFolderRows(box, f) {
   // карточки — как в Сейве: открыть ссылку, карандаш — карточка, крестик — удалить
   box.querySelectorAll('.fo-list .row').forEach(el => el.onclick = e => {
     if (e.target.closest('.rb, .eyechip, .more-d, .inmove, .ck')) return;
-    if (el.dataset.url) window.open(el.dataset.url, '_blank', 'noopener');
+    // инстаграм-видео открывается во втором окне поверх папки, остальные ссылки — в новой вкладке
+    if (el.dataset.url && !openVideo(el.dataset.url)) window.open(el.dataset.url, '_blank', 'noopener');
   });
   box.querySelectorAll('.fo-list .rb.pen, .fo-list .more-d').forEach(b => b.onclick = e => {
     e.stopPropagation();

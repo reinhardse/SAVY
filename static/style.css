@@ -2104,3 +2104,20 @@ body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
 .sheet .fo-list.grid .thumb,.sheet .fo-list.grid .cover-gen{grid-area:1/1}
 .sheet .fo-list.grid .tagline{display:flex;flex-wrap:wrap;gap:4px;margin:0;grid-row:2}
 .sheet .fo-list.grid .tagline .eyechip{display:none}
+
+/* плитки папки: увеличивается только обложка с названием; теги под ней остаются на месте, без белой подложки и общей тени */
+.sheet .fo-list.grid .row,.sheet .fo-list.grid .row:hover{transform:none;box-shadow:none;z-index:auto;will-change:auto;transition:none}
+.sheet .fo-list.grid .row .thumb,.sheet .fo-list.grid .row .cover-gen,.sheet .fo-list.grid .row .t{transition:transform .22s ease-out,box-shadow .22s ease-out;transform-origin:50% 50%}
+.sheet .fo-list.grid .row:hover .thumb,.sheet .fo-list.grid .row:hover .cover-gen{transform:scale(1.04);box-shadow:0 12px 30px rgba(0,0,0,.2);position:relative;z-index:2}
+.sheet .fo-list.grid .row:hover .t{transform:scale(1.04);z-index:3}
+.sheet .fo-list.grid .row .t{align-self:stretch;display:flex;align-items:flex-end;padding:0 14px 14px;background:linear-gradient(to top,rgba(0,0,0,.82) 0%,rgba(0,0,0,.5) 45%,rgba(0,0,0,0) 100%)}
+
+/* инстаграм-видео: окно поверх папки; папка отодвинута назад; окно — объём стопкой карточек */
+.overlay.pl-ov{z-index:21;background:rgba(0,0,0,.5);backdrop-filter:none;-webkit-backdrop-filter:none}
+.sheet.pl-under{transform:scale(.95) translateY(-2.2vh);filter:brightness(.82);transition:transform .22s ease,filter .22s ease}
+.sheet.pl-sheet{position:relative;width:min(880px,calc(100% - 32px));height:min(84vh,760px);max-height:none;min-height:0;border-radius:18px;padding:0;overflow:hidden;box-shadow:0 1px 0 rgba(0,0,0,.06),0 9px 0 -2px #e9e9ee,0 18px 0 -4px #d9d9e0,0 34px 70px rgba(0,0,0,.35)}
+.pl-top{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 10px 22px}
+.pl-top .kb-saved{color:#8a8a93;font-size:13px}
+.pl-frame{display:block;width:100%;height:calc(100% - 46px);border:0;background:#fff}
+@media (max-width:560px){.sheet.pl-sheet{width:calc(100% - 16px);height:78vh}}
+.sheet.pl-sheet{max-width:880px}
