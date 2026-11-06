@@ -746,15 +746,13 @@ async function boards() {
   const tile = b => {
     const s = b.status || 'work';
     const st = BSTATUS[s];
-    return `<div class="bcard${s === 'work' ? '' : ' off'}" data-open="${b.id}">
-      <div class="bcov" style="--cv:${BCOV[b.id % BCOV.length]}"></div>
+    const [f, b1, b2] = HUB_BOARD3D[b.id % HUB_BOARD3D.length];
+    return `<div class="bcard b3d${s === 'work' ? '' : ' off'}" style="--c1:${f};--b1:${b1};--b2:${b2}" data-open="${b.id}">
+      <span class="hb-face"></span>
+      <button class="bstatus" data-stb="${b.id}" data-cur="${s}" style="--sb:${st.bg};--st:${st.tc}">${st.label}</button>
+      <span class="hb-c">${b.count || 0}</span>
+      <span class="hb-n">${esc(b.name)}</span>
       <button class="rb del bdel" data-delb="${b.id}" aria-label="Удалить доску">${XICON}</button>
-      <div class="bcard-body">
-        <div class="bn">${esc(b.name)}</div>
-        <div class="bcard-foot">
-          <button class="bstatus" data-stb="${b.id}" data-cur="${s}" style="--sb:${st.bg};--st:${st.tc}">${st.label}</button>
-          <span class="bcount">${b.count || 0} карт.</span></div>
-      </div>
     </div>`;
   };
   // активные — плиткой вниз; пауза и архив — в карусели (сервер отдаёт паузу раньше архива)
