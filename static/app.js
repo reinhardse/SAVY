@@ -393,7 +393,7 @@ async function inboxMove(id, d) {
 }
 function bindInbox() {
   const btn = $('#inDestBtn');
-  if (btn) btn.onclick = () => openInPop(btn, d => { inDest = d; const b = $('#inDestBtn'); if (b) b.title = d.name; inboxSend(); }, {mode: 'add'});
+  if (btn) btn.onclick = () => { inDest = {kind: 'inbox', name: 'Входящие'}; inboxSend(); };
   const go = $('#inGo');
   if (go) go.onclick = inboxSend;
   const inp = $('#inTxt');
@@ -425,7 +425,9 @@ function bindInbox() {
   const list = $('#list');
   if (list) list.onclick = e => {
     const more = e.target.closest('[data-more]');
-    if (more) { e.stopPropagation(); openMorePop(more, +more.dataset.more); return; }
+    if (more) { e.stopPropagation(); const r = more.closest('.ibrow'); document.querySelectorAll('.ibrow.more').forEach(x => { if (x !== r) x.classList.remove('more'); }); r.classList.toggle('more'); return; }
+    const del = e.target.closest('[data-del]');
+    if (del) { e.stopPropagation(); if (!confirm('Удалить материал?')) return; api('/items/' + del.dataset.del, {method: 'DELETE'}).then(loadList).catch(err => alert(err.message)); return; }
     const mvb = e.target.closest('[data-mv]');
     if (mvb) { e.stopPropagation(); const id = +mvb.dataset.mv; openInPop(mvb, d => inboxMove(id, d), {mode: 'move'}); return; }
     const mv = e.target.closest('[data-mvitem]');
@@ -444,9 +446,9 @@ function row(i) {
     if (inboxOpen === i.id) return inboxExpandedHtml(i, cat0);
     const d = (i.description || '').replace(/\s+/g, ' ').trim();
     const cat = cats.find(c => c.slug === i.category);
-    const info = [SRC[i.source], cat ? cat.name : 'Без категории', ...i.tags.map(t => '#' + t)].filter(Boolean).join(' · ');
+    const info = [i.source !== 'note' ? SRC[i.source] : '', cat ? cat.name : '', ...i.tags.map(t => '#' + t)].filter(Boolean).join(' · ');
     const time = new Date(i.created_at).toLocaleTimeString('ru', {hour: '2-digit', minute: '2-digit'});
-    return `<div class="row ibrow" data-id="${i.id}" data-url="${esc(i.url)}" style="view-transition-name:ib${i.id}"><div class="ibtxt"><div class="it">${esc(titleOf(i))}</div>${d ? `<div class="ibd">${esc(d)}</div>` : ''}<div class="ibm">${esc(info)} · ${time}</div></div><div class="hov"><button class="rb inmv" data-mv="${i.id}" aria-label="Перенести">${MOVE_ICO}</button><button class="rb inmore" data-more="${i.id}" aria-label="Ещё">⋯</button></div></div>`;
+    return `<div class="row ibrow" data-id="${i.id}" data-url="${esc(i.url)}" style="view-transition-name:ib${i.id}"><div class="ibtxt"><div class="it">${esc(titleOf(i))}</div>${d ? `<div class="ibd">${esc(d)}</div>` : ''}<div class="ibm">${info ? esc(info) + ' · ' : ''}${time}</div><button class="rb ib-del" data-del="${i.id}">Удалить</button></div><div class="ibacts"><button class="rb inmv" data-mv="${i.id}" aria-label="Перенести">${MOVE_ICO}</button><button class="rb inmore" data-more="${i.id}" aria-label="Ещё">⋯</button></div></div>`;
   }
   const wait = i.meta_state === 'pending' ? ' · собираю данные…' : '';
   const cat = cats.find(c => c.slug === i.category);
@@ -481,13 +483,29 @@ function paint(el, html) {
 const viewIcon = () => viewMode === 'tiles' ? TILES_ICON : LIST_ICON; // значок показывает текущий вид
 const viewBtn = () => `<button class="iconbtn" id="vbtn" aria-label="Вид списка" title="${viewMode === 'tiles' ? 'Строки' : 'Плитки'}">${viewIcon()}</button>`;
 
+function dayLabel(dt) {
+  const today = new Date(), y = new Date(); y.setDate(today.getDate() - 1);
+  if (dt.toDateString() === today.toDateString()) return 'Сегодня';
+  if (dt.toDateString() === y.toDateString()) return 'Вчера';
+  return dt.toLocaleDateString('ru', {day: 'numeric', month: 'long'});
+}
 function paintList(el, items, empty) {
   lastItems = items; lastEmpty = empty;
   // входящие всегда списком задач: плитки для них не применяем
   el.classList.toggle('grid', viewMode === 'tiles' && !(listParams && listParams.inbox));
   // входящие — лента как в мессенджере: старые сверху, новые внизу, при открытии страница прокручивается вниз
   const inbox = listParams && listParams.inbox;
-  paint(el, items.length ? (inbox ? [...items].reverse() : items).map(row).join('') : empty);
+  let html = '';
+  if (inbox) {
+    // лента: старые сверху; когда начинается новый день — маленькая плашка с датой
+    let prev = '';
+    for (const i of [...items].reverse()) {
+      const dt = new Date(i.created_at), k = dt.toDateString();
+      if (k !== prev) { prev = k; html += `<div class="ibday"><span>${dayLabel(dt)}</span></div>`; }
+      html += row(i);
+    }
+  } else html = items.map(row).join('');
+  paint(el, items.length ? html : empty);
   if (inbox && !el.dataset.scrolled) { el.dataset.scrolled = '1'; el.scrollTop = el.scrollHeight; }
 }
 
@@ -506,7 +524,7 @@ function toggleView() {
 function bindRows() {
   const app = $('#app');
   app.querySelectorAll('.row').forEach(el => el.onclick = e => {
-    if (e.target.closest('.rb, .eyechip, .more-d, .inmove, .ck')) return;
+    if (e.target.closest('.rb, .eyechip, .more-d, .inmove, .ck, .ib-del')) return;
     if (el.classList.contains('open')) return;
     if (el.classList.contains('ibrow')) return inboxOpenRow(+el.dataset.id);
     if (!el.dataset.url) return; // заметка без адреса: открывается только карточкой (карандаш)
