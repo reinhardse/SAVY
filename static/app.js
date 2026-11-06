@@ -778,6 +778,8 @@ function tabTitle(t) { document.title = t; }
 
 async function route() {
   const [view, ...rest] = (location.hash.slice(2) || 'hub').split('/');
+  // настройки списка принадлежат прошлой странице: без сброса главная рисовала бы строки входящих
+  listParams = {};
   document.body.classList.toggle('inbox-pg', view === 'inbox'); // входящие: серый фон на весь экран, белые панели задач
   document.documentElement.classList.toggle('inbox-pg', view === 'inbox');
   const arg = decodeURIComponent(rest.join('/'));
