@@ -1982,3 +1982,6 @@ body.inbox-pg .ibrow.open .ibacts{position:absolute;top:8px;right:8px;display:fl
 body.inbox-pg .ibrow.open .ibacts .rb{width:22px;height:22px;min-width:22px;padding:0}
 body.inbox-pg .ibrow.open .ibacts svg{width:14px;height:14px}
 body.inbox-pg .ibrow.open .inmore{font-size:15px;line-height:1}
+
+/* фон ленты входящих: светло-пастельно-голубой, карточки остаются белыми */
+body.inbox-pg .inpanel .list{background:#e9f1fb}
