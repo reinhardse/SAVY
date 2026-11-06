@@ -182,12 +182,25 @@ class ItemPatch(BaseModel):
     done: bool | None = None
 
 
+def save_note(db: Session, text: str, category: str | None) -> dict:
+    """Текст без ссылки (заметка или задача) кладём как есть: адреса у него нет, поэтому ключ уникальности случайный."""
+    text = text.strip()[:2000]
+    cat = cat_by_slug(db, category)
+    item = Item(user_id=USER_ID, url="", url_norm=f"note:{secrets.token_hex(8)}", source="note",
+                title=text, category_id=cat.id if cat else None, meta_state="ok")
+    db.add(item)
+    db.commit()
+    return item_out(item)
+
+
 @app.post("/api/items")
 def add_item(body: ItemIn, tasks: BackgroundTasks, db: Session = Depends(get_db), _: int = Depends(require_auth)):
-    """Добавляет одну ссылку; если в тексте несколько адресов — берёт первый."""
+    """Добавляет ссылку (если в тексте несколько адресов — берёт первый) или, если ссылки нет, текст как заметку."""
     urls = meta.extract_urls(body.url) or ([body.url] if "." in body.url and " " not in body.url.strip() else [])
     if not urls:
-        raise HTTPException(400, "В тексте нет ссылки")
+        if not body.url.strip():
+            raise HTTPException(400, "Пустой текст")
+        return {"item": save_note(db, body.url, body.category), "created": True}
     hint = meta.service_link_hint(urls[0])
     if hint:
         raise HTTPException(400, hint)

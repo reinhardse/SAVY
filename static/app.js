@@ -1,4 +1,4 @@
-const SRC = {instagram: 'Instagram', youtube: 'YouTube', telegram: 'Telegram', tiktok: 'TikTok', litres: 'Литрес', kinopoisk: 'Кинопоиск', web: 'Сайт'};
+const SRC = {instagram: 'Instagram', youtube: 'YouTube', telegram: 'Telegram', tiktok: 'TikTok', litres: 'Литрес', kinopoisk: 'Кинопоиск', web: 'Сайт', note: 'Заметка'};
 // «сегодня» и смена дня — по Москве, на любом устройстве: все даты приложения считаются по московскому времени
 const MSK_TZ = 'Europe/Moscow';
 const nowMsk = () => {
@@ -167,31 +167,68 @@ let inDest = {kind: 'inbox', name: 'Входящие'};
 const inboxAddHtml = () => `<div class="inadd"><input id="inTxt" placeholder="Вставить ссылку или написать задачу" autocapitalize="off"><button class="inchip" id="inDestBtn">${esc(inDest.name)} ▾</button><button class="paste-go" id="inGo" aria-label="Добавить"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button></div>`;
 let inPop = null;
 const closeInPop = () => { if (inPop) { inPop.remove(); inPop = null; } document.removeEventListener('mousedown', inPopOut, true); };
-const inPopOut = e => { if (inPop && !inPop.contains(e.target) && !e.target.closest('#inDestBtn, [data-mvitem]')) closeInPop(); };
-// окно выбора места: «Входящие», категории Сейва, доски с колонками
-async function openInPop(anchor, onPick) {
+const inPopOut = e => { if (inPop && !inPop.contains(e.target) && !e.target.closest('#inDestBtn, [data-mvitem], [data-more]')) closeInPop(); };
+const placePop = (pop, anchor) => {
+  const r = anchor.getBoundingClientRect();
+  pop.style.top = (r.bottom + 6) + 'px';
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+};
+const showInPop = (pop) => { inPop = pop; setTimeout(() => document.addEventListener('mousedown', inPopOut, true), 0); };
+// пошаговый выбор места: Куда → Сейв (категории) или Доска (доска → статус-колонка); «‹» возвращает на шаг назад
+async function openInPop(anchor, onPick, {withInbox = false} = {}) {
   closeInPop();
   const [cs, bs] = await Promise.all([api('/categories').catch(() => []), api('/boards').catch(() => [])]);
   const work = bs.filter(b => (b.status || 'work') === 'work');
-  const details = await Promise.all(work.map(b => api('/boards/' + b.id).catch(() => null)));
-  const r = anchor.getBoundingClientRect();
   const pop = document.createElement('div');
   pop.className = 'inpop';
-  pop.innerHTML = `<button class="pi" data-k="inbox" data-name="Входящие">Входящие</button>`
-    + (cs.length ? `<div class="sec">Сейв</div>` + cs.map(c => `<button class="pi" data-k="cat" data-slug="${esc(c.slug)}" data-name="${esc(c.name)}">${esc(c.name)}</button>`).join('') : '')
-    + (work.length ? `<div class="sec">Доски</div>` + work.map((b, i) => `<div class="pb">${esc(b.name)}</div>` + ((details[i] && details[i].columns) || []).map(col => `<button class="pi sub" data-k="col" data-col="${col.id}" data-name="${esc(b.name)} · ${esc(col.name)}">${esc(col.name)}</button>`).join('')).join('') : '');
   document.body.appendChild(pop);
-  pop.style.top = (r.bottom + 6) + 'px';
-  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
-  pop.onclick = e => {
-    const b = e.target.closest('.pi');
-    if (!b) return;
-    const d = {kind: b.dataset.k, name: b.dataset.name, slug: b.dataset.slug, col: b.dataset.col};
-    closeInPop();
-    onPick(d);
+  let boardName = '';
+  const pick = d => { closeInPop(); onPick(d); };
+  const show = async (step, arg) => {
+    if (step === 'root') {
+      pop.innerHTML = `<div class="sec">Куда</div>`
+        + (withInbox ? `<button class="pi" data-pick="inbox" data-name="Входящие">Входящие</button>` : '')
+        + `<button class="pi" data-go="cats">Сейв ›</button><button class="pi" data-go="boards">Доска ›</button>`;
+    } else if (step === 'cats') {
+      pop.innerHTML = `<button class="pi back" data-go="root">‹ Куда</button>`
+        + (cs.length ? cs.map(c => `<button class="pi" data-pick="cat" data-slug="${esc(c.slug)}" data-name="${esc(c.name)}">${esc(c.name)}</button>`).join('') : `<div class="sec">Категорий пока нет</div>`);
+    } else if (step === 'boards') {
+      pop.innerHTML = `<button class="pi back" data-go="root">‹ Куда</button>`
+        + (work.length ? work.map(b => `<button class="pi" data-go="board" data-board="${b.id}" data-bname="${esc(b.name)}">${esc(b.name)} ›</button>`).join('') : `<div class="sec">Досок пока нет</div>`);
+    } else if (step === 'board') {
+      const d = await api('/boards/' + arg).catch(() => null);
+      boardName = (d && d.name) || boardName;
+      const cols = (d && d.columns) || [];
+      pop.innerHTML = `<button class="pi back" data-go="boards">‹ Доски</button>`
+        + cols.map(col => `<button class="pi" data-pick="col" data-col="${col.id}" data-name="${esc(boardName)} · ${esc(col.name)}">${esc(col.name)}</button>`).join('');
+    }
+    placePop(pop, anchor);
   };
-  inPop = pop;
-  setTimeout(() => document.addEventListener('mousedown', inPopOut, true), 0);
+  pop.onclick = e => {
+    const g = e.target.closest('[data-go]');
+    if (g) { if (g.dataset.go === 'board') boardName = g.dataset.bname; show(g.dataset.go, g.dataset.board); return; }
+    const p = e.target.closest('[data-pick]');
+    if (p) pick({kind: p.dataset.pick, name: p.dataset.name, slug: p.dataset.slug, col: p.dataset.col});
+  };
+  await show('root');
+  showInPop(pop);
+}
+// меню «⋯» у строки входящих: пока одно действие — удалить
+function openMorePop(anchor, id) {
+  closeInPop();
+  const pop = document.createElement('div');
+  pop.className = 'inpop sm';
+  pop.innerHTML = `<button class="pi danger" data-del="${id}">Удалить</button>`;
+  document.body.appendChild(pop);
+  placePop(pop, anchor);
+  pop.onclick = async e => {
+    const b = e.target.closest('[data-del]');
+    if (!b) return;
+    closeInPop();
+    if (!confirm('Удалить материал?')) return;
+    try { await api('/items/' + id, {method: 'DELETE'}); loadList(); } catch (err) { alert(err.message); }
+  };
+  showInPop(pop);
 }
 const looksLikeLink = s => /^https?:\/\//i.test(s) || /^[^\s]+\.[^\s]{2,}/.test(s);
 async function inboxSend() {
@@ -202,11 +239,11 @@ async function inboxSend() {
     if (inDest.kind === 'col') {
       await api('/columns/' + inDest.col + '/cards', {method: 'POST', body: {title: txt}});
     } else {
-      if (!looksLikeLink(txt)) { alert('Пока в Сейв и во входящие сохраняются только ссылки. Текст можно отправить на доску.'); return; }
+      // ссылка станет материалом, любой другой текст — заметкой; и то и другое можно перенести позже
       const body = {url: txt};
       if (inDest.kind === 'cat') body.category = inDest.slug;
       const r = await api('/items', {method: 'POST', body});
-      if (!r.created) alert('Эта ссылка уже в библиотеке');
+      if (!r.created && looksLikeLink(txt)) alert('Эта ссылка уже в библиотеке');
     }
     inp.value = '';
     loadList();
@@ -226,13 +263,15 @@ async function inboxMove(id, d) {
 }
 function bindInbox() {
   const btn = $('#inDestBtn');
-  if (btn) btn.onclick = () => openInPop(btn, d => { inDest = d; const b = $('#inDestBtn'); if (b) b.textContent = d.name + ' ▾'; });
+  if (btn) btn.onclick = () => openInPop(btn, d => { inDest = d; const b = $('#inDestBtn'); if (b) b.textContent = d.name + ' ▾'; }, {withInbox: true});
   const go = $('#inGo');
   if (go) go.onclick = inboxSend;
   const inp = $('#inTxt');
   if (inp) inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); inboxSend(); } };
   const list = $('#list');
   if (list) list.onclick = e => {
+    const more = e.target.closest('[data-more]');
+    if (more) { e.stopPropagation(); openMorePop(more, +more.dataset.more); return; }
     const mv = e.target.closest('[data-mvitem]');
     if (!mv) return;
     e.stopPropagation();
@@ -261,7 +300,7 @@ function row(i) {
   }
   const desc = d ? `<div class="rdesc">${body}</div>` : '';
   const tags = `${desc}<div class="tagline">${eye}${i.tags.map(t => `<span class="tagbadge">#${esc(t)}</span>`).join('')}</div>`;
-  return `<div class="row" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m"><span>${esc(meta)}</span><button class="rb pen" data-id="${i.id}" aria-label="Открыть карточку">${PEN}</button></div>${tags}</div>${listParams && listParams.inbox ? `<button class="inmove" data-mvitem="${i.id}">Перенести</button>` : ''}<button class="rb del" data-id="${i.id}" aria-label="Удалить">${XICON}</button></div>`;
+  return `<div class="row" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m"><span>${esc(meta)}</span><button class="rb pen" data-id="${i.id}" aria-label="Открыть карточку">${PEN}</button></div>${tags}</div>${listParams && listParams.inbox ? `<button class="inmove" data-mvitem="${i.id}">Перенести</button><button class="rb inmore" data-more="${i.id}" aria-label="Ещё">⋯</button>` : `<button class="rb del" data-id="${i.id}" aria-label="Удалить">${XICON}</button>`}</div>`;
 }
 
 // перерисовываем список только если что-то изменилось, иначе клик теряется между опросами
@@ -298,6 +337,7 @@ function bindRows() {
   const app = $('#app');
   app.querySelectorAll('.row').forEach(el => el.onclick = e => {
     if (e.target.closest('.rb, .eyechip, .more-d, .inmove')) return;
+    if (!el.dataset.url) return; // заметка без адреса: открывается только карточкой (карандаш)
     window.open(el.dataset.url, '_blank', 'noopener');
   });
   app.querySelectorAll('.rb.pen, .more-d').forEach(b => b.onclick = e => { e.stopPropagation(); openItem(+b.dataset.id); });

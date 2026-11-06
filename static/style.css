@@ -1832,4 +1832,10 @@ html:has(.hsec),body:has(.hsec){background:#eef3fb}
 .inpop .pi{display:block;width:100%;text-align:left;border:0;background:transparent;border-radius:11px;padding:8px 10px;font:inherit;font-size:14px;color:#2b2f3a;cursor:pointer}
 .inpop .pi.sub{padding-left:22px}
 .inpop .pi:hover{background:#f1f4ff;color:#2f4bb0}
+.inpop .pi.back{color:#8a8fa0;font-size:13px;margin-bottom:2px}
+.inpop.sm{width:170px}
+.inpop .pi.danger{color:#c0392b}
+.inpop .pi.danger:hover{background:#fdecea;color:#c0392b}
+.inmore{flex:none;font-size:20px;letter-spacing:1px;color:#8a8fa0;margin-left:2px}
+.inmore:hover{background:#f2f2f2;color:var(--ink)}
 .inmove{flex:none;border:1px solid #d9dde8;background:#fff;border-radius:999px;padding:5px 11px;font:inherit;font-size:12px;color:#2f4bb0;font-weight:600;cursor:pointer;margin-left:6px}
