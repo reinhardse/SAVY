@@ -1319,7 +1319,7 @@ let foFull = false;
 const FO_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>';
 function folderHtml(f, items) {
   const nested = folderPath.length > 1;
-  const subs = f.folders.map(s => `<button class="fo-sub" data-sub="${s.id}"><span class="fo-sub-ic">${BOX_ICON}</span><span class="fo-sub-n">${esc(s.name)}</span><span class="fo-sub-c">${s.items + s.folders}</span></button>`).join('');
+  const subs = f.folders.map(s => `<button class="fo-sub" data-sub="${s.id}"><span class="fo-sub-ic">${BOX_ICON}</span><span class="fo-sub-n">${esc(s.name)}</span></button>`).join('');
   return `<div class="sheet-body kb-card">
       <div class="kb-top">
         ${nested ? `<button class="kb-ib fo-back" aria-label="Назад">${FO_BACK_ICON}</button>` : '<span class="kb-saved">Папка материалов</span>'}
@@ -1330,13 +1330,15 @@ function folderHtml(f, items) {
           <div class="kb-menu fo-menu" hidden><button class="kb-mi fo-full">${foFull ? 'Свернуть окно' : 'На весь экран'}</button><button class="kb-mi bad fo-del-folder">Удалить папку</button></div>
         </div>
       </div>
+      <div class="kb-body">
       <textarea class="kb-title fo-name" rows="1" placeholder="Название папки">${esc(f.name)}</textarea>
       ${subs ? `<div class="fo-subs">${subs}</div>` : ''}
       <div class="fo-add">
         <div class="fo-row"><input class="fo-t" placeholder="Название или ссылка" autocomplete="off" autocorrect="off" spellcheck="false"><button class="inchip fo-send">Добавить</button></div>
         <textarea class="fo-d" rows="2" placeholder="Описание" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
       </div>
-      <div class="fo-list${foView === 'tiles' ? ' fo-tiles' : ''}">${items.length ? items.map(row).join('') : '<div class="fo-empty">Пока пусто</div>'}</div>
+      <div class="fo-list list${foView === 'tiles' ? ' grid' : ''}">${items.length ? items.map(row).join('') : '<div class="fo-empty">Пока пусто</div>'}</div>
+      </div>
     </div>`;
 }
 async function renderFolder(fid) {
