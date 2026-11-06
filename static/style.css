@@ -2071,8 +2071,8 @@ body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
 .sheet .fo-list.grid .row{position:relative;gap:0}
 .sheet .fo-list.grid .thumb,.sheet .fo-list.grid .cover-gen{aspect-ratio:3/4.3;border-radius:16px}
 .sheet .fo-list.grid .mid,.sheet .fo-list.grid .m{display:contents}
-.sheet .fo-list.grid .m > span,.sheet .fo-list.grid .rdesc,.sheet .fo-list.grid .tagline{display:none}
-.sheet .fo-list.grid .row .t{position:absolute;left:0;right:0;bottom:0;margin:0;padding:56px 14px 14px;border-radius:0 0 16px 16px;color:#fff;font-size:15px;font-weight:600;line-height:1.25;text-align:left;pointer-events:none;background:linear-gradient(to top,rgba(0,0,0,.82) 0%,rgba(0,0,0,.5) 45%,rgba(0,0,0,0) 100%)}
+.sheet .fo-list.grid .m > span,.sheet .fo-list.grid .rdesc{display:none}
+.sheet .fo-list.grid .row .t{grid-area:1/1;align-self:end;position:relative;margin:0;padding:56px 14px 14px;border-radius:0 0 16px 16px;color:#fff;font-size:15px;font-weight:600;line-height:1.25;text-align:left;pointer-events:none;background:linear-gradient(to top,rgba(0,0,0,.82) 0%,rgba(0,0,0,.5) 45%,rgba(0,0,0,0) 100%)}
 .sheet .fo-list.grid .rb.pen{position:absolute;top:8px;left:8px;width:26px;height:26px;background:rgba(255,255,255,.85);color:#333;opacity:0;transition:opacity .15s}
 .sheet .fo-list.grid .row:hover .rb.pen{opacity:1}
 @media (hover:none){.sheet .fo-list.grid .rb.pen{opacity:1}}
@@ -2097,7 +2097,10 @@ body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
 .sheet .fo-list.grid .row:hover .thumb,.sheet .fo-list.grid .row:hover .cover-gen{transform:none}
 .sheet .fo-list.grid .thumb,.sheet .fo-list.grid .cover-gen{overflow:hidden}
 /* в режиме плиток полоса тегов и хэштеги не показываются */
-.sheet .fo-tags:has(+ .fo-list.grid){display:none}
-.sheet .fo-list.grid .tagline,.sheet .fo-list.grid .tagbadge{display:none}
 /* без фото обложка-заглушка не дублирует название поверх плитки */
 .sheet .fo-list.grid .cover-gen span{display:none}
+/* плитка: обложка с названием поверх, под ней — теги этой записи */
+.sheet .fo-list.grid .row{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto;row-gap:8px}
+.sheet .fo-list.grid .thumb,.sheet .fo-list.grid .cover-gen{grid-area:1/1}
+.sheet .fo-list.grid .tagline{display:flex;flex-wrap:wrap;gap:4px;margin:0;grid-row:2}
+.sheet .fo-list.grid .tagline .eyechip{display:none}
