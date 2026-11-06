@@ -1918,11 +1918,22 @@ body.inbox-pg .inpanel .inpick{flex:none;margin:0 16px 4px;background:#fff;borde
 .inpick .pk-go{flex:none;border:0;border-radius:999px;background:#2f4bb0;color:#fff;font:inherit;font-size:13px;font-weight:600;padding:8px 16px;cursor:pointer}
 
 /* белая строка ввода растёт вверх при выборе места; всё по левому краю */
-body.inbox-pg .inpanel .inadd{display:flex;flex-direction:column;align-items:stretch;align-self:stretch;width:auto;margin:12px;padding:0;background:#fff;border:1px solid #e3e3ea;border-radius:22px;box-shadow:0 2px 10px rgba(0,0,0,.05);overflow:hidden}
-body.inbox-pg .inadd .inrow{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 16px}
-body.inbox-pg .inpanel .inpick{margin:0;border:0;border-bottom:1px solid #ececf0;border-radius:0;box-shadow:none;max-height:42vh;overflow:auto;padding:12px 16px 10px;background:#fff}
+/* обёртка без рамки; выбор — отдельная белая карточка над строкой ввода; сама строка ввода не меняется */
+body.inbox-pg .inpanel .inadd{display:flex;flex-direction:column;align-items:stretch;align-self:stretch;width:auto;margin:12px;padding:0;background:transparent;border:0;border-radius:0;box-shadow:none;overflow:visible}
+body.inbox-pg .inadd .inrow{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 16px;background:#fff;border:1px solid #e3e3ea;border-radius:22px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+body.inbox-pg .inpanel .inpick{flex:none;margin:0 0 8px;background:#fff;border:1px solid #e3e3ea;border-radius:22px;box-shadow:0 2px 10px rgba(0,0,0,.06);max-height:min(240px,34vh);overflow:auto;padding:12px 16px 10px;animation:inpickIn .18s ease-out}
+@keyframes inpickIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.inpick .pk-grid{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:14px 18px;padding:4px 0 2px}
+.inpick .pk-lbl{display:block;font-size:12px;color:#4a4f5e;line-height:1.2;text-align:center;max-width:76px;overflow:hidden;text-overflow:ellipsis}
+.inpick .pk-cw.on .pk-c,.inpick .pk-cw:hover .pk-c{background:#eef1ff;border-color:#2f4bb0}
+.inpick .pk-sq{display:flex;flex-direction:column;align-items:center;gap:5px;border:0;background:transparent;font:inherit;cursor:pointer;padding:0}
+.inpick .pk-sqi{width:56px;height:56px;border-radius:16px;background:#f4f4f7;border:1px solid #e6e6ec;display:flex;align-items:center;justify-content:center;color:#4a4f5e}
+.inpick .pk-sqi svg{width:26px;height:26px}
+.inpick .pk-sq:hover .pk-sqi{background:#eef1ff;border-color:#d6dcf5}
+.inpick .pk-col{width:84px;height:84px;border-radius:50%;border:1px solid #e6e6ec;background:#f4f4f7;font:inherit;font-size:12px;line-height:1.2;color:#2b2f3a;padding:8px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer}
+.inpick .pk-col:hover,.inpick .pk-col.on{background:#eef1ff;border-color:#2f4bb0;color:#2f4bb0}
 .inpick .pk-root{justify-content:flex-start;gap:20px;padding:4px 0 2px}
 /* вся панель помещается в экран: серая лента прокручивается внутри и уменьшается, когда белая строка растёт вверх */
-body.inbox-pg .inpanel{flex:0 0 calc(100vh - 200px);height:calc(100vh - 200px);min-height:320px;box-sizing:border-box}
+body.inbox-pg .inpanel{flex:0 0 calc(100vh - 110px);height:calc(100vh - 110px);min-height:320px;box-sizing:border-box}
 body.inbox-pg .inpanel .list{min-height:0;overflow-y:auto}
 

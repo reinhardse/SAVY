@@ -171,6 +171,18 @@ const closeInPop = () => { if (inPop) { inPop.remove(); inPop = null; } document
 const inPopOut = e => { if (inPop && !inPop.contains(e.target) && !e.target.closest('#inDestBtn, [data-mvitem], [data-more], [data-mv]')) closeInPop(); };
 const showInPop = (pop) => { inPop = pop; setTimeout(() => document.addEventListener('mousedown', inPopOut, true), 0); };
 // выбор места раскрывается внутри белой панели над строкой ввода: значки приложений «Сейв» и «Проект», дальше список
+// значок категории по её названию (тот же, что на главной); для остальных — объёмная папка
+function catKey(name) {
+  const n = (name || '').toLowerCase();
+  if (/смотр|видео|фильм|кино|сериал/.test(n)) return 'eye';
+  if (/чит|книг|стать|текст/.test(n)) return 'book';
+  if (/мест|карт|адрес|путеш|гео/.test(n)) return 'pin';
+  if (/инстр|сервис|софт/.test(n)) return 'tool';
+  if (/референс|образ|дизайн|визуал|фото/.test(n)) return 'gem';
+  if (/иде|мысл/.test(n)) return 'bulb';
+  if (/куп|покуп|товар|магазин|шоп|заказ/.test(n)) return 'bag';
+  return 'folder';
+}
 async function openInPop(anchor, onPick, {mode = 'move'} = {}) {
   closeInPop();
   const [cs, bs] = await Promise.all([api('/categories').catch(() => []), api('/boards').catch(() => [])]);
@@ -195,27 +207,29 @@ async function openInPop(anchor, onPick, {mode = 'move'} = {}) {
         + `<div class="pk-root"><button class="pk-cw" data-go="cats"><span class="pk-c"><img src="/static/ico/app-safe.png?v=1" alt=""></span>Сейв</button><button class="pk-cw" data-go="boards"><span class="pk-c"><img src="/static/ico/app-boards.png?v=1" alt=""></span>Проект</button></div>` + footer();
     }
     if (step === 'cats') {
-      return head('Сейв', 'root') + `<div class="pk-list">`
-        + (cs.length ? cs.map(c => `<button class="pi${mark({kind: 'cat', slug: c.slug})}" data-pick="cat" data-slug="${esc(c.slug)}" data-name="${esc(c.name)}">${esc(c.name)}</button>`).join('') : `<div class="sec">Категорий пока нет</div>`)
+      // категории Сейва — круги со значками, как на главной
+      return head('Сейв', 'root') + `<div class="pk-grid">`
+        + (cs.length ? cs.map(c => `<button class="pk-cw${mark({kind: 'cat', slug: c.slug})}" data-pick="cat" data-slug="${esc(c.slug)}" data-name="${esc(c.name)}"><span class="pk-c"><img src="/static/ico/${catKey(c.name)}.png?v=2" alt=""></span><span class="pk-lbl">${esc(c.name)}</span></button>`).join('') : `<div class="sec">Категорий пока нет</div>`)
         + `</div>` + footer();
     }
     if (step === 'boards') {
-      return head('Проект', 'root') + `<div class="pk-list">`
-        + (work.length ? work.map(b => `<button class="pi" data-go="board" data-board="${b.id}" data-bname="${esc(b.name)}">${esc(b.name)} ›</button>`).join('') : `<div class="sec">Досок пока нет</div>`)
+      // проекты — квадраты, как доски на главной
+      return head('Проект', 'root') + `<div class="pk-grid">`
+        + (work.length ? work.map(b => `<button class="pk-sq" data-go="board" data-board="${b.id}" data-bname="${esc(b.name)}"><span class="pk-sqi">${KB_ICON}</span><span class="pk-lbl">${esc(b.name)}</span></button>`).join('') : `<div class="sec">Досок пока нет</div>`)
         + `</div>` + footer();
     }
-    // колонки доски
+    // колонки доски — круги с названием колонки внутри
     cache[arg] = cache[arg] || await api('/boards/' + arg).catch(() => null);
     const d = cache[arg];
     boardName = (d && d.name) || boardName;
     const cols = (d && d.columns) || [];
-    return head(boardName || 'Проект', 'boards') + `<div class="pk-list">`
-      + cols.map(col => `<button class="pi${mark({kind: 'col', col: String(col.id)})}" data-pick="col" data-col="${col.id}" data-name="${esc(boardName)} · ${esc(col.name)}">${esc(col.name)}</button>`).join('')
+    return head(boardName || 'Проект', 'boards') + `<div class="pk-grid">`
+      + cols.map(col => `<button class="pk-col${mark({kind: 'col', col: String(col.id)})}" data-pick="col" data-col="${col.id}" data-name="${esc(boardName)} · ${esc(col.name)}">${esc(col.name)}</button>`).join('')
       + `</div>` + footer();
   };
   const show = async (step, arg) => { pop.innerHTML = await render(step, arg); };
   pop.onclick = async e => {
-    if (e.target.closest('[data-close]')) { vt(() => closeInPop()); return; }
+    if (e.target.closest('[data-close]')) { closeInPop(); return; }
     if (e.target.closest('[data-confirm]')) {
       const d = pending;
       if (mode === 'add' && !$('#inTxt').value.trim()) { alert('Сначала напишите текст'); return; }
@@ -232,8 +246,8 @@ async function openInPop(anchor, onPick, {mode = 'move'} = {}) {
     }
   };
   const first = await render('root');
-  // выбор раскрывает саму белую строку ввода вверх: серое поле сверху уменьшается
-  vt(() => { addBar.prepend(pop); pop.innerHTML = first; });
+  // выбор появляется над полем ввода без перехода на весь экран (иначе мелькает старая карточка)
+  addBar.prepend(pop); pop.innerHTML = first;
   showInPop(pop);
 }
 // раскрытая карточка входящих: расширяется на месте строки, без всплывающего окна
@@ -957,18 +971,6 @@ async function hub() {
   const boards = boardsAll.filter(b => (b.status || 'work') === 'work').slice(0, 4);
   // лента сейва: входящие, все материалы и все категории, листается вправо
   const letter = name => esc((name || '?').trim().charAt(0).toUpperCase());
-  // значок категории по её названию; для остальных категорий — объёмная папка
-  const catKey = name => {
-    const n = (name || '').toLowerCase();
-    if (/смотр|видео|фильм|кино|сериал/.test(n)) return 'eye';
-    if (/чит|книг|стать|текст/.test(n)) return 'book';
-    if (/мест|карт|адрес|путеш|гео/.test(n)) return 'pin';
-    if (/инстр|сервис|софт/.test(n)) return 'tool';
-    if (/референс|образ|дизайн|визуал|фото/.test(n)) return 'gem';
-    if (/иде|мысл/.test(n)) return 'bulb';
-    if (/куп|покуп|товар|магазин|шоп|заказ/.test(n)) return 'bag';
-    return 'folder';
-  };
   const slider = catsAll.map(c => `<div class="htw"><button class="htile hcat" data-go="#/cat/${encodeURIComponent(c.slug)}" aria-label="${esc(c.name)}"><img src="/static/ico/${catKey(c.name)}.png?v=2" alt="" draggable="false"></button><span class="htile-l">${esc(c.name)}</span></div>`).join('');
   const tile = (go, bg, ic, label) => `<div class="htw"><button class="htile" style="--c:${bg}" data-go="${go}" aria-label="${label}">${ic}</button><span class="htile-l">${label}</span></div>`;
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Приложения</div></div>
