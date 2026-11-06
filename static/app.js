@@ -42,6 +42,8 @@ const TILES_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 const XICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 const HOME_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>';
 const INBOX_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13l2.5-7.5A2 2 0 0 1 7.4 4h9.2a2 2 0 0 1 1.9 1.5L21 13"/><path d="M3 13v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5h-5l-1.5 2.5h-5L8 13z"/></svg>';
+const TRASH_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>';
+const BOX_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg>';
 const FOLDER_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
 const INBOX_STYLE = {bg: '#e7edff', tc: '#2f4bb0'};
 const ALL_STYLE = {bg: '#fbf1c4', tc: '#7a5b00'};
@@ -1324,7 +1326,7 @@ function folderHtml(f, full) {
       <div class="fo-top">
         <div class="fo-title fo-name" title="Нажмите, чтобы переименовать">${esc(f.name)}</div>
         <div class="fo-tools">
-          <button class="kb-ib fo-full" aria-label="${full ? 'Вернуть' : 'На весь экран'}">${full ? RESTORE_ICON : FULL_ICON}</button>
+          <button class="kb-ib fo-del-folder" aria-label="Удалить папку" title="Удалить папку">${TRASH_ICON}</button><button class="kb-ib fo-full" aria-label="${full ? 'Вернуть' : 'На весь экран'}">${full ? RESTORE_ICON : FULL_ICON}</button>
           <button class="kb-ib fo-x" aria-label="Закрыть">${XICON}</button>
         </div>
       </div>
@@ -1347,6 +1349,16 @@ function bindFolder(ov, f) {
   const card = ov.querySelector('.fo-card');
   ov.onclick = e => { if (e.target === ov) closeFolder(); };
   ov.querySelector('.fo-x').onclick = () => closeFolder();
+  ov.querySelector('.fo-del-folder').onclick = async () => {
+    if (!confirm('Удалить папку вместе с материалами и вложенными папками?')) return;
+    try {
+      await api('/folders/' + f.id, {method: 'DELETE'});
+      closeFolder();
+      // после удаления вложенной папки обновляем окно родителя
+      const parent = folderStack[folderStack.length - 1];
+      if (parent) renderFolder(parent, +parent.dataset.fid);
+    } catch (err) { alert(err.message); }
+  };
   ov.querySelector('.fo-full').onclick = () => {
     card.classList.toggle('full');
     const on = card.classList.contains('full');
@@ -1402,6 +1414,7 @@ function bindFolder(ov, f) {
 async function openFolder(fid) {
   const ov = document.createElement('div');
   ov.className = 'fo-ov';
+  ov.dataset.fid = fid;
   ov.style.zIndex = 100 + folderStack.length * 10;
   document.body.appendChild(ov);
   folderStack.push(ov);
@@ -1436,7 +1449,7 @@ async function board(bid) {
       <button class="kadd" data-addcard="${col.id}">+ Добавить карточку</button>
     </div>`).join('');
   $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
-  const folderHl = (b.folders || []).map(f => `<div class="hl-item hl-folder-item"><button class="hl-tile hl-folder" data-folder-open="${f.id}" aria-label="Открыть папку ${esc(f.name)}">${FOLDER_ICON}<span class="hl-fcount">${f.items + f.folders}</span></button><div class="hl-name" title="${esc(f.name)}">${esc(f.name)}</div></div>`).join('');
+  const folderHl = (b.folders || []).map(f => `<div class="hl-item hl-folder-item"><button class="hl-tile hl-folder" data-folder-open="${f.id}" aria-label="Открыть папку ${esc(f.name)}">${BOX_ICON}<span class="hl-fcount">${f.items + f.folders}</span></button><div class="hl-name" title="${esc(f.name)}">${esc(f.name)}</div></div>`).join('');
   const hlStrip = `<div class="hl-strip" id="hlstrip">${folderHl}${(b.links || []).map(hlItem).join('')}<div class="hl-item hl-fixed"><button class="hl-tile hl-add" id="hladd" aria-label="Добавить">${PLUS_ICON}</button><div class="hl-name">Добавить</div></div></div>`;
   $('#app').innerHTML = `<div class="titlerow"><div class="kbtitle" id="kbname" title="Нажмите, чтобы переименовать">${esc(b.name)}</div>
       <div class="tr-actions"><button class="iconbtn" id="kball" aria-label="Все доски" title="Все доски">${HOME_ICON}</button>
