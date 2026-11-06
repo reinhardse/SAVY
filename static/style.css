@@ -1807,7 +1807,7 @@ html:has(.hsec),body:has(.hsec){background:#eef3fb}
 .htw .htile-l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* страница «Доски»: плитки как на главной — квадрат с пастельным градиентом */
-.ypanel .bgrid .bcard.sq{position:relative;aspect-ratio:1;min-height:0;padding:0;gap:0;border:0;border-radius:0;background:linear-gradient(155deg,rgba(255,255,255,.6),rgba(255,255,255,0) 60%),var(--c1);box-shadow:none;overflow:visible;display:block;color:#2b2f3a;transition:transform .15s,box-shadow .15s}
+.ypanel .bgrid .bcard.sq{position:relative;aspect-ratio:1.3;min-height:0;padding:0;gap:0;border:0;border-radius:20px;background:linear-gradient(155deg,rgba(255,255,255,.6),rgba(255,255,255,0) 60%),var(--c1);box-shadow:none;overflow:visible;display:block;color:#2b2f3a;transition:transform .15s,box-shadow .15s}
 .ypanel .bgrid .bcard.sq:hover{transform:translateY(-1px);box-shadow:var(--sh-md)}
 .ypanel .bgrid .bcard.sq .hb-n{position:absolute;left:14px;right:14px;bottom:12px;font-size:15px;font-weight:600;line-height:1.25;text-align:left;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .ypanel .bgrid .bcard.sq .hb-c{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#2b2f3a}
