@@ -161,6 +161,86 @@ function bindPaste() {
   inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); go(); } };
 }
 
+
+// ===== входящие: строка добавления и перенос в Сейв или на доску =====
+let inDest = {kind: 'inbox', name: 'Входящие'};
+const inboxAddHtml = () => `<div class="inadd"><input id="inTxt" placeholder="Вставить ссылку или написать задачу" autocapitalize="off"><button class="inchip" id="inDestBtn">${esc(inDest.name)} ▾</button><button class="paste-go" id="inGo" aria-label="Добавить"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button></div>`;
+let inPop = null;
+const closeInPop = () => { if (inPop) { inPop.remove(); inPop = null; } document.removeEventListener('mousedown', inPopOut, true); };
+const inPopOut = e => { if (inPop && !inPop.contains(e.target) && !e.target.closest('#inDestBtn, [data-mvitem]')) closeInPop(); };
+// окно выбора места: «Входящие», категории Сейва, доски с колонками
+async function openInPop(anchor, onPick) {
+  closeInPop();
+  const [cs, bs] = await Promise.all([api('/categories').catch(() => []), api('/boards').catch(() => [])]);
+  const work = bs.filter(b => (b.status || 'work') === 'work');
+  const details = await Promise.all(work.map(b => api('/boards/' + b.id).catch(() => null)));
+  const r = anchor.getBoundingClientRect();
+  const pop = document.createElement('div');
+  pop.className = 'inpop';
+  pop.innerHTML = `<button class="pi" data-k="inbox" data-name="Входящие">Входящие</button>`
+    + (cs.length ? `<div class="sec">Сейв</div>` + cs.map(c => `<button class="pi" data-k="cat" data-slug="${esc(c.slug)}" data-name="${esc(c.name)}">${esc(c.name)}</button>`).join('') : '')
+    + (work.length ? `<div class="sec">Доски</div>` + work.map((b, i) => `<div class="pb">${esc(b.name)}</div>` + ((details[i] && details[i].columns) || []).map(col => `<button class="pi sub" data-k="col" data-col="${col.id}" data-name="${esc(b.name)} · ${esc(col.name)}">${esc(col.name)}</button>`).join('')).join('') : '');
+  document.body.appendChild(pop);
+  pop.style.top = (r.bottom + 6) + 'px';
+  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+  pop.onclick = e => {
+    const b = e.target.closest('.pi');
+    if (!b) return;
+    const d = {kind: b.dataset.k, name: b.dataset.name, slug: b.dataset.slug, col: b.dataset.col};
+    closeInPop();
+    onPick(d);
+  };
+  inPop = pop;
+  setTimeout(() => document.addEventListener('mousedown', inPopOut, true), 0);
+}
+const looksLikeLink = s => /^https?:\/\//i.test(s) || /^[^\s]+\.[^\s]{2,}/.test(s);
+async function inboxSend() {
+  const inp = $('#inTxt');
+  const txt = inp.value.trim();
+  if (!txt) return;
+  try {
+    if (inDest.kind === 'col') {
+      await api('/columns/' + inDest.col + '/cards', {method: 'POST', body: {title: txt}});
+    } else {
+      if (!looksLikeLink(txt)) { alert('Пока в Сейв и во входящие сохраняются только ссылки. Текст можно отправить на доску.'); return; }
+      const body = {url: txt};
+      if (inDest.kind === 'cat') body.category = inDest.slug;
+      const r = await api('/items', {method: 'POST', body});
+      if (!r.created) alert('Эта ссылка уже в библиотеке');
+    }
+    inp.value = '';
+    loadList();
+  } catch (err) { alert(err.message); }
+}
+async function inboxMove(id, d) {
+  try {
+    if (d.kind === 'col') {
+      const it = lastItems.find(x => x.id === id) || {};
+      await api('/columns/' + d.col + '/cards', {method: 'POST', body: {title: it.title || it.url || 'Без названия'}});
+      await api('/items/' + id, {method: 'PATCH', body: {status: 'archived'}});
+    } else if (d.kind === 'cat') {
+      await api('/items/' + id, {method: 'PATCH', body: {category: d.slug}});
+    }
+    loadList();
+  } catch (err) { alert(err.message); }
+}
+function bindInbox() {
+  const btn = $('#inDestBtn');
+  if (btn) btn.onclick = () => openInPop(btn, d => { inDest = d; const b = $('#inDestBtn'); if (b) b.textContent = d.name + ' ▾'; });
+  const go = $('#inGo');
+  if (go) go.onclick = inboxSend;
+  const inp = $('#inTxt');
+  if (inp) inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); inboxSend(); } };
+  const list = $('#list');
+  if (list) list.onclick = e => {
+    const mv = e.target.closest('[data-mvitem]');
+    if (!mv) return;
+    e.stopPropagation();
+    const id = +mv.dataset.mvitem;
+    openInPop(mv, d => inboxMove(id, d));
+  };
+}
+
 // строка материала: обложка, название, источник и карандаш, теги под ними; справа глаз и крестик
 function row(i) {
   const wait = i.meta_state === 'pending' ? ' · собираю данные…' : '';
@@ -181,7 +261,7 @@ function row(i) {
   }
   const desc = d ? `<div class="rdesc">${body}</div>` : '';
   const tags = `${desc}<div class="tagline">${eye}${i.tags.map(t => `<span class="tagbadge">#${esc(t)}</span>`).join('')}</div>`;
-  return `<div class="row" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m"><span>${esc(meta)}</span><button class="rb pen" data-id="${i.id}" aria-label="Открыть карточку">${PEN}</button></div>${tags}</div><button class="rb del" data-id="${i.id}" aria-label="Удалить">${XICON}</button></div>`;
+  return `<div class="row" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m"><span>${esc(meta)}</span><button class="rb pen" data-id="${i.id}" aria-label="Открыть карточку">${PEN}</button></div>${tags}</div>${listParams && listParams.inbox ? `<button class="inmove" data-mvitem="${i.id}">Перенести</button>` : ''}<button class="rb del" data-id="${i.id}" aria-label="Удалить">${XICON}</button></div>`;
 }
 
 // перерисовываем список только если что-то изменилось, иначе клик теряется между опросами
@@ -217,7 +297,7 @@ function toggleView() {
 function bindRows() {
   const app = $('#app');
   app.querySelectorAll('.row').forEach(el => el.onclick = e => {
-    if (e.target.closest('.rb, .eyechip, .more-d')) return;
+    if (e.target.closest('.rb, .eyechip, .more-d, .inmove')) return;
     window.open(el.dataset.url, '_blank', 'noopener');
   });
   app.querySelectorAll('.rb.pen, .more-d').forEach(b => b.onclick = e => { e.stopPropagation(); openItem(+b.dataset.id); });
@@ -284,13 +364,14 @@ async function listView(title, params, active, withTags = false) {
       <button class="iconbtn" id="hbtn" aria-label="Главная">${HOME_ICON}</button>
       ${viewBtn()}<button class="iconbtn" id="sbtn" aria-label="Поиск">${LOUPE}</button></div></div>
     ${params.category || params.inbox ? '<div class="catsub" id="csub"></div>' : ''}
-    ${active === 'inbox' ? pasteHtml() : ''}
+    ${active === 'inbox' ? inboxAddHtml() : ''}
     <input class="search" id="q" placeholder="Поиск" style="display:${q || wantSearch ? 'block' : 'none'}" value="${esc(q)}">
     ${withTags ? '<div class="tags" id="tags"></div>' : ''}
     <div class="list${viewMode === 'tiles' ? ' grid' : ''}" id="list"></div>${nav(active)}`;
-  bindPaste();
+  if (active === 'inbox') bindInbox(); else bindPaste();
   $('#vbtn').onclick = toggleView;
-  $('#hbtn').onclick = () => { location.hash = '#/home'; };
+  // «Входящие» — отдельный раздел: кнопка «домой» ведёт на главную хаба, а не в Сейв
+  $('#hbtn').onclick = () => { location.hash = active === 'inbox' ? '#/hub' : '#/home'; };
   if (wantSearch) setTimeout(() => $('#q').focus(), 0);
   $('#sbtn').onclick = () => {
     const box = $('#q');
