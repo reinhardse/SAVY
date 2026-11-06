@@ -1987,8 +1987,11 @@ body.inbox-pg .inpanel .list{background:#e9f1fb}
 /* поле ввода: название и описание в одной рамке; описание раскрывается на фокусе плавно и так же сворачивается */
 body.inbox-pg .inadd .inrow{flex-wrap:wrap;row-gap:0}
 body.inbox-pg .inadd .inrow #inTxt{flex:1 1 auto;min-width:0}
-body.inbox-pg .inpanel .inadd .indesc{flex:0 0 100%;order:9;box-sizing:border-box;width:100%;border:0;outline:none;resize:none;background:transparent;font:inherit;font-size:14px;line-height:1.4;color:#2b2f3a;padding:0 8px;margin:0;max-height:0;opacity:0;overflow:hidden;transition:max-height .28s cubic-bezier(.22,.7,.2,1),opacity .2s ease,padding .28s ease,margin .28s ease}
+body.inbox-pg .inpanel .inadd .indesc{flex:0 0 100%;order:9;box-sizing:border-box;width:100%;border:0;outline:none;resize:none;background:transparent;font:inherit;font-size:16px;line-height:1.4;color:#2b2f3a;padding:0 4px;margin:0;max-height:0;opacity:0;overflow:hidden;transition:max-height .28s cubic-bezier(.22,.7,.2,1),opacity .2s ease,padding .28s ease,margin .28s ease}
 body.inbox-pg .inpanel .inadd .indesc::placeholder{color:#9a9eab}
 body.inbox-pg .inpanel .inadd .indesc:focus,body.inbox-pg .inpanel .inadd .indesc:focus-visible{outline:none;box-shadow:none;border:0}
-body.inbox-pg .inpanel .inadd.open .indesc{max-height:110px;opacity:1;padding:2px 8px 8px;margin:0 0 2px;overflow:auto}
+body.inbox-pg .inpanel .inadd.open .indesc{max-height:110px;opacity:1;padding:2px 4px 8px;margin:0 0 2px;overflow:auto}
 /* закрытие карточки: то же движение, что и раскрытие, только назад */
+
+/* название и описание: один цвет текста и общий левый край */
+body.inbox-pg .inadd #inTxt{color:#2b2f3a}

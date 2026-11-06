@@ -165,7 +165,7 @@ function bindPaste() {
 
 // ===== входящие: строка добавления и перенос в Сейв или на доску =====
 let inDest = {kind: 'inbox', name: 'Входящие'};
-const inboxAddHtml = () => `<div class="inadd" id="inAdd"><div class="inrow"><input id="inTxt" placeholder="Название задачи" autocapitalize="off"><button class="inchip" id="inDestBtn" title="${esc(inDest.name)}">Добавить задачу</button><textarea id="inDesc" class="indesc" placeholder="Описание" rows="3"></textarea></div></div>`;
+const inboxAddHtml = () => `<div class="inadd" id="inAdd"><div class="inrow"><input id="inTxt" placeholder="Название задачи" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"><button class="inchip" id="inDestBtn" title="${esc(inDest.name)}">Добавить задачу</button><textarea id="inDesc" class="indesc" placeholder="Описание" rows="3" autocomplete="off" autocorrect="off" spellcheck="false"></textarea></div></div>`;
 let inPop = null;
 const closeInPop = () => { if (inPop) { inPop.remove(); inPop = null; } document.removeEventListener('mousedown', inPopOut, true); const pn = document.querySelector('.inpanel'); if (pn) pn.classList.remove('picking'); document.querySelectorAll('.ibrow.active').forEach(r => r.classList.remove('active')); };
 const inPopOut = e => { if (inPop && !inPop.contains(e.target) && !e.target.closest('#inDestBtn, [data-mvitem], [data-more], [data-mv]')) closeInPop(); };
@@ -439,7 +439,16 @@ function bindInbox() {
   const go = $('#inGo');
   if (go) go.onclick = inboxSend;
   const inp = $('#inTxt');
-  if (inp) inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); inboxSend(); } };
+  if (inp) inp.onkeydown = e => {
+    if (e.isComposing) return;
+    if (e.key === 'Enter') { e.preventDefault(); inboxSend(); }
+    else if (e.key === 'ArrowDown' && $('#inDesc')) { e.preventDefault(); $('#inDesc').focus(); }
+  };
+  const descKey = $('#inDesc');
+  if (descKey) descKey.onkeydown = e => {
+    if (e.isComposing) return;
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); inboxSend(); }
+  };
   const dest = $('#ibDest');
   if (dest) dest.onclick = e => {
     e.stopPropagation();
