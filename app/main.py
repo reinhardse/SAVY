@@ -22,7 +22,7 @@ from . import gcal, meta
 from types import SimpleNamespace
 from urllib.parse import urlparse
 from .db import (BASE_DIR, DATA_DIR, STATUSES, Board, BoardLink, Card, CardSub, Category, Company, Contact, CrmPipeline, CrmStage,
-                 CrmTask, CRM_NEW_FUNNEL_STAGES, Deal, DealMessage, Folder, FolderItem, GCalToken, Item, KColumn, SessionLocal, Tag, init_db)
+                 CrmTask, CRM_NEW_FUNNEL_STAGES, Deal, DealMessage, Folder, GCalToken, Item, KColumn, SessionLocal, Tag, init_db)
 
 PASSWORD = os.environ.get("LIBRARY_PASSWORD")
 API_TOKEN = os.environ.get("LIBRARY_API_TOKEN")  # для бота и «Быстрых команд» iOS
@@ -169,6 +169,7 @@ class ItemIn(BaseModel):
     url: str
     note: str | None = None
     category: str | None = None
+    folder_id: int | None = None
 
 
 class ItemPatch(BaseModel):
@@ -200,24 +201,36 @@ def add_item(body: ItemIn, tasks: BackgroundTasks, db: Session = Depends(get_db)
     if not urls:
         if not body.url.strip():
             raise HTTPException(400, "Пустой текст")
-        return {"item": save_note(db, body.url, body.category), "created": True}
-    hint = meta.service_link_hint(urls[0])
-    if hint:
-        raise HTTPException(400, hint)
-    item, created = save_url(db, urls[0], body.note, body.category, tasks, meta.share_title(body.url))
+        item, created = save_note(db, body.url, body.category), True
+    else:
+        hint = meta.service_link_hint(urls[0])
+        if hint:
+            raise HTTPException(400, hint)
+        item, created = save_url(db, urls[0], body.note, body.category, tasks, meta.share_title(body.url))
+    if body.folder_id:
+        if not created:
+            raise HTTPException(409, "Эта ссылка уже есть в библиотеке")
+        item = _put_in_folder(db, item, body.folder_id)
     return {"item": item, "created": created}
 
 
 @app.get("/api/items")
 def list_items(status: str | None = None, category: str | None = None, favorite: bool = False,
                q: str | None = None, tag: str | None = None, inbox: bool = False, limit: int = 100, offset: int = 0,
+               folder: int | None = None,
                db: Session = Depends(get_db), _: int = Depends(require_auth)):
     stmt = select(Item).where(Item.user_id == USER_ID)
     if status:
         stmt = stmt.where(Item.status == status)
     else:  # прочитанные, как и архив, не попадают в обычные списки: их видно только внутри категории
         stmt = stmt.where(Item.status.notin_(["archived", "done"]))
-    if inbox:  # входящие: всё, что ещё не отнесено ни к одной категории
+    if folder is not None:  # материалы папки доски
+        stmt = stmt.where(Item.folder_id == folder)
+    else:
+        stmt = stmt.where(Item.folder_id.is_(None))
+    if folder is not None:
+        pass
+    elif inbox:  # входящие: всё, что ещё не отнесено ни к одной категории
         stmt = stmt.where(Item.category_id.is_(None))
     elif not category:  # в Сейве — только отнесённое к категории; без категории материал живёт во входящих
         stmt = stmt.where(Item.category_id.isnot(None))
@@ -303,10 +316,10 @@ def refresh_item(item_id: int, tasks: BackgroundTasks, db: Session = Depends(get
 # ---------- сводка, категории, экспорт ----------
 @app.get("/api/me")
 def me(db: Session = Depends(get_db), _: int = Depends(require_auth)):
-    base = (Item.user_id == USER_ID, Item.status.notin_(["archived", "done"]), Item.category_id.isnot(None))
+    base = (Item.user_id == USER_ID, Item.status.notin_(["archived", "done"]), Item.category_id.isnot(None), Item.folder_id.is_(None))
     total = db.scalar(select(func.count()).select_from(Item).where(*base))
     new = db.scalar(select(func.count()).select_from(Item).where(*base, Item.status == "new"))
-    done = db.scalar(select(func.count()).select_from(Item).where(Item.user_id == USER_ID, Item.status == "done"))
+    done = db.scalar(select(func.count()).select_from(Item).where(Item.user_id == USER_ID, Item.status == "done", Item.folder_id.is_(None)))
     fav = db.scalar(select(func.count()).select_from(Item).where(*base, Item.is_favorite.is_(True)))
     per_cat = dict(db.execute(select(Item.category_id, func.count()).where(*base).group_by(Item.category_id)).all())
     cats = [{**cat_out(c), "count": per_cat.get(c.id, 0)} for c in db.scalars(select(Category).order_by(Category.sort, Category.id))]
@@ -351,7 +364,7 @@ def set_kp_token(body: TokenIn, tasks: BackgroundTasks, db: Session = Depends(ge
 def inbox_stats(db: Session = Depends(get_db), _: int = Depends(require_auth)):
     """Входящие: сколько материалов без категории (непрочитанных) и сколько из них прочитано."""
     counts = dict(db.execute(select(Item.status, func.count()).where(
-        Item.user_id == USER_ID, Item.category_id.is_(None)).group_by(Item.status)).all())
+        Item.user_id == USER_ID, Item.category_id.is_(None), Item.folder_id.is_(None)).group_by(Item.status)).all())
     count = sum(v for k, v in counts.items() if k not in ("done", "archived"))
     return {"count": count, "done": counts.get("done", 0)}
 
@@ -387,7 +400,7 @@ def tags_list(category: str | None = None, status: str | None = None, all_status
               db: Session = Depends(get_db), _: int = Depends(require_auth)):
     """Теги: все теги библиотеки или только теги материалов раздела (появляются и исчезают сами).
     all_status=1 — теги со всех материалов раздела, включая прочитанные: строка тегов не меняется от глаза."""
-    stmt = select(Item).where(Item.user_id == USER_ID)
+    stmt = select(Item).where(Item.user_id == USER_ID, Item.folder_id.is_(None))
     if status:
         stmt = stmt.where(Item.status == status)
     elif all_status:
@@ -610,34 +623,18 @@ def board_read(bid: int, db: Session = Depends(get_db), _: int = Depends(require
     return out
 
 
-# ----- папки материалов: на доске и внутри папок -----
+# ----- папки материалов: на доске и внутри папок; материалы папки — обычные записи с folder_id -----
 class FolderIn(BaseModel):
     name: str
-
-
-class FolderItemIn(BaseModel):
-    title: str = ""
-    description: str = ""
-    url: str | None = None
-
-
-class FolderItemPatch(BaseModel):
-    title: str | None = None
-    description: str | None = None
 
 
 def folder_brief(f: Folder, db: Session | None = None) -> dict:
     if db is None:
         return {"id": f.id, "name": f.name, "parent_id": f.parent_id, "items": 0, "folders": 0}
-    items = db.scalar(select(func.count()).select_from(FolderItem).where(FolderItem.folder_id == f.id)) or 0
+    items = db.scalar(select(func.count()).select_from(Item).where(
+        Item.folder_id == f.id, Item.status != "archived")) or 0
     subs = db.scalar(select(func.count()).select_from(Folder).where(Folder.parent_id == f.id)) or 0
     return {"id": f.id, "name": f.name, "parent_id": f.parent_id, "items": items, "folders": subs}
-
-
-def folder_item_out(i: FolderItem) -> dict:
-    host = (urlparse(i.url).hostname or "").removeprefix("www.") if i.url else ""
-    return {"id": i.id, "kind": i.kind, "url": i.url or "", "host": host, "title": i.title or "",
-            "description": i.description or "", "created_at": i.created_at.isoformat() if i.created_at else None}
 
 
 def _folder(db: Session, fid: int) -> Folder:
@@ -664,16 +661,13 @@ def board_folder_create(bid: int, body: FolderIn, db: Session = Depends(get_db),
 def folder_read(fid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     f = _folder(db, fid)
     subs = db.scalars(select(Folder).where(Folder.parent_id == f.id).order_by(Folder.sort, Folder.id)).all()
-    items = db.scalars(select(FolderItem).where(FolderItem.folder_id == f.id).order_by(FolderItem.id)).all()
-    # цепочка папок сверху вниз, чтобы окно показывало, где открыта папка
+    # цепочка папок сверху вниз: окно показывает, где открыта папка
     path, cur = [], f
     while cur is not None:
         path.insert(0, {"id": cur.id, "name": cur.name})
         cur = db.get(Folder, cur.parent_id) if cur.parent_id else None
     out = folder_brief(f, db)
-    out.update({"board_id": f.board_id, "path": path,
-                "folders": [folder_brief(s, db) for s in subs],
-                "items": [folder_item_out(i) for i in items]})
+    out.update({"board_id": f.board_id, "path": path, "folders": [folder_brief(x, db) for x in subs]})
     return out
 
 
@@ -704,7 +698,8 @@ def folder_rename(fid: int, body: FolderIn, db: Session = Depends(get_db), _: in
 def _delete_folder_tree(db: Session, f: Folder) -> None:
     for sub in db.scalars(select(Folder).where(Folder.parent_id == f.id)).all():
         _delete_folder_tree(db, sub)
-    db.query(FolderItem).filter(FolderItem.folder_id == f.id).delete()
+    # материалы не удаляем: они возвращаются во входящие (без папки)
+    db.query(Item).filter(Item.folder_id == f.id).update({Item.folder_id: None})
     db.delete(f)
 
 
@@ -715,49 +710,12 @@ def folder_delete(fid: int, db: Session = Depends(get_db), _: int = Depends(requ
     return {"ok": True}
 
 
-@app.post("/api/folders/{fid}/items")
-def folder_item_create(fid: int, body: FolderItemIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
-    f = _folder(db, fid)
-    text = body.title.strip()
-    url = (body.url or "").strip()
-    # ссылка: если строка похожа на адрес; иначе — заметка с текстом названия
-    if url:
-        kind, link = "link", _norm(url)
-    elif re.match(r"^https?://", text, re.I) or re.match(r"^[^\s]+\.[^\s]{2,}$", text):
-        kind, link = "link", _norm(text)
-    else:
-        kind, link = "note", None
-    if kind == "note" and not text:
-        raise HTTPException(400, "Напишите текст")
-    i = FolderItem(folder_id=f.id, kind=kind, url=link, title=("" if kind == "link" else text)[:300],
-                   description=body.description.strip())
-    if kind == "link":
-        i.title = (text if text and not re.match(r"^https?://", text, re.I) else "")[:300]
-    db.add(i)
+def _put_in_folder(db: Session, out: dict, folder_id: int) -> dict:
+    _folder(db, folder_id)
+    it = db.get(Item, out["id"])
+    it.folder_id = folder_id
     db.commit()
-    return folder_item_out(i)
-
-
-@app.patch("/api/folder-items/{iid}")
-def folder_item_patch(iid: int, body: FolderItemPatch, db: Session = Depends(get_db), _: int = Depends(require_auth)):
-    i = db.get(FolderItem, iid)
-    if not i:
-        raise HTTPException(404, "Материал не найден")
-    if body.title is not None:
-        i.title = body.title.strip()[:300]
-    if body.description is not None:
-        i.description = body.description.strip()
-    db.commit()
-    return folder_item_out(i)
-
-
-@app.delete("/api/folder-items/{iid}")
-def folder_item_delete(iid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
-    i = db.get(FolderItem, iid)
-    if i:
-        db.delete(i)
-        db.commit()
-    return {"ok": True}
+    return item_out(it)
 
 
 # ----- ссылки-«хайлайты» над доской -----

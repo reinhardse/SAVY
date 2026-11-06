@@ -549,7 +549,7 @@ function row(i) {
   }
   const wait = i.meta_state === 'pending' ? ' · собираю данные…' : '';
   const cat = cats.find(c => c.slug === i.category);
-  const meta = [SRC[i.source], cat ? cat.name : 'Без категории'].join(' · ') + wait;
+  const meta = [i.source !== 'note' ? SRC[i.source] : '', cat ? cat.name : ''].filter(Boolean).join(' · ') + wait;
   const eye = eyeChip(i.done, `data-done="${i.id}"`);
   // описание: первые 130 символов (для фильмов и книг — 200), дальше «…» — нажатие открывает карточку, чтобы дочитать
   const d = (i.description || '').replace(/\s+/g, ' ').trim();
@@ -786,6 +786,7 @@ async function route() {
   const [view, ...rest] = (location.hash.slice(2) || 'hub').split('/');
   // настройки списка принадлежат прошлой странице: без сброса главная рисовала бы строки входящих
   listParams = {};
+  closeAllFolders(); // окна папок не переживают переход на другую страницу (например, «назад»)
   document.body.classList.toggle('inbox-pg', view === 'inbox'); // входящие: серый фон на весь экран, белые панели задач
   document.documentElement.classList.toggle('inbox-pg', view === 'inbox');
   const arg = decodeURIComponent(rest.join('/'));
@@ -1307,42 +1308,30 @@ function openAddMenu(anchor) {
 
 // окно папки материалов: поверх доски, внутри — папки и материалы; папки открываются поверх друг друга
 const folderStack = [];
-const foMeta = (i, host) => {
-  const d = new Date(i.created_at);
-  return d.toLocaleTimeString('ru', {hour: '2-digit', minute: '2-digit'});
-};
-function folderHtml(f, full) {
-  const subs = f.folders.map(s => `<button class="fo-sub" data-sub="${s.id}"><span class="fo-sub-ic">${FOLDER_ICON}</span><span class="fo-sub-n">${esc(s.name)}</span><span class="fo-sub-c">${s.items + s.folders}</span></button>`).join('');
-  const items = f.items.map(i => {
-    const title = i.title || i.host || i.url;
-    const link = i.kind === 'link' ? `<a class="fo-it-link" href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.host || i.url)}</a>` : '';
-    return `<div class="fo-item" data-iid="${i.id}" data-url="${esc(i.url)}">
-        <div class="fo-it-body"><div class="fo-it-t">${esc(title)}</div>${i.description ? `<div class="fo-it-d">${esc(i.description)}</div>` : ''}<div class="fo-it-m">${link}${link ? ' · ' : ''}${foMeta(i)}</div></div>
-        <button class="fo-more" data-fmore="${i.id}" aria-label="Ещё">⋯</button>
-        <button class="fo-del" data-fdel="${i.id}">Удалить</button>
-      </div>`;
-  }).join('');
+function folderHtml(f, full, items) {
+  const subs = f.folders.map(s => `<button class="fo-sub" data-sub="${s.id}"><span class="fo-sub-ic">${BOX_ICON}</span><span class="fo-sub-n">${esc(s.name)}</span><span class="fo-sub-c">${s.items + s.folders}</span></button>`).join('');
   return `<div class="fo-card${full ? ' full' : ''}">
       <div class="fo-top">
         <div class="fo-title fo-name" title="Нажмите, чтобы переименовать">${esc(f.name)}</div>
         <div class="fo-tools">
-          <button class="kb-ib fo-del-folder" aria-label="Удалить папку" title="Удалить папку">${TRASH_ICON}</button><button class="kb-ib fo-full" aria-label="${full ? 'Вернуть' : 'На весь экран'}">${full ? RESTORE_ICON : FULL_ICON}</button>
+          <button class="kb-ib fo-del-folder" aria-label="Удалить папку" title="Удалить папку">${TRASH_ICON}</button>
+          <button class="kb-ib fo-full" aria-label="${full ? 'Вернуть' : 'На весь экран'}">${full ? RESTORE_ICON : FULL_ICON}</button>
           <button class="kb-ib fo-x" aria-label="Закрыть">${XICON}</button>
         </div>
       </div>
       <div class="fo-subs">${subs}<button class="fo-addsub fo-addsub-btn">+ Папка</button></div>
       <div class="fo-add">
-        <input class="fo-t fo-in" placeholder="Название или ссылка" autocomplete="off" autocorrect="off" spellcheck="false">
-        <textarea class="fo-d fo-desc" placeholder="Описание" rows="2" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+        <input class="fo-in fo-t" placeholder="Название или ссылка" autocomplete="off" autocorrect="off" spellcheck="false">
+        <textarea class="fo-desc fo-d" placeholder="Описание" rows="2" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
         <div class="fo-addbar"><button class="inchip fo-send">Добавить</button></div>
       </div>
-      <div class="fo-list">${items || '<div class="fo-empty">Пока пусто</div>'}</div>
+      <div class="fo-list">${items.length ? items.map(row).join('') : '<div class="fo-empty">Пока пусто</div>'}</div>
     </div>`;
 }
 async function renderFolder(ov, fid) {
-  const f = await api('/folders/' + fid);
+  const [f, items] = await Promise.all([api('/folders/' + fid), api('/items?folder=' + fid + '&limit=200')]);
   const full = ov.querySelector('.fo-card')?.classList.contains('full');
-  ov.innerHTML = folderHtml(f, full);
+  ov.innerHTML = folderHtml(f, full, items);
   bindFolder(ov, f);
 }
 function bindFolder(ov, f) {
@@ -1350,7 +1339,7 @@ function bindFolder(ov, f) {
   ov.onclick = e => { if (e.target === ov) closeFolder(); };
   ov.querySelector('.fo-x').onclick = () => closeFolder();
   ov.querySelector('.fo-del-folder').onclick = async () => {
-    if (!confirm('Удалить папку вместе с материалами и вложенными папками?')) return;
+    if (!confirm('Удалить папку? Материалы вернутся во Входящие, вложенные папки удалятся.')) return;
     try {
       await api('/folders/' + f.id, {method: 'DELETE'});
       closeFolder();
@@ -1375,9 +1364,11 @@ function bindFolder(ov, f) {
   const t = ov.querySelector('.fo-t'), d = ov.querySelector('.fo-d');
   const send = async () => {
     const title = t.value.trim(), desc = d.value.trim();
-    if (!title && !desc) return;
+    if (!title) return;
     try {
-      await api('/folders/' + f.id + '/items', {method: 'POST', body: {title, description: desc}});
+      // материал создаётся как обычная запись Сейва, но сразу в этой папке
+      const r = await api('/items', {method: 'POST', body: {url: title, folder_id: f.id}});
+      if (desc && r.created && r.item) await api('/items/' + r.item.id, {method: 'PATCH', body: {description: desc}});
       await renderFolder(ov, f.id);
       ov.querySelector('.fo-t')?.focus(); // можно сразу вводить следующий материал
     } catch (err) { alert(err.message); }
@@ -1392,22 +1383,19 @@ function bindFolder(ov, f) {
     if (e.isComposing) return;
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
   };
-  ov.querySelectorAll('.fo-item').forEach(el => {
-    el.onclick = e => {
-      if (e.target.closest('.fo-more, .fo-del, .fo-it-link')) return;
-      if (el.dataset.url) window.open(el.dataset.url, '_blank', 'noopener');
-    };
+  // карточки — как в Сейве: открыть ссылку, карандаш — карточка, крестик — удалить
+  ov.querySelectorAll('.fo-list .row').forEach(el => el.onclick = e => {
+    if (e.target.closest('.rb, .eyechip, .more-d, .inmove, .ck')) return;
+    if (el.dataset.url) window.open(el.dataset.url, '_blank', 'noopener');
   });
-  ov.querySelectorAll('[data-fmore]').forEach(b => b.onclick = e => {
+  ov.querySelectorAll('.fo-list .rb.pen, .fo-list .more-d').forEach(b => b.onclick = e => {
     e.stopPropagation();
-    const row = b.closest('.fo-item');
-    ov.querySelectorAll('.fo-item.more').forEach(x => { if (x !== row) x.classList.remove('more'); });
-    row.classList.toggle('more');
+    openItem(+b.dataset.id);
   });
-  ov.querySelectorAll('[data-fdel]').forEach(b => b.onclick = async e => {
+  ov.querySelectorAll('.fo-list .rb.del').forEach(b => b.onclick = async e => {
     e.stopPropagation();
     if (!confirm('Удалить материал?')) return;
-    try { await api('/folder-items/' + b.dataset.fdel, {method: 'DELETE'}); renderFolder(ov, f.id); }
+    try { await api('/items/' + b.dataset.id, {method: 'DELETE'}); renderFolder(ov, f.id); }
     catch (err) { alert(err.message); }
   });
 }
@@ -1437,6 +1425,10 @@ function closeFolder() {
   }
 }
 function foKey(e) { if (e.key === 'Escape') closeFolder(); }
+function closeAllFolders() {
+  while (folderStack.length) folderStack.pop().remove();
+  document.removeEventListener('keydown', foKey);
+}
 
 async function board(bid) {
   curBoard = bid;

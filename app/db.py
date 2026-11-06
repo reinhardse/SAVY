@@ -73,6 +73,7 @@ class Item(Base):
     author = Column(Text)
     duration_sec = Column(Integer)
     thumb_path = Column(Text)
+    folder_id = Column(Integer, ForeignKey("folders.id", ondelete="SET NULL"), nullable=True, index=True)  # папка доски, если материал положен в папку
     category_id = Column(Integer, ForeignKey("categories.id"), nullable=True)
     status = Column(String(20), default="new", index=True)
     is_favorite = Column(Boolean, default=False)
@@ -133,18 +134,6 @@ class Folder(Base):
     parent_id = Column(Integer, ForeignKey("folders.id", ondelete="CASCADE"), nullable=True, index=True)
     name = Column(String(300), nullable=False, default="")
     sort = Column(Integer, default=0)
-    created_at = Column(DateTime, default=now)
-
-
-class FolderItem(Base):
-    """Материал внутри папки: ссылка или заметка (текст без ссылки)."""
-    __tablename__ = "folder_items"
-    id = Column(Integer, primary_key=True)
-    folder_id = Column(Integer, ForeignKey("folders.id", ondelete="CASCADE"), nullable=False, index=True)
-    kind = Column(String(10), nullable=False, default="note")  # link или note
-    url = Column(Text, nullable=True)
-    title = Column(String(300), nullable=False, default="")
-    description = Column(Text, default="")
     created_at = Column(DateTime, default=now)
 
 
@@ -387,6 +376,11 @@ def init_db():
         if "companies" in _insp(_conn).get_table_names():
             if "inn" not in [c["name"] for c in _insp(_conn).get_columns("companies")]:
                 _conn.execute(_text("ALTER TABLE companies ADD COLUMN inn VARCHAR(20)"))
+        # материал может лежать в папке доски
+        if "items" in _insp(_conn).get_table_names():
+            if "folder_id" not in [c["name"] for c in _insp(_conn).get_columns("items")]:
+                _conn.execute(_text("ALTER TABLE items ADD COLUMN folder_id INTEGER REFERENCES folders(id) ON DELETE SET NULL"))
+                _conn.execute(_text("CREATE INDEX IF NOT EXISTS ix_items_folder_id ON items (folder_id)"))
         # сайт у компании и контакта
         for _tbl in ("companies", "contacts"):
             if _tbl in _insp(_conn).get_table_names():
