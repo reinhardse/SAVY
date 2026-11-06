@@ -42,6 +42,9 @@ const TILES_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" s
 const XICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>';
 const HOME_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>';
 const INBOX_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 13l2.5-7.5A2 2 0 0 1 7.4 4h9.2a2 2 0 0 1 1.9 1.5L21 13"/><path d="M3 13v5a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5h-5l-1.5 2.5h-5L8 13z"/></svg>';
+const FO_DOTS_ICON = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';
+const FO_TILES_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>';
+const FO_LIST_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r=".8"/><circle cx="4.5" cy="12" r=".8"/><circle cx="4.5" cy="18" r=".8"/></svg>';
 const TRASH_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>';
 const BOX_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg>';
 const FOLDER_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
@@ -1314,9 +1317,13 @@ function folderHtml(f, full, items) {
       <div class="fo-top">
         <div class="fo-title fo-name" title="Нажмите, чтобы переименовать">${esc(f.name)}</div>
         <div class="fo-tools">
-          <button class="kb-ib fo-del-folder" aria-label="Удалить папку" title="Удалить папку">${TRASH_ICON}</button>
-          <button class="kb-ib fo-full" aria-label="${full ? 'Вернуть' : 'На весь экран'}">${full ? RESTORE_ICON : FULL_ICON}</button>
+          <button class="kb-ib fo-view" aria-label="Вид" title="${foView === 'tiles' ? 'Строкой' : 'Плиткой'}">${foView === 'tiles' ? FO_LIST_ICON : FO_TILES_ICON}</button>
+          <button class="kb-ib fo-more-btn" aria-label="Ещё">${FO_DOTS_ICON}</button>
           <button class="kb-ib fo-x" aria-label="Закрыть">${XICON}</button>
+          <div class="fo-menu" hidden>
+            <button class="fo-mi fo-full">${full ? 'Вернуть' : 'На весь экран'}</button>
+            <button class="fo-mi bad fo-del-folder">Удалить папку</button>
+          </div>
         </div>
       </div>
       <div class="fo-subs">${subs}<button class="fo-addsub fo-addsub-btn">+ Папка</button></div>
@@ -1325,7 +1332,7 @@ function folderHtml(f, full, items) {
         <textarea class="fo-desc fo-d" placeholder="Описание" rows="2" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
         <div class="fo-addbar"><button class="inchip fo-send">Добавить</button></div>
       </div>
-      <div class="fo-list">${items.length ? items.map(row).join('') : '<div class="fo-empty">Пока пусто</div>'}</div>
+      <div class="fo-list${foView === 'tiles' ? ' fo-tiles' : ''}">${items.length ? items.map(row).join('') : '<div class="fo-empty">Пока пусто</div>'}</div>
     </div>`;
 }
 async function renderFolder(ov, fid) {
@@ -1334,10 +1341,17 @@ async function renderFolder(ov, fid) {
   ov.innerHTML = folderHtml(f, full, items);
   bindFolder(ov, f);
 }
+let foView = 'list';
 function bindFolder(ov, f) {
   const card = ov.querySelector('.fo-card');
-  ov.onclick = e => { if (e.target === ov) closeFolder(); };
+  const menu = ov.querySelector('.fo-menu');
+  ov.onclick = e => {
+    if (e.target === ov) return closeFolder();
+    if (!e.target.closest('.fo-tools')) menu.hidden = true;
+  };
   ov.querySelector('.fo-x').onclick = () => closeFolder();
+  ov.querySelector('.fo-view').onclick = () => { foView = foView === 'tiles' ? 'list' : 'tiles'; renderFolder(ov, f.id); };
+  ov.querySelector('.fo-more-btn').onclick = e => { e.stopPropagation(); menu.hidden = !menu.hidden; };
   ov.querySelector('.fo-del-folder').onclick = async () => {
     if (!confirm('Удалить папку? Материалы вернутся во Входящие, вложенные папки удалятся.')) return;
     try {
@@ -1350,9 +1364,8 @@ function bindFolder(ov, f) {
   };
   ov.querySelector('.fo-full').onclick = () => {
     card.classList.toggle('full');
-    const on = card.classList.contains('full');
-    ov.querySelector('.fo-full').innerHTML = on ? RESTORE_ICON : FULL_ICON;
-    ov.querySelector('.fo-full').setAttribute('aria-label', on ? 'Вернуть' : 'На весь экран');
+    menu.hidden = true;
+    ov.querySelector('.fo-full').textContent = card.classList.contains('full') ? 'Вернуть' : 'На весь экран';
   };
   ov.querySelector('.fo-name').onclick = () => inlineEdit(ov.querySelector('.fo-name'), f.name,
     async v => { await api('/folders/' + f.id, {method: 'PATCH', body: {name: v}}); renderFolder(ov, f.id); },
@@ -1441,8 +1454,11 @@ async function board(bid) {
       <button class="kadd" data-addcard="${col.id}">+ Добавить карточку</button>
     </div>`).join('');
   $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
-  const folderHl = (b.folders || []).map(f => `<div class="hl-item hl-folder-item"><button class="hl-tile hl-folder" data-folder-open="${f.id}" aria-label="Открыть папку ${esc(f.name)}">${BOX_ICON}<span class="hl-fcount">${f.items + f.folders}</span></button><div class="hl-name" title="${esc(f.name)}">${esc(f.name)}</div></div>`).join('');
-  const hlStrip = `<div class="hl-strip" id="hlstrip">${folderHl}${(b.links || []).map(hlItem).join('')}<div class="hl-item hl-fixed"><button class="hl-tile hl-add" id="hladd" aria-label="Добавить">${PLUS_ICON}</button><div class="hl-name">Добавить</div></div></div>`;
+  const folderHl = f => `<div class="hl-item hl-folder-item" data-hl-item="f${f.id}"><button class="hl-tile hl-folder" data-folder-open="${f.id}" aria-label="Открыть папку ${esc(f.name)}">${BOX_ICON}</button><div class="hl-name" title="${esc(f.name)}">${esc(f.name)}</div></div>`;
+  // ссылки и папки идут одним рядом по общему порядку
+  const strip = [...(b.folders || []).map(f => ({s: f.sort || 0, h: folderHl(f)})), ...(b.links || []).map(l => ({s: l.sort || 0, h: hlItem(l)}))]
+    .sort((x, y) => x.s - y.s).map(x => x.h).join('');
+  const hlStrip = `<div class="hl-strip" id="hlstrip">${strip}<div class="hl-item hl-fixed"><button class="hl-tile hl-add" id="hladd" aria-label="Добавить">${PLUS_ICON}</button><div class="hl-name">Добавить</div></div></div>`;
   $('#app').innerHTML = `<div class="titlerow"><div class="kbtitle" id="kbname" title="Нажмите, чтобы переименовать">${esc(b.name)}</div>
       <div class="tr-actions"><button class="iconbtn" id="kball" aria-label="Все доски" title="Все доски">${HOME_ICON}</button>
       <button class="iconbtn" id="kfull" aria-label="Во всю ширину" title="${isFull(bid) ? 'Вернуть' : 'Во всю ширину'}">${isFull(bid) ? RESTORE_ICON : FULL_ICON}</button></div></div>
@@ -1451,7 +1467,7 @@ async function board(bid) {
   $('#kball').onclick = () => { location.hash = '#/kanban'; };
   const linkById = id => (b.links || []).find(x => x.id === id);
   $('#hladd').onclick = e => { e.stopPropagation(); openAddMenu($('#hladd')); };
-  document.querySelectorAll('[data-folder-open]').forEach(el => el.onclick = () => openFolder(+el.dataset.folderOpen));
+  document.querySelectorAll('[data-folder-open]').forEach(el => el.onclick = () => { if (hlSuppress) return; openFolder(+el.dataset.folderOpen); });
   document.querySelectorAll('[data-hl-open]').forEach(el => el.onclick = () => { if (hlSuppress) return; const l = linkById(+el.dataset.hlOpen); if (l) window.open(l.url, '_blank', 'noopener'); });
   bindHlDrag();
   document.querySelectorAll('[data-hl-edit]').forEach(el => el.onclick = e => { e.stopPropagation(); openLink(linkById(+el.dataset.hlEdit)); });
@@ -3285,7 +3301,7 @@ function bindHlDrag() {
     };
   });
 }
-function hlIds() { return [...document.querySelectorAll('#hlstrip .hl-item[data-hl-item]')].map(x => +x.dataset.hlItem); }
+function hlIds() { return [...document.querySelectorAll('#hlstrip .hl-item[data-hl-item]')].map(x => x.dataset.hlItem); }
 function hlMove(e) {
   if (!hlDrag) return;
   if (!hlDrag.started) {

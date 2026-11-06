@@ -2011,8 +2011,7 @@ body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
 .am-i{border:0;background:transparent;text-align:left;font:inherit;font-size:15px;color:#2b2f3a;padding:10px 12px;border-radius:10px;cursor:pointer}
 .am-i:hover{background:#f3f4f8}
 /* папки в полосе хайлайтов */
-.hl-folder{background:#eaf1ff;color:#2f4bb0;border:1px solid #d3e0fb;position:relative}
-.hl-fcount{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;border-radius:10px;background:#2f4bb0;color:#fff;font-size:11px;font-weight:600;display:flex;align-items:center;justify-content:center;padding:0 5px}
+.hl-folder{background:#eaf1ff;color:#2f4bb0;border:1px solid #d3e0fb}
 .hl-folder svg{width:30px;height:30px}
 .fo-del-folder{color:#c23b3b}
 /* окно папки материалов: как карточка задачи, поверх доски */
@@ -2045,3 +2044,15 @@ body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
 .fo-del{display:none;position:absolute;top:36px;right:6px;border:0;border-radius:8px;background:#fdecec;color:#c23b3b;font:inherit;font-size:12px;padding:5px 10px;cursor:pointer}
 .fo-item.more .fo-del{display:inline-block}
 .fo-empty{color:#9a9eab;font-size:14px;padding:8px 2px}
+
+/* окно папки: меню «⋯», вид плиткой или строкой */
+.fo-tools{position:relative;display:flex;gap:4px}
+.fo-menu{position:absolute;right:0;top:40px;background:#fff;border:1px solid #e3e3ea;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);padding:6px;display:flex;flex-direction:column;min-width:200px;z-index:5}
+.fo-menu[hidden]{display:none}
+.fo-mi{border:0;background:transparent;text-align:left;font:inherit;font-size:15px;color:#2b2f3a;padding:9px 12px;border-radius:9px;cursor:pointer}
+.fo-mi:hover{background:#f3f4f8}
+.fo-mi.bad{color:#c23b3b}
+.fo-list.fo-tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px 12px}
+.fo-list.fo-tiles .row{flex-direction:column;align-items:stretch;gap:8px;padding:0;border-bottom:0}
+.fo-list.fo-tiles .thumb{width:100%;height:auto;aspect-ratio:4/5;border-radius:14px}
+.fo-list.fo-tiles .mid{padding:0}

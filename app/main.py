@@ -619,7 +619,7 @@ def board_create(body: BoardIn, db: Session = Depends(get_db), _: int = Depends(
 def board_read(bid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     out = board_out(_board(db, bid))
     out["links"] = [link_out(l) for l in db.scalars(select(BoardLink).where(BoardLink.board_id == bid).order_by(BoardLink.sort, BoardLink.id)).all()]
-    out["folders"] = [folder_brief(f, db) for f in db.scalars(select(Folder).where(Folder.board_id == bid, Folder.parent_id.is_(None)).order_by(Folder.sort, Folder.id)).all()]
+    out["folders"] = [dict(folder_brief(f, db), sort=f.sort or 0) for f in db.scalars(select(Folder).where(Folder.board_id == bid, Folder.parent_id.is_(None)).order_by(Folder.sort, Folder.id)).all()]
     return out
 
 
@@ -650,7 +650,7 @@ def board_folder_create(bid: int, body: FolderIn, db: Session = Depends(get_db),
     name = body.name.strip()
     if not name:
         raise HTTPException(400, "Название не может быть пустым")
-    last = db.scalar(select(func.max(Folder.sort)).where(Folder.board_id == bid, Folder.parent_id.is_(None))) or 0
+    last = _strip_last(db, bid)
     f = Folder(board_id=bid, parent_id=None, name=name[:300], sort=last + 1)
     db.add(f)
     db.commit()
@@ -724,7 +724,7 @@ class LinkIn(BaseModel):
 
 
 class LinkOrder(BaseModel):
-    ids: list[int]
+    ids: list[int | str]  # ссылки — число, папки — "f<id>"
 
 
 class LinkPatch(BaseModel):
@@ -737,7 +737,7 @@ def link_out(l: BoardLink) -> dict:
     host = (urlparse(l.url).hostname or l.url).removeprefix("www.")
     return {"id": l.id, "url": l.url, "host": host, "comment": l.comment or "",
             "name": l.name or "", "title": l.title or "", "label": l.name or l.title or host,
-            "thumb": f"/thumbs/{l.thumb}" if l.thumb else None}
+            "thumb": f"/thumbs/{l.thumb}" if l.thumb else None, "sort": l.sort or 0}
 
 
 def _fetch_title(url: str) -> str | None:
@@ -786,7 +786,7 @@ def _link(db: Session, lid: int) -> BoardLink:
 def link_create(bid: int, body: LinkIn, bg: BackgroundTasks, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     b = _board(db, bid)
     url = _norm(body.url)
-    last = db.scalar(select(func.max(BoardLink.sort)).where(BoardLink.board_id == b.id)) or 0
+    last = _strip_last(db, b.id)
     l = BoardLink(board_id=b.id, url=url, title=None, comment="", sort=last + 1)
     db.add(l)
     db.commit()
@@ -797,12 +797,25 @@ def link_create(bid: int, body: LinkIn, bg: BackgroundTasks, db: Session = Depen
 @app.post("/api/boards/{bid}/links/order")
 def link_order(bid: int, body: LinkOrder, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     _board(db, bid)
-    rows = {l.id: l for l in db.scalars(select(BoardLink).where(BoardLink.board_id == bid)).all()}
-    for i, lid in enumerate(body.ids):
-        if lid in rows:
-            rows[lid].sort = i
+    links = {l.id: l for l in db.scalars(select(BoardLink).where(BoardLink.board_id == bid)).all()}
+    folders = {f.id: f for f in db.scalars(select(Folder).where(Folder.board_id == bid, Folder.parent_id.is_(None))).all()}
+    for i, tok in enumerate(body.ids):
+        tok = str(tok)
+        if tok.startswith("f") and tok[1:].isdigit():
+            f = folders.get(int(tok[1:]))
+            if f:
+                f.sort = i
+        elif tok.isdigit() and int(tok) in links:
+            links[int(tok)].sort = i
     db.commit()
     return {"ok": True}
+
+
+def _strip_last(db: Session, bid: int) -> int:
+    """Последнее место в полосе хайлайтов: общее для ссылок и папок."""
+    a = db.scalar(select(func.max(BoardLink.sort)).where(BoardLink.board_id == bid)) or 0
+    b = db.scalar(select(func.max(Folder.sort)).where(Folder.board_id == bid, Folder.parent_id.is_(None))) or 0
+    return max(a, b)
 
 
 @app.patch("/api/links/{lid}")
