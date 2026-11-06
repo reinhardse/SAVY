@@ -47,7 +47,6 @@ const INBOX_STYLE = {bg: '#e7edff', tc: '#2f4bb0'};
 const ALL_STYLE = {bg: '#fbf1c4', tc: '#7a5b00'};
 const APP_ICON_SAVE = '<svg viewBox="0 0 24 24" fill="#ff385c"><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1z"/></svg>';
 const KB_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="10" rx="1.5"/><rect x="17" y="4" width="4" height="13" rx="1.5"/></svg>';
-const SAFE_ICON = '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg>';
 const PLUS_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
 const FULL_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16M8 8l-4 4 4 4M16 8l4 4-4 4"/></svg>';
 const RESTORE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>';
@@ -1288,9 +1287,7 @@ async function board(bid) {
       <button class="kadd" data-addcard="${col.id}">+ Добавить карточку</button>
     </div>`).join('');
   $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
-  // «Сейф» доски — всегда первым в полосе хайлайтов; пока только вид, без перетаскивания и без данных
-  const safeHl = `<div class="hl-item hl-safe" aria-label="Сейф доски"><div class="hl-tile hl-safe-tile">${SAFE_ICON}</div><div class="hl-name">Сейф</div></div>`;
-  const hlStrip = `<div class="hl-strip" id="hlstrip">${safeHl}${(b.links || []).map(hlItem).join('')}<div class="hl-item hl-fixed"><button class="hl-tile hl-add" id="hladd" aria-label="Добавить ссылку">${PLUS_ICON}</button><div class="hl-name">Добавить</div></div></div>`;
+  const hlStrip = `<div class="hl-strip" id="hlstrip">${(b.links || []).map(hlItem).join('')}<div class="hl-item hl-fixed"><button class="hl-tile hl-add" id="hladd" aria-label="Добавить ссылку">${PLUS_ICON}</button><div class="hl-name">Добавить</div></div></div>`;
   $('#app').innerHTML = `<div class="titlerow"><div class="kbtitle" id="kbname" title="Нажмите, чтобы переименовать">${esc(b.name)}</div>
       <div class="tr-actions"><button class="iconbtn" id="kball" aria-label="Все доски" title="Все доски">${HOME_ICON}</button>
       <button class="iconbtn" id="kfull" aria-label="Во всю ширину" title="${isFull(bid) ? 'Вернуть' : 'Во всю ширину'}">${isFull(bid) ? RESTORE_ICON : FULL_ICON}</button></div></div>

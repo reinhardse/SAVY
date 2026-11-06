@@ -2005,7 +2005,3 @@ body.inbox-pg .inadd .intitle:focus,body.inbox-pg .inadd .intitle:focus-visible{
 /* новая строка ленты появляется снизу */
 body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
 @keyframes ibIn{from{opacity:0;transform:translateY(16px) scale(.98)}to{opacity:1;transform:none}}
-
-/* сейф доски: первый хайлайт, только вид */
-.hl-safe-tile{background:#eef2ff;color:#2f4bb0;border:1px solid #d7e0fb}
-.hl-safe .hl-name{font-weight:600}
