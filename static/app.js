@@ -213,6 +213,34 @@ async function openInPop(anchor, onPick, {withInbox = false} = {}) {
   await show('root');
   showInPop(pop);
 }
+// карточка входящих: название и описание в теле, ссылка если есть, место назначения; сохраняется при закрытии
+async function openInboxCard(id) {
+  const it = await api('/items/' + id);
+  const catName = it.category ? ((cats.find(c => c.slug === it.category) || {}).name || it.category) : 'Входящие';
+  const desc0 = it.description || '';
+  sheet(`<div class="ibcard"><input class="ib-title" id="ibT" value="${esc(it.title || '')}" placeholder="${esc(titleOf(it))}" autocomplete="off"><textarea class="ib-desc" id="ibD" placeholder="Описание">${esc(desc0)}</textarea>${it.url ? `<a class="ib-link" href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.url)}</a>` : ''}<div class="ib-foot"><button class="inchip" id="ibDest">${esc(catName)} ▾</button></div></div>`, 'ib');
+  const d = $('#ibD');
+  autosize(d);
+  d.oninput = () => autosize(d);
+  const save = async () => {
+    const body = {};
+    const t = $('#ibT').value.trim();
+    if (t !== (it.title || '')) body.title = t;
+    if ($('#ibD').value !== desc0) body.description = $('#ibD').value;
+    if (Object.keys(body).length) await api('/items/' + id, {method: 'PATCH', body});
+  };
+  beforeClose = save;
+  $('#ibDest').onclick = () => openInPop($('#ibDest'), async dest => {
+    try {
+      await save();
+      beforeClose = null;
+      await inboxMove(id, dest);
+      $('#sheet-root').innerHTML = '';
+      route();
+    } catch (err) { alert(err.message); }
+  });
+}
+
 // меню «⋯» у строки входящих: пока одно действие — удалить
 function openMorePop(anchor, id) {
   closeInPop();
@@ -282,6 +310,10 @@ function bindInbox() {
 
 // строка материала: обложка, название, источник и карандаш, теги под ними; справа глаз и крестик
 function row(i) {
+  // входящие: простой список задач — кружок выполняет, справа при наведении карандаш и «⋯»
+  if (listParams && listParams.inbox) {
+    return `<div class="row ibrow" data-id="${i.id}" data-url="${esc(i.url)}"><button class="ck" data-check="${i.id}" aria-label="Выполнить"></button><div class="it">${esc(titleOf(i))}</div><div class="hov"><button class="rb pen" data-id="${i.id}" data-inbox="1" aria-label="Открыть карточку">${PEN}</button><button class="rb inmore" data-more="${i.id}" aria-label="Ещё">⋯</button></div></div>`;
+  }
   const wait = i.meta_state === 'pending' ? ' · собираю данные…' : '';
   const cat = cats.find(c => c.slug === i.category);
   const meta = [SRC[i.source], cat ? cat.name : 'Без категории'].join(' · ') + wait;
@@ -336,11 +368,20 @@ function toggleView() {
 function bindRows() {
   const app = $('#app');
   app.querySelectorAll('.row').forEach(el => el.onclick = e => {
-    if (e.target.closest('.rb, .eyechip, .more-d, .inmove')) return;
+    if (e.target.closest('.rb, .eyechip, .more-d, .inmove, .ck')) return;
+    if (el.classList.contains('ibrow')) return openInboxCard(+el.dataset.id);
     if (!el.dataset.url) return; // заметка без адреса: открывается только карточкой (карандаш)
     window.open(el.dataset.url, '_blank', 'noopener');
   });
-  app.querySelectorAll('.rb.pen, .more-d').forEach(b => b.onclick = e => { e.stopPropagation(); openItem(+b.dataset.id); });
+  app.querySelectorAll('.rb.pen, .more-d').forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    if (b.dataset.inbox) return openInboxCard(+b.dataset.id);
+    openItem(+b.dataset.id);
+  });
+  app.querySelectorAll('.ck').forEach(b => b.onclick = async e => {
+    e.stopPropagation();
+    try { await api('/items/' + b.dataset.check, {method: 'PATCH', body: {done: true}}); loadList(); } catch (err) { alert(err.message); }
+  });
   app.querySelectorAll('.eyechip').forEach(b => b.onclick = async e => {
     e.stopPropagation();
     const on = !b.classList.contains('on');
