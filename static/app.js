@@ -789,7 +789,10 @@ async function route() {
   const [view, ...rest] = (location.hash.slice(2) || 'hub').split('/');
   // настройки списка принадлежат прошлой странице: без сброса главная рисовала бы строки входящих
   listParams = {};
-  closeAllFolders(); // окна папок не переживают переход на другую страницу (например, «назад»)
+  if (folderPath.length) { // окно папки не переживает переход на другую страницу (например, «назад»)
+    folderPath.length = 0; foFull = false; beforeClose = null;
+    const root = $('#sheet-root'); if (root) root.innerHTML = '';
+  }
   document.body.classList.toggle('inbox-pg', view === 'inbox'); // входящие: серый фон на весь экран, белые панели задач
   document.documentElement.classList.toggle('inbox-pg', view === 'inbox');
   const arg = decodeURIComponent(rest.join('/'));
@@ -1309,72 +1312,91 @@ function openAddMenu(anchor) {
   setTimeout(() => document.addEventListener('mousedown', addMenuOut, true), 0);
 }
 
-// окно папки материалов: поверх доски, внутри — папки и материалы; папки открываются поверх друг друга
-const folderStack = [];
-function folderHtml(f, full, items) {
+// окно папки материалов: то же окно, что у карточки задачи (общий sheet, класс card-sheet)
+const folderPath = []; // открытые папки; последняя — текущая, вложенная открывается тем же окном
+let foView = 'list';
+let foFull = false;
+const FO_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>';
+function folderHtml(f, items) {
+  const nested = folderPath.length > 1;
   const subs = f.folders.map(s => `<button class="fo-sub" data-sub="${s.id}"><span class="fo-sub-ic">${BOX_ICON}</span><span class="fo-sub-n">${esc(s.name)}</span><span class="fo-sub-c">${s.items + s.folders}</span></button>`).join('');
-  return `<div class="fo-card${full ? ' full' : ''}">
-      <div class="fo-top">
-        <div class="fo-title fo-name" title="Нажмите, чтобы переименовать">${esc(f.name)}</div>
-        <div class="fo-tools">
+  return `<div class="sheet-body kb-card">
+      <div class="kb-top">
+        ${nested ? `<button class="kb-ib fo-back" aria-label="Назад">${FO_BACK_ICON}</button>` : '<span class="kb-saved">Папка материалов</span>'}
+        <div class="kb-tools">
           <button class="kb-ib fo-view" aria-label="Вид" title="${foView === 'tiles' ? 'Строкой' : 'Плиткой'}">${foView === 'tiles' ? FO_LIST_ICON : FO_TILES_ICON}</button>
-          <button class="kb-ib fo-more-btn" aria-label="Ещё">${FO_DOTS_ICON}</button>
+          <button class="kb-ib fo-more" aria-label="Действия">${FO_DOTS_ICON}</button>
           <button class="kb-ib fo-x" aria-label="Закрыть">${XICON}</button>
-          <div class="fo-menu" hidden>
-            <button class="fo-mi fo-full">${full ? 'Вернуть' : 'На весь экран'}</button>
-            <button class="fo-mi bad fo-del-folder">Удалить папку</button>
-          </div>
+          <div class="kb-menu fo-menu" hidden><button class="kb-mi fo-full">${foFull ? 'Свернуть окно' : 'На весь экран'}</button><button class="kb-mi bad fo-del-folder">Удалить папку</button></div>
         </div>
       </div>
-      <div class="fo-subs">${subs}<button class="fo-addsub fo-addsub-btn">+ Папка</button></div>
+      <textarea class="kb-title fo-name" rows="1" placeholder="Название папки">${esc(f.name)}</textarea>
+      ${subs ? `<div class="fo-subs">${subs}</div>` : ''}
       <div class="fo-add">
-        <input class="fo-in fo-t" placeholder="Название или ссылка" autocomplete="off" autocorrect="off" spellcheck="false">
-        <textarea class="fo-desc fo-d" placeholder="Описание" rows="2" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
-        <div class="fo-addbar"><button class="inchip fo-send">Добавить</button></div>
+        <div class="fo-row"><input class="fo-t" placeholder="Название или ссылка" autocomplete="off" autocorrect="off" spellcheck="false"><button class="inchip fo-send">Добавить</button></div>
+        <textarea class="fo-d" rows="2" placeholder="Описание" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
       </div>
       <div class="fo-list${foView === 'tiles' ? ' fo-tiles' : ''}">${items.length ? items.map(row).join('') : '<div class="fo-empty">Пока пусто</div>'}</div>
     </div>`;
 }
-async function renderFolder(ov, fid) {
+async function renderFolder(fid) {
   const [f, items] = await Promise.all([api('/folders/' + fid), api('/items?folder=' + fid + '&limit=200')]);
-  const full = ov.querySelector('.fo-card')?.classList.contains('full');
-  ov.innerHTML = folderHtml(f, full, items);
-  bindFolder(ov, f);
+  sheet(folderHtml(f, items), 'card-sheet');
+  const box = $('#ov .sheet');
+  if (foFull) box.classList.add('kb-full');
+  // закрытие окна: состояние папок сбрасывается, доска перерисуется через route()
+  beforeClose = () => { folderPath.length = 0; foFull = false; };
+  bindFolder(f);
 }
-let foView = 'list';
-function bindFolder(ov, f) {
-  const card = ov.querySelector('.fo-card');
-  const menu = ov.querySelector('.fo-menu');
-  ov.onclick = e => {
-    if (e.target === ov) return closeFolder();
-    if (!e.target.closest('.fo-tools')) menu.hidden = true;
+async function openFolder(fid, nested = false) {
+  if (!nested) folderPath.length = 0;
+  folderPath.push(fid);
+  try { await renderFolder(fid); }
+  catch (err) { folderPath.pop(); alert(err.message); }
+}
+function folderBack() {
+  folderPath.pop();
+  const prev = folderPath[folderPath.length - 1];
+  if (prev) renderFolder(prev); else closeSheet();
+}
+function bindFolder(f) {
+  const box = $('#ov .sheet');
+  const menu = box.querySelector('.fo-menu');
+  box.querySelector('.fo-x').onclick = () => closeSheet();
+  box.querySelector('.fo-back')?.addEventListener('click', folderBack);
+  box.querySelector('.fo-more').onclick = e => { e.stopPropagation(); menu.hidden = !menu.hidden; };
+  box.addEventListener('click', e => { if (!e.target.closest('.fo-more, .fo-menu')) menu.hidden = true; });
+  box.querySelector('.fo-full').onclick = () => {
+    foFull = !foFull;
+    box.classList.toggle('kb-full', foFull);
+    box.querySelector('.fo-full').textContent = foFull ? 'Свернуть окно' : 'На весь экран';
+    menu.hidden = true;
   };
-  ov.querySelector('.fo-x').onclick = () => closeFolder();
-  ov.querySelector('.fo-view').onclick = () => { foView = foView === 'tiles' ? 'list' : 'tiles'; renderFolder(ov, f.id); };
-  ov.querySelector('.fo-more-btn').onclick = e => { e.stopPropagation(); menu.hidden = !menu.hidden; };
-  ov.querySelector('.fo-del-folder').onclick = async () => {
+  box.querySelector('.fo-view').onclick = () => { foView = foView === 'tiles' ? 'list' : 'tiles'; renderFolder(f.id); };
+  box.querySelector('.fo-del-folder').onclick = async () => {
     if (!confirm('Удалить папку? Материалы вернутся во Входящие, вложенные папки удалятся.')) return;
     try {
       await api('/folders/' + f.id, {method: 'DELETE'});
-      closeFolder();
-      // после удаления вложенной папки обновляем окно родителя
-      const parent = folderStack[folderStack.length - 1];
-      if (parent) renderFolder(parent, +parent.dataset.fid);
+      folderPath.pop();
+      const prev = folderPath[folderPath.length - 1];
+      if (prev) renderFolder(prev); else closeSheet();
     } catch (err) { alert(err.message); }
   };
-  ov.querySelector('.fo-full').onclick = () => {
-    card.classList.toggle('full');
-    menu.hidden = true;
-    ov.querySelector('.fo-full').textContent = card.classList.contains('full') ? 'Вернуть' : 'На весь экран';
+  // название: сохраняется при выходе из поля или Enter
+  const name = box.querySelector('.fo-name');
+  name.onblur = async () => {
+    const v = name.value.trim();
+    if (!v || v === f.name) { name.value = f.name; return; }
+    try { await api('/folders/' + f.id, {method: 'PATCH', body: {name: v}}); f.name = v; }
+    catch (err) { alert(err.message); name.value = f.name; }
   };
-  ov.querySelector('.fo-name').onclick = () => inlineEdit(ov.querySelector('.fo-name'), f.name,
-    async v => { await api('/folders/' + f.id, {method: 'PATCH', body: {name: v}}); renderFolder(ov, f.id); },
-    () => renderFolder(ov, f.id), 'Название папки');
-  ov.querySelector('.fo-addsub-btn').onclick = () => inlineEdit(ov.querySelector('.fo-addsub-btn'), '',
-    async v => { await api('/folders/' + f.id + '/folders', {method: 'POST', body: {name: v}}); renderFolder(ov, f.id); },
-    () => renderFolder(ov, f.id), 'Название папки');
-  ov.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => openFolder(+b.dataset.sub));
-  const t = ov.querySelector('.fo-t'), d = ov.querySelector('.fo-d');
+  name.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); name.blur(); } };
+  box.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => openFolder(+b.dataset.sub, true));
+  // строка добавления: описание появляется при наведении или фокусе и остаётся, если в нём есть текст
+  const addBox = box.querySelector('.fo-add'), t = box.querySelector('.fo-t'), d = box.querySelector('.fo-d');
+  const syncKeep = () => addBox.classList.toggle('keep', !!(t.value.trim() || d.value.trim()));
+  t.oninput = syncKeep;
+  d.oninput = syncKeep;
   const send = async () => {
     const title = t.value.trim(), desc = d.value.trim();
     if (!title) return;
@@ -1382,11 +1404,11 @@ function bindFolder(ov, f) {
       // материал создаётся как обычная запись Сейва, но сразу в этой папке
       const r = await api('/items', {method: 'POST', body: {url: title, folder_id: f.id}});
       if (desc && r.created && r.item) await api('/items/' + r.item.id, {method: 'PATCH', body: {description: desc}});
-      await renderFolder(ov, f.id);
-      ov.querySelector('.fo-t')?.focus(); // можно сразу вводить следующий материал
+      await renderFolder(f.id);
+      $('#ov .fo-t')?.focus(); // можно сразу вводить следующий материал
     } catch (err) { alert(err.message); }
   };
-  ov.querySelector('.fo-send').onclick = send;
+  box.querySelector('.fo-send').onclick = send;
   t.onkeydown = e => {
     if (e.isComposing) return;
     if (e.key === 'Enter') { e.preventDefault(); send(); }
@@ -1397,50 +1419,20 @@ function bindFolder(ov, f) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
   };
   // карточки — как в Сейве: открыть ссылку, карандаш — карточка, крестик — удалить
-  ov.querySelectorAll('.fo-list .row').forEach(el => el.onclick = e => {
+  box.querySelectorAll('.fo-list .row').forEach(el => el.onclick = e => {
     if (e.target.closest('.rb, .eyechip, .more-d, .inmove, .ck')) return;
     if (el.dataset.url) window.open(el.dataset.url, '_blank', 'noopener');
   });
-  ov.querySelectorAll('.fo-list .rb.pen, .fo-list .more-d').forEach(b => b.onclick = e => {
+  box.querySelectorAll('.fo-list .rb.pen, .fo-list .more-d').forEach(b => b.onclick = e => {
     e.stopPropagation();
     openItem(+b.dataset.id);
   });
-  ov.querySelectorAll('.fo-list .rb.del').forEach(b => b.onclick = async e => {
+  box.querySelectorAll('.fo-list .rb.del').forEach(b => b.onclick = async e => {
     e.stopPropagation();
     if (!confirm('Удалить материал?')) return;
-    try { await api('/items/' + b.dataset.id, {method: 'DELETE'}); renderFolder(ov, f.id); }
+    try { await api('/items/' + b.dataset.id, {method: 'DELETE'}); await renderFolder(f.id); }
     catch (err) { alert(err.message); }
   });
-}
-async function openFolder(fid) {
-  const ov = document.createElement('div');
-  ov.className = 'fo-ov';
-  ov.dataset.fid = fid;
-  ov.style.zIndex = 100 + folderStack.length * 10;
-  document.body.appendChild(ov);
-  folderStack.push(ov);
-  if (folderStack.length === 1) document.addEventListener('keydown', foKey);
-  try {
-    await renderFolder(ov, fid);
-  } catch (err) { closeFolder(); alert(err.message); return; }
-  requestAnimationFrame(() => ov.classList.add('open'));
-  ov.querySelector('.fo-t')?.focus();
-}
-function closeFolder() {
-  const ov = folderStack.pop();
-  if (!ov) return;
-  ov.classList.remove('open');
-  setTimeout(() => ov.remove(), 220);
-  if (!folderStack.length) {
-    document.removeEventListener('keydown', foKey);
-    // доска обновляет счётчики папок после закрытия
-    if (location.hash.startsWith('#/board/') && curBoard) board(curBoard);
-  }
-}
-function foKey(e) { if (e.key === 'Escape') closeFolder(); }
-function closeAllFolders() {
-  while (folderStack.length) folderStack.pop().remove();
-  document.removeEventListener('keydown', foKey);
 }
 
 async function board(bid) {
