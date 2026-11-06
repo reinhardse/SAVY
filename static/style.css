@@ -2066,3 +2066,13 @@ body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
 /* папка под карточкой материала: затемнена и чуть отодвинута назад, не пропадает */
 .overlay.ov-ghost{z-index:19;animation:none;pointer-events:none;background:rgba(0,0,0,.2)}
 .overlay.ov-ghost > .sheet{animation:none;transform:scale(.95) translateY(-2.2vh);filter:brightness(.82)}
+
+/* плитки в папке: обложка выше, название белым внизу слева на чёрном градиенте; источник, описание, теги и карандаш скрыты (карандаш — при наведении) */
+.sheet .fo-list.grid .row{position:relative;gap:0}
+.sheet .fo-list.grid .thumb,.sheet .fo-list.grid .cover-gen{aspect-ratio:3/4.3;border-radius:16px}
+.sheet .fo-list.grid .mid,.sheet .fo-list.grid .m{display:contents}
+.sheet .fo-list.grid .m > span,.sheet .fo-list.grid .rdesc,.sheet .fo-list.grid .tagline{display:none}
+.sheet .fo-list.grid .row .t{position:absolute;left:0;right:0;bottom:0;margin:0;padding:56px 14px 14px;border-radius:0 0 16px 16px;color:#fff;font-size:15px;font-weight:600;line-height:1.25;text-align:left;pointer-events:none;background:linear-gradient(to top,rgba(0,0,0,.82) 0%,rgba(0,0,0,.5) 45%,rgba(0,0,0,0) 100%)}
+.sheet .fo-list.grid .rb.pen{position:absolute;top:8px;left:8px;width:26px;height:26px;background:rgba(255,255,255,.85);color:#333;opacity:0;transition:opacity .15s}
+.sheet .fo-list.grid .row:hover .rb.pen{opacity:1}
+@media (hover:none){.sheet .fo-list.grid .rb.pen{opacity:1}}
