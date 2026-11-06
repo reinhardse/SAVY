@@ -1752,6 +1752,7 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .htile{width:100%;aspect-ratio:1.45;border:1px solid #ececf0;border-radius:20px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:transform .15s,box-shadow .15s}
 .htile:hover{transform:translateY(-1px);box-shadow:var(--sh-md)}
 .htile svg{width:68px;height:68px}
+.htile img{width:100px;height:100px;object-fit:contain;display:block;pointer-events:none;user-select:none}
 .htile-l{display:block;text-align:center;font-size:14px;margin-top:8px;color:var(--ink)}
 .hgrid{grid-template-columns:repeat(4,minmax(0,1fr))}
 .hcard{display:flex;flex-direction:column;border:1px solid #ececf0;padding:0;border-radius:20px;overflow:hidden;background:#fff;text-align:left;cursor:pointer;font:inherit;color:var(--ink);transition:transform .15s,box-shadow .15s}
