@@ -1797,7 +1797,7 @@ html:has(.hsec),body:has(.hsec){background:#eef3fb}
 .htile.hboard .hb-c{position:absolute;top:12px;right:12px;width:30px;height:30px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#2b2f3a}
 
 /* сейф на главной: все плитки круглые, знак категории на пастельном круге */
-.hslider .htw{flex:0 0 118px}
+.hslider .htw{flex:0 0 150px}
 .hslider .htile{position:relative;aspect-ratio:1;border-radius:50%;width:100%;padding:0;background:#fff;border:1px solid #e7e7ee;display:flex;align-items:center;justify-content:center;transition:transform .15s,box-shadow .15s,border-color .15s}
 .hslider .htile:hover{transform:translateY(-3px);box-shadow:0 10px 20px -8px rgba(40,44,70,.28);border-color:#dcdce6}
 .hslider .htile img{width:62%;height:62%;object-fit:contain;display:block;pointer-events:none;user-select:none}
