@@ -1975,8 +1975,6 @@ body.inbox-pg .ibrow.open .ib-title{color:#2b2f3a}
 body.inbox-pg .ibrow.open .ib-desc{color:#2b2f3a}
 
 /* раскрытие: мягкое расширение карточки без подпрыгивания; справа остаются значки */
-@keyframes ibGrow{from{opacity:.55;transform:scale(.985)}to{opacity:1;transform:none}}
-body.inbox-pg .ibrow.open{transform-origin:top left;animation:ibGrow .32s cubic-bezier(.22,.7,.2,1)}
 body.inbox-pg .ibrow.open .ibx{padding-right:52px}
 body.inbox-pg .ibrow.open .ibacts{position:absolute;top:8px;right:8px;display:flex;gap:2px;align-items:center}
 body.inbox-pg .ibrow.open .ibacts .rb{width:22px;height:22px;min-width:22px;padding:0}
@@ -1994,5 +1992,3 @@ body.inbox-pg .inpanel .inadd .indesc::placeholder{color:#9a9eab}
 body.inbox-pg .inpanel .inadd .indesc:focus,body.inbox-pg .inpanel .inadd .indesc:focus-visible{outline:none;box-shadow:none;border:0}
 body.inbox-pg .inpanel .inadd.open .indesc{max-height:110px;opacity:1;padding:2px 8px 8px;margin:0 0 2px;overflow:auto}
 /* закрытие карточки: то же движение, что и раскрытие, только назад */
-@keyframes ibShrink{from{opacity:1;transform:none}to{opacity:.55;transform:scale(.985)}}
-body.inbox-pg .ibrow.open.closing{animation:ibShrink .24s cubic-bezier(.22,.7,.2,1) forwards}

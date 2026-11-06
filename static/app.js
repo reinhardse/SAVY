@@ -277,13 +277,28 @@ function inboxRedraw() {
 }
 // плавная смена вида там, где браузер умеет; иначе сразу
 const vt = fn => (document.startViewTransition ? document.startViewTransition(fn) : Promise.resolve(fn()));
+// раскрытие и закрытие — одно движение: высота карточки плавно меняется между строкой и карточкой
+function morphHeight(el, from, to) {
+  if (!el || !from || !to || from === to) return;
+  el.style.boxSizing = 'border-box';
+  el.style.flex = '0 0 auto'; // иначе колонка ленты сжимает строку, пока она анимируется
+  el.style.height = from + 'px';
+  el.style.overflow = 'hidden';
+  void el.offsetHeight;
+  el.style.transition = 'height .3s cubic-bezier(.22,.7,.2,1), opacity .3s ease';
+  el.style.height = to + 'px';
+  const done = () => { el.style.transition = ''; el.style.height = ''; el.style.overflow = ''; el.style.boxSizing = ''; el.style.flex = ''; };
+  el.addEventListener('transitionend', e => { if (e.target === el && e.propertyName === 'height') done(); }, {once: true});
+  setTimeout(done, 420);
+}
 function inboxOpenRow(id) {
   if (inboxOpen === id) return;
+  const closedEl = document.querySelector(`.ibrow[data-id="${id}"]`);
+  const h1 = closedEl ? closedEl.offsetHeight : 0;
   inboxOpen = id;
-  // без перехода-анимации: карточка меняется на месте, без «падения» соседних строк
   inboxRedraw();
   const oc = document.querySelector('.ibrow.open');
-  if (oc) oc.scrollIntoView({block: 'nearest', behavior: 'smooth'});
+  if (oc) { morphHeight(oc, h1, oc.offsetHeight); oc.scrollIntoView({block: 'nearest', behavior: 'smooth'}); }
   const t = $('#ibT'), d = $('#ibD');
   if (d) { autosize(d); d.oninput = () => autosize(d); }
   if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
@@ -303,9 +318,11 @@ async function inboxClose() {
   const id = inboxOpen;
   try { await inboxSaveDraft(id); } catch (err) { alert(err.message); }
   const oc = document.querySelector('.ibrow.open');
-  if (oc) { oc.classList.add('closing'); await new Promise(r => setTimeout(r, 240)); }
+  const h0 = oc ? oc.offsetHeight : 0;
   inboxOpen = null;
-  loadList();
+  await loadList();
+  const closedEl = document.querySelector(`.ibrow[data-id="${id}"]`);
+  if (closedEl) morphHeight(closedEl, h0, closedEl.offsetHeight);
 }
 function inboxExpandedHtml(i, cat) {
   const url = i.url ? `<a class="ib-link" href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.url)}</a>` : '';
