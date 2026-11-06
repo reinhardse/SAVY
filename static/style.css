@@ -2076,3 +2076,10 @@ body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
 .sheet .fo-list.grid .rb.pen{position:absolute;top:8px;left:8px;width:26px;height:26px;background:rgba(255,255,255,.85);color:#333;opacity:0;transition:opacity .15s}
 .sheet .fo-list.grid .row:hover .rb.pen{opacity:1}
 @media (hover:none){.sheet .fo-list.grid .rb.pen{opacity:1}}
+
+/* полоса тегов папки: «Все» и теги, листается вправо */
+.fo-tags{display:flex;gap:8px;overflow-x:auto;margin:0 0 14px;padding:2px 0;scrollbar-width:none}
+.fo-tags::-webkit-scrollbar{display:none}
+.fo-tg{flex:none;border:1px solid #e3e3ea;background:#fff;border-radius:999px;padding:6px 14px;font:inherit;font-size:14px;color:#2b2f3a;cursor:pointer;white-space:nowrap}
+.fo-tg:hover{border-color:#bdbdc7}
+.fo-tg.on{background:#222;border-color:#222;color:#fff}

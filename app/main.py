@@ -98,7 +98,7 @@ def item_out(i: Item) -> dict:
         "thumb": f"/thumbs/{os.path.basename(i.thumb_path)}" if i.thumb_path else None,
         "category": i.category.slug if i.category else None,
         "status": i.status, "done": i.status == "done", "is_favorite": bool(i.is_favorite), "note": i.note or "",
-        "tags": sorted(t.name for t in i.tags), "meta_state": i.meta_state,
+        "tags": sorted(t.name for t in i.tags), "meta_state": i.meta_state, "folder_id": i.folder_id,
         "created_at": i.created_at.isoformat() + "Z",
     }
 
@@ -404,9 +404,16 @@ def add_category(body: CategoryIn, db: Session = Depends(get_db), _: int = Depen
 
 @app.get("/api/tags")
 def tags_list(category: str | None = None, status: str | None = None, all_status: bool = False, inbox: bool = False,
-              db: Session = Depends(get_db), _: int = Depends(require_auth)):
+              folder: int | None = None, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     """Теги: все теги библиотеки или только теги материалов раздела (появляются и исчезают сами).
     all_status=1 — теги со всех материалов раздела, включая прочитанные: строка тегов не меняется от глаза."""
+    if folder is not None:  # у каждой папки свои теги: только те, что стоят на её материалах
+        _folder(db, folder)
+        counts_f: dict[str, int] = {}
+        for it in db.scalars(select(Item).where(Item.user_id == USER_ID, Item.folder_id == folder, Item.status != "archived")).unique():
+            for t in it.tags:
+                counts_f[t.name] = counts_f.get(t.name, 0) + 1
+        return [{"name": n, "count": k} for n, k in sorted(counts_f.items())]
     stmt = select(Item).where(Item.user_id == USER_ID, Item.folder_id.is_(None))
     if status:
         stmt = stmt.where(Item.status == status)

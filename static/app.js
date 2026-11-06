@@ -822,7 +822,7 @@ async function closeSheet() {
   $('#sheet-root').innerHTML = '';
   const back = foReturn; foReturn = null;
   route();
-  if (back) await openFolder(back); // карточка материала закрыта — папка остаётся на месте
+  if (back) await openFolder(back, false, true); // карточка материала закрыта — папка остаётся на месте
   dropGhost();
 }
 
@@ -867,7 +867,7 @@ function snapshot(it) {
 
 async function openItem(id) {
   let it = await api('/items/' + id);
-  let allTagNames = (await api('/tags?all_status=1')).map(t => t.name);
+  let allTagNames = (await api(it.folder_id ? '/tags?folder=' + it.folder_id : '/tags?all_status=1')).map(t => t.name);
   let base = snapshot(it);
   let draft = JSON.parse(JSON.stringify(base));
   const clone = o => JSON.parse(JSON.stringify(o));
@@ -1336,9 +1336,24 @@ function openAddMenu(anchor) {
 let foReturn = null; // папка, в которую вернёмся после закрытия карточки материала
 const folderPath = []; // открытые папки; последняя — текущая, вложенная открывается тем же окном
 let foView = 'tiles';
+let foTag = null; // выбранный тег-фильтр в открытой папке (null — «Все»)
+let foItems = []; // материалы открытой папки
 let foFull = false;
 const FO_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>';
+const foShown = () => foTag ? foItems.filter(i => i.tags.includes(foTag)) : foItems;
+const foListHtml = () => { const sh = foShown(); return sh.length ? sh.map(row).join('') : `<div class="fo-empty">${foTag ? 'Нет материалов с этим тегом' : 'Пока пусто'}</div>`; };
+// полоса тегов под строкой добавления: «Все» и теги этой папки; появляется, когда есть хотя бы один тег
+function foTagsHtml() {
+  const counts = {};
+  foItems.forEach(i => i.tags.forEach(t => { counts[t] = (counts[t] || 0) + 1; }));
+  const names = Object.keys(counts).sort();
+  if (foTag && !names.includes(foTag)) foTag = null;
+  if (!names.length) return '';
+  return `<div class="fo-tags">${[null, ...names].map(n => `<button class="fo-tg${n === foTag ? ' on' : ''}" data-fotag="${n == null ? '' : esc(n)}">${n == null ? 'Все' : '#' + esc(n)}</button>`).join('')}</div>`;
+}
 function folderHtml(f, items) {
+  foItems = items;
+  const tagsBar = foTagsHtml();
   return `<div class="sheet-body kb-card">
       <div class="kb-top">
         <span class="kb-saved">Папка материалов</span>
@@ -1355,7 +1370,8 @@ function folderHtml(f, items) {
         <div class="fo-row"><input class="fo-t" placeholder="Название или ссылка" autocomplete="off" autocorrect="off" spellcheck="false"><button class="inchip fo-send">Добавить</button></div>
         <textarea class="fo-d" rows="2" placeholder="Описание" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
       </div>
-      <div class="fo-list list${foView === 'tiles' ? ' grid' : ''}">${items.length ? items.map(row).join('') : '<div class="fo-empty">Пока пусто</div>'}</div>
+      ${tagsBar}
+      <div class="fo-list list${foView === 'tiles' ? ' grid' : ''}">${foListHtml()}</div>
       </div>
     </div>`;
 }
@@ -1370,7 +1386,8 @@ async function renderFolder(fid) {
   beforeClose = () => { folderPath.length = 0; foFull = false; };
   bindFolder(f);
 }
-async function openFolder(fid, nested = false) {
+async function openFolder(fid, nested = false, keepTag = false) {
+  if (!keepTag) foTag = null;
   if (!nested) folderPath.length = 0;
   folderPath.push(fid);
   try { await renderFolder(fid); }
@@ -1438,6 +1455,15 @@ function bindFolder(f) {
     if (e.isComposing) return;
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
   };
+  bindFolderRows(box, f);
+  box.querySelectorAll('[data-fotag]').forEach(b => b.onclick = () => {
+    foTag = b.dataset.fotag || null;
+    box.querySelectorAll('.fo-tg').forEach(x => x.classList.toggle('on', (x.dataset.fotag || null) === foTag));
+    box.querySelector('.fo-list').innerHTML = foListHtml();
+    bindFolderRows(box, f);
+  });
+}
+function bindFolderRows(box, f) {
   // карточки — как в Сейве: открыть ссылку, карандаш — карточка, крестик — удалить
   box.querySelectorAll('.fo-list .row').forEach(el => el.onclick = e => {
     if (e.target.closest('.rb, .eyechip, .more-d, .inmove, .ck')) return;
