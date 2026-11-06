@@ -167,7 +167,7 @@ function bindPaste() {
 let inDest = {kind: 'inbox', name: 'Входящие'};
 const inboxAddHtml = () => `<div class="inadd"><div class="inrow"><input id="inTxt" placeholder="Вставить ссылку или написать задачу" autocapitalize="off"><button class="inchip" id="inDestBtn" title="${esc(inDest.name)}">Добавить задачу</button></div></div>`;
 let inPop = null;
-const closeInPop = () => { if (inPop) { inPop.remove(); inPop = null; } document.removeEventListener('mousedown', inPopOut, true); };
+const closeInPop = () => { if (inPop) { inPop.remove(); inPop = null; } document.removeEventListener('mousedown', inPopOut, true); const pn = document.querySelector('.inpanel'); if (pn) pn.classList.remove('picking'); document.querySelectorAll('.ibrow.active').forEach(r => r.classList.remove('active')); };
 const inPopOut = e => { if (inPop && !inPop.contains(e.target) && !e.target.closest('#inDestBtn, [data-mvitem], [data-more], [data-mv]')) closeInPop(); };
 const showInPop = (pop) => { inPop = pop; setTimeout(() => document.addEventListener('mousedown', inPopOut, true), 0); };
 // выбор места раскрывается внутри белой панели над строкой ввода: значки приложений «Сейв» и «Проект», дальше список
@@ -194,6 +194,9 @@ function initialsOf(name) {
   return w.slice(0, 2).map(x => x[0]).join('').toUpperCase() || '?';
 }
 const PK_BACK = (to) => `<button class="pk-cw pk-back" data-go="${to}" aria-label="Назад"><span class="pk-c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></span><span class="pk-lbl">Назад</span></button>`;
+const PK_CLOSE = `<button class="pk-cw pk-close" data-close="1" aria-label="Закрыть"><span class="pk-c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></span><span class="pk-lbl">Закрыть</span></button>`;
+const PK_MOVE_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v10M8 10l4 4 4-4"/><path d="M5 15v4h14v-4"/></svg>';
+const PK_ADD_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>';
 async function openInPop(anchor, onPick, {mode = 'move'} = {}) {
   closeInPop();
   const [cs, bs] = await Promise.all([api('/categories').catch(() => []), api('/boards').catch(() => [])]);
@@ -206,23 +209,23 @@ async function openInPop(anchor, onPick, {mode = 'move'} = {}) {
   let cur = ['root', null], boardName = '', pending = null;
   const actLabel = mode === 'add' ? 'Добавить задачу' : 'Перенести';
   // кнопка действия появляется кружком справа от выбранного места
-  const actCircle = `<button class="pk-cw pk-act" data-confirm="1" aria-label="${actLabel}"><span class="pk-c pk-actc">${actLabel}</span></button>`;
+  const actCircle = `<button class="pk-cw pk-act" data-confirm="1" aria-label="${actLabel}"><span class="pk-c pk-actc">${mode === 'add' ? PK_ADD_ICO : PK_MOVE_ICO}</span><span class="pk-lbl">${actLabel}</span></button>`;
   const isOn = (kind, key, val) => !!pending && pending.kind === kind && pending[key] === val;
   const grid = (items) => items.map(it => it.html + (it.on ? actCircle : '')).join('');
-  const head = (title) => `<div class="pk-head"><span class="pk-title">${esc(title)}</span><button class="pk-x" data-close="1" aria-label="Закрыть">×</button></div>`;
+  const head = (title) => `<div class="pk-head"><span class="pk-title">${esc(title)}</span></div>`;
   const render = async (step, arg) => {
     cur = [step, arg];
     if (step === 'root') {
       return head('Куда')
-        + `<div class="pk-grid"><button class="pk-cw" data-go="cats"><span class="pk-c"><img src="/static/ico/app-safe.png?v=1" alt=""></span><span class="pk-lbl">Сейв</span></button><button class="pk-cw" data-go="boards"><span class="pk-c"><img src="/static/ico/app-boards.png?v=1" alt=""></span><span class="pk-lbl">Проект</span></button></div>`;
+        + `<div class="pk-grid"><button class="pk-cw" data-go="cats"><span class="pk-c"><img src="/static/ico/app-safe.png?v=1" alt=""></span><span class="pk-lbl">Сейв</span></button><button class="pk-cw" data-go="boards"><span class="pk-c"><img src="/static/ico/app-boards.png?v=1" alt=""></span><span class="pk-lbl">Проект</span></button>${PK_CLOSE}</div>`;
     }
     if (step === 'cats') {
       const items = cs.map(c => ({on: isOn('cat', 'slug', c.slug), html: `<button class="pk-cw${isOn('cat', 'slug', c.slug) ? ' on' : ''}" data-pick="cat" data-slug="${esc(c.slug)}" data-name="${esc(c.name)}"><span class="pk-c"><img src="/static/ico/${catKey(c.name)}.png?v=2" alt=""></span><span class="pk-lbl">${esc(c.name)}</span></button>`}));
-      return head('Сейв') + `<div class="pk-grid">${PK_BACK('root')}${items.length ? grid(items) : '<div class="sec">Категорий пока нет</div>'}</div>`;
+      return head('Сейв') + `<div class="pk-grid">${PK_BACK('root')}${items.length ? grid(items) : '<div class="sec">Категорий пока нет</div>'}${PK_CLOSE}</div>`;
     }
     if (step === 'boards') {
-      const items = work.map(b => ({html: `<button class="pk-cw pk-bd" data-go="board" data-board="${b.id}" data-bname="${esc(b.name)}" aria-label="${esc(b.name)}"><span class="pk-c" style="background:${HUB_BPAL[b.id % HUB_BPAL.length]}">${esc(initialsOf(b.name))}</span><span class="pk-lbl">${esc(b.name)}</span></button>`}));
-      return head('Проект') + `<div class="pk-grid">${PK_BACK('root')}${items.length ? items.map(i => i.html).join('') : '<div class="sec">Досок пока нет</div>'}</div>`;
+      const items = work.map(b => `<button class="pk-cw pk-bd" data-go="board" data-board="${b.id}" data-bname="${esc(b.name)}" aria-label="${esc(b.name)}"><span class="pk-c" style="background:${HUB_BPAL[b.id % HUB_BPAL.length]}">${esc(initialsOf(b.name))}</span><span class="pk-lbl">${esc(b.name)}</span></button>`);
+      return head('Проект') + `<div class="pk-grid">${PK_BACK('root')}${items.length ? items.join('') : '<div class="sec">Досок пока нет</div>'}${PK_CLOSE}</div>`;
     }
     // колонки доски: цвет как в самой доске (готово — зелёная, остальные серые)
     cache[arg] = cache[arg] || await api('/boards/' + arg).catch(() => null);
@@ -233,9 +236,9 @@ async function openInPop(anchor, onPick, {mode = 'move'} = {}) {
       const key = String(col.id), on = isOn('col', 'col', key);
       return {on, html: `<button class="pk-col${/готов/i.test(col.name) ? ' kdone' : ''}${on ? ' on' : ''}" data-pick="col" data-col="${col.id}" data-name="${esc(boardName)} · ${esc(col.name)}">${esc(col.name)}</button>`};
     });
-    return head(boardName || 'Проект') + `<div class="pk-grid">${PK_BACK('boards')}${grid(items)}</div>`;
+    return head(boardName || 'Проект') + `<div class="pk-grid">${PK_BACK('boards')}${grid(items)}${PK_CLOSE}</div>`;
   };
-  const show = async (step, arg) => { pop.innerHTML = await render(step, arg); keepFeedBottom(); };
+  const show = async (step, arg) => { pop.innerHTML = await render(step, arg); };
   pop.onclick = async e => {
     if (e.target.closest('[data-close]')) { closeInPop(); return; }
     if (e.target.closest('[data-confirm]')) {
@@ -255,8 +258,12 @@ async function openInPop(anchor, onPick, {mode = 'move'} = {}) {
     }
   };
   const first = await render('root');
-  // выбор появляется над полем ввода без перехода на весь экран (иначе мелькает старая карточка)
+  // выбор появляется над полем ввода; задача, для которой выбираем место, остаётся белой, остальные серые
   addBar.prepend(pop); pop.innerHTML = first; keepFeedBottom();
+  const pn = document.querySelector('.inpanel');
+  if (pn) pn.classList.add('picking');
+  const rowEl = anchor && anchor.closest ? anchor.closest('.ibrow') : null;
+  if (rowEl) { rowEl.classList.add('active'); rowEl.scrollIntoView({block: 'nearest'}); }
   showInPop(pop);
 }
 // раскрытая карточка входящих: расширяется на месте строки, без всплывающего окна
