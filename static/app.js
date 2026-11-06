@@ -165,7 +165,7 @@ function bindPaste() {
 
 // ===== входящие: строка добавления и перенос в Сейв или на доску =====
 let inDest = {kind: 'inbox', name: 'Входящие'};
-const inboxAddHtml = () => `<div class="inadd"><div class="inrow"><input id="inTxt" placeholder="Вставить ссылку или написать задачу" autocapitalize="off"><button class="inchip" id="inDestBtn" aria-label="Куда отправить" title="${esc(inDest.name)}">${INBOX_SVG}</button></div></div>`;
+const inboxAddHtml = () => `<div class="inadd"><div class="inrow"><input id="inTxt" placeholder="Вставить ссылку или написать задачу" autocapitalize="off"><button class="inchip" id="inDestBtn" title="${esc(inDest.name)}">Добавить задачу</button></div></div>`;
 let inPop = null;
 const closeInPop = () => { if (inPop) { inPop.remove(); inPop = null; } document.removeEventListener('mousedown', inPopOut, true); };
 const inPopOut = e => { if (inPop && !inPop.contains(e.target) && !e.target.closest('#inDestBtn, [data-mvitem], [data-more], [data-mv]')) closeInPop(); };
@@ -188,6 +188,12 @@ function catKey(name) {
   if (/куп|покуп|товар|магазин|шоп|заказ/.test(n)) return 'bag';
   return 'folder';
 }
+// инициалы для кружка: первые буквы первых двух слов (как аватар в CRM)
+function initialsOf(name) {
+  const w = (name || '').trim().split(/\s+/).filter(Boolean);
+  return w.slice(0, 2).map(x => x[0]).join('').toUpperCase() || '?';
+}
+const PK_BACK = (to) => `<button class="pk-cw pk-back" data-go="${to}" aria-label="Назад"><span class="pk-c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></span><span class="pk-lbl">Назад</span></button>`;
 async function openInPop(anchor, onPick, {mode = 'move'} = {}) {
   closeInPop();
   const [cs, bs] = await Promise.all([api('/categories').catch(() => []), api('/boards').catch(() => [])]);
@@ -198,38 +204,36 @@ async function openInPop(anchor, onPick, {mode = 'move'} = {}) {
   pop.className = 'inpick';
   const cache = {};
   let cur = ['root', null], boardName = '', pending = null;
-  const goLabel = mode === 'add' ? 'Отправить' : 'Перенести';
-  const footer = () => pending
-    ? `<div class="pk-foot"><span class="pk-sel">${esc(pending.name)}</span><button class="pk-go" data-confirm="1">${goLabel}</button></div>`
-    : '';
-  const mark = (b) => (pending && pending.kind === b.kind && pending.slug === b.slug && pending.col === b.col) ? ' on' : '';
-  const head = (title, back) => `<div class="pk-head">${back ? `<button class="pk-back" data-go="${back}" aria-label="Назад">‹</button>` : ''}<span class="pk-title">${esc(title)}</span><button class="pk-x" data-close="1" aria-label="Закрыть">×</button></div>`;
+  const actLabel = mode === 'add' ? 'Добавить задачу' : 'Перенести';
+  // кнопка действия появляется кружком справа от выбранного места
+  const actCircle = `<button class="pk-cw pk-act" data-confirm="1" aria-label="${actLabel}"><span class="pk-c pk-actc">${actLabel}</span></button>`;
+  const isOn = (kind, key, val) => !!pending && pending.kind === kind && pending[key] === val;
+  const grid = (items) => items.map(it => it.html + (it.on ? actCircle : '')).join('');
+  const head = (title) => `<div class="pk-head"><span class="pk-title">${esc(title)}</span><button class="pk-x" data-close="1" aria-label="Закрыть">×</button></div>`;
   const render = async (step, arg) => {
     cur = [step, arg];
     if (step === 'root') {
-      return head('Куда', null)
-        + `<div class="pk-root"><button class="pk-cw" data-go="cats"><span class="pk-c"><img src="/static/ico/app-safe.png?v=1" alt=""></span>Сейв</button><button class="pk-cw" data-go="boards"><span class="pk-c"><img src="/static/ico/app-boards.png?v=1" alt=""></span>Проект</button></div>` + footer();
+      return head('Куда')
+        + `<div class="pk-grid"><button class="pk-cw" data-go="cats"><span class="pk-c"><img src="/static/ico/app-safe.png?v=1" alt=""></span><span class="pk-lbl">Сейв</span></button><button class="pk-cw" data-go="boards"><span class="pk-c"><img src="/static/ico/app-boards.png?v=1" alt=""></span><span class="pk-lbl">Проект</span></button></div>`;
     }
     if (step === 'cats') {
-      // категории Сейва — круги со значками, как на главной
-      return head('Сейв', 'root') + `<div class="pk-grid">`
-        + (cs.length ? cs.map(c => `<button class="pk-cw${mark({kind: 'cat', slug: c.slug})}" data-pick="cat" data-slug="${esc(c.slug)}" data-name="${esc(c.name)}"><span class="pk-c"><img src="/static/ico/${catKey(c.name)}.png?v=2" alt=""></span><span class="pk-lbl">${esc(c.name)}</span></button>`).join('') : `<div class="sec">Категорий пока нет</div>`)
-        + `</div>` + footer();
+      const items = cs.map(c => ({on: isOn('cat', 'slug', c.slug), html: `<button class="pk-cw${isOn('cat', 'slug', c.slug) ? ' on' : ''}" data-pick="cat" data-slug="${esc(c.slug)}" data-name="${esc(c.name)}"><span class="pk-c"><img src="/static/ico/${catKey(c.name)}.png?v=2" alt=""></span><span class="pk-lbl">${esc(c.name)}</span></button>`}));
+      return head('Сейв') + `<div class="pk-grid">${PK_BACK('root')}${items.length ? grid(items) : '<div class="sec">Категорий пока нет</div>'}</div>`;
     }
     if (step === 'boards') {
-      // проекты — цветные квадраты, как доски на главной
-      return head('Проект', 'root') + `<div class="pk-grid">`
-        + (work.length ? work.map(b => `<button class="htile hboard pk-sq" style="--c1:${HUB_BPAL[b.id % HUB_BPAL.length]}" data-go="board" data-board="${b.id}" data-bname="${esc(b.name)}" aria-label="${esc(b.name)}"><span class="hb-n">${esc(b.name)}</span></button>`).join('') : `<div class="sec">Досок пока нет</div>`)
-        + `</div>` + footer();
+      const items = work.map(b => ({html: `<button class="pk-cw pk-bd" data-go="board" data-board="${b.id}" data-bname="${esc(b.name)}" aria-label="${esc(b.name)}"><span class="pk-c" style="background:${HUB_BPAL[b.id % HUB_BPAL.length]}">${esc(initialsOf(b.name))}</span><span class="pk-lbl">${esc(b.name)}</span></button>`}));
+      return head('Проект') + `<div class="pk-grid">${PK_BACK('root')}${items.length ? items.map(i => i.html).join('') : '<div class="sec">Досок пока нет</div>'}</div>`;
     }
-    // колонки доски — круги с названием колонки внутри
+    // колонки доски: цвет как в самой доске (готово — зелёная, остальные серые)
     cache[arg] = cache[arg] || await api('/boards/' + arg).catch(() => null);
     const d = cache[arg];
     boardName = (d && d.name) || boardName;
     const cols = (d && d.columns) || [];
-    return head(boardName || 'Проект', 'boards') + `<div class="pk-grid">`
-      + cols.map(col => `<button class="pk-col${mark({kind: 'col', col: String(col.id)})}" data-pick="col" data-col="${col.id}" data-name="${esc(boardName)} · ${esc(col.name)}">${esc(col.name)}</button>`).join('')
-      + `</div>` + footer();
+    const items = cols.map(col => {
+      const key = String(col.id), on = isOn('col', 'col', key);
+      return {on, html: `<button class="pk-col${/готов/i.test(col.name) ? ' kdone' : ''}${on ? ' on' : ''}" data-pick="col" data-col="${col.id}" data-name="${esc(boardName)} · ${esc(col.name)}">${esc(col.name)}</button>`};
+    });
+    return head(boardName || 'Проект') + `<div class="pk-grid">${PK_BACK('boards')}${grid(items)}</div>`;
   };
   const show = async (step, arg) => { pop.innerHTML = await render(step, arg); keepFeedBottom(); };
   pop.onclick = async e => {
@@ -237,7 +241,8 @@ async function openInPop(anchor, onPick, {mode = 'move'} = {}) {
     if (e.target.closest('[data-confirm]')) {
       const d = pending;
       if (mode === 'add' && !$('#inTxt').value.trim()) { alert('Сначала напишите текст'); return; }
-      closeInPop();
+      pop.classList.add('closing');
+      setTimeout(() => closeInPop(), 180);
       await onPick(d);
       return;
     }

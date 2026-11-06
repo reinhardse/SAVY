@@ -1904,8 +1904,8 @@ body.inbox-pg .ibrow.open{align-self:flex-start;width:80%;max-width:80%;padding:
 body.inbox-pg .inpanel .inpick{flex:none;margin:0 16px 4px;background:#fff;border:1px solid #e3e3ea;border-radius:22px;padding:10px 12px 10px;box-shadow:0 2px 10px rgba(0,0,0,.06);max-height:min(280px,40vh);overflow:auto}
 .inpick .pk-head{display:flex;align-items:center;gap:6px;padding:0 0 6px}
 .inpick .pk-title{flex:1;font-size:13px;font-weight:600;color:#2b2f3a;min-width:0}
-.inpick .pk-back,.inpick .pk-x{flex:none;width:28px;height:28px;border:0;border-radius:50%;background:transparent;font:inherit;font-size:18px;line-height:1;color:#8a8fa0;cursor:pointer}
-.inpick .pk-back:hover,.inpick .pk-x:hover{background:#f2f2f5;color:#2b2f3a}
+.inpick .pk-x{flex:none;width:28px;height:28px;border:0;border-radius:50%;background:transparent;font:inherit;font-size:18px;line-height:1;color:#8a8fa0;cursor:pointer}
+.inpick .pk-x:hover{background:#f2f2f5;color:#2b2f3a}
 .inpick .pk-root{display:flex;justify-content:center;gap:24px;padding:4px 0 2px}
 .inpick .pk-cw{display:flex;flex-direction:column;align-items:center;gap:5px;border:0;background:transparent;font:inherit;font-size:12px;color:#4a4f5e;cursor:pointer;padding:0}
 .inpick .pk-c{width:56px;height:56px;border-radius:50%;background:#f4f4f7;border:1px solid #e6e6ec;display:flex;align-items:center;justify-content:center}
@@ -1922,18 +1922,26 @@ body.inbox-pg .inpanel .inpick{flex:none;margin:0 16px 4px;background:#fff;borde
 body.inbox-pg .inpanel .inadd{display:flex;flex-direction:column;align-items:stretch;align-self:stretch;width:auto;margin:12px;padding:0;background:transparent;border:0;border-radius:0;box-shadow:none;overflow:visible}
 body.inbox-pg .inadd .inrow{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 16px;background:#fff;border:1px solid #e3e3ea;border-radius:22px;box-shadow:0 2px 10px rgba(0,0,0,.05)}
 /* выбор лежит прямо на белом фоне панели: без своей рамки и подложки; раскрывается компактно */
-body.inbox-pg .inpanel .inpick{flex:none;margin:0 0 6px;background:transparent;border:0;border-radius:0;box-shadow:none;max-height:min(200px,26vh);overflow:auto;padding:4px 4px 0;animation:inpickIn .18s ease-out}
-body.inbox-pg .inadd .inchip{width:40px;height:40px;padding:0;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#2f4bb0;background:#f4f4f7;border:1px solid #e3e3ea;flex:none}
-body.inbox-pg .inadd .inchip svg{width:20px;height:20px}
+body.inbox-pg .inpanel .inpick{flex:none;margin:0 0 4px;background:transparent;border:0;border-radius:0;box-shadow:none;max-height:min(176px,24vh);overflow:auto;padding:2px 4px 0;animation:inpickIn .18s ease-out}
+.inpick.closing{animation:inpickOut .18s ease-in forwards}
+@keyframes inpickOut{to{opacity:0;transform:translateY(6px)}}
+@keyframes pkPop{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:none}}
+/* круги выбора: одинакового маленького размера, подписи под ними */
+.inpick .pk-grid{display:flex;flex-wrap:wrap;justify-content:flex-start;align-items:flex-start;gap:10px 12px;padding:2px 0 0}
+.inpick .pk-cw{display:flex;flex-direction:column;align-items:center;gap:4px;border:0;background:transparent;font:inherit;font-size:12px;color:#4a4f5e;cursor:pointer;padding:0;width:64px}
+.inpick .pk-c{width:52px;height:52px;border-radius:50%;background:#f4f4f7;border:1px solid #e6e6ec;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;color:#2b2f3a}
+.inpick .pk-c img{width:30px;height:30px;object-fit:contain;display:block;pointer-events:none;user-select:none}
+.inpick .pk-c svg{width:22px;height:22px}
+.inpick .pk-lbl{display:block;font-size:12px;color:#4a4f5e;line-height:1.2;text-align:center;max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.inpick .pk-cw:hover .pk-c,.inpick .pk-cw.on .pk-c{border-color:#2f4bb0;background:#eef1ff}
+.inpick .pk-back .pk-c{background:#fff;color:#4a4f5e}
+.inpick .pk-bd .pk-c{border-color:transparent}
+.inpick .pk-col{width:60px;height:60px;border-radius:50%;border:1px solid #e6e6ec;background:#f6f6f8;font:inherit;font-size:11px;line-height:1.15;color:#2b2f3a;padding:4px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer}
+.inpick .pk-col.kdone{background:#e4f4ea;border-color:#cfe9da;color:#2f6446}
+.inpick .pk-col.on{outline:2px solid #2f4bb0;outline-offset:1px}
+.inpick .pk-act .pk-actc{background:#2f4bb0;border-color:#2f4bb0;color:#fff;font-size:10px;line-height:1.1;font-weight:600;padding:3px;letter-spacing:-.2px;animation:pkPop .2s ease-out}
+body.inbox-pg .inadd .inchip{flex:none;padding:9px 14px;white-space:nowrap}
 @keyframes inpickIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-.inpick .pk-grid{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:14px 18px;padding:4px 0 2px}
-.inpick .pk-lbl{display:block;font-size:12px;color:#4a4f5e;line-height:1.2;text-align:center;max-width:76px;overflow:hidden;text-overflow:ellipsis}
-.inpick .pk-cw.on .pk-c,.inpick .pk-cw:hover .pk-c{background:#eef1ff;border-color:#2f4bb0}
-/* проекты: цветные квадраты как доски на главной (htile hboard) */
-.inpick .pk-sq.hboard{width:92px;flex:none;border-radius:18px;padding:0;cursor:pointer}
-.inpick .pk-sq .hb-n{font-size:12px;left:10px;right:10px;bottom:9px;line-height:1.2}
-.inpick .pk-col{width:84px;height:84px;border-radius:50%;border:1px solid #e6e6ec;background:#f4f4f7;font:inherit;font-size:12px;line-height:1.2;color:#2b2f3a;padding:8px;display:flex;align-items:center;justify-content:center;text-align:center;cursor:pointer}
-.inpick .pk-col:hover,.inpick .pk-col.on{background:#eef1ff;border-color:#2f4bb0;color:#2f4bb0}
 .inpick .pk-root{justify-content:flex-start;gap:20px;padding:4px 0 2px}
 /* вся панель помещается в экран: серая лента прокручивается внутри и уменьшается, когда белая строка растёт вверх */
 body.inbox-pg .inpanel{flex:0 0 calc(100vh - 110px);height:calc(100vh - 110px);min-height:320px;box-sizing:border-box}
