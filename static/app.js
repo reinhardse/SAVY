@@ -165,12 +165,17 @@ function bindPaste() {
 
 // ===== входящие: строка добавления и перенос в Сейв или на доску =====
 let inDest = {kind: 'inbox', name: 'Входящие'};
-const inboxAddHtml = () => `<div class="inadd"><div class="inrow"><input id="inTxt" placeholder="Вставить ссылку или написать задачу" autocapitalize="off"><button class="inchip" id="inDestBtn">${esc(inDest.name)} ▾</button></div></div>`;
+const inboxAddHtml = () => `<div class="inadd"><div class="inrow"><input id="inTxt" placeholder="Вставить ссылку или написать задачу" autocapitalize="off"><button class="inchip" id="inDestBtn" aria-label="Куда отправить" title="${esc(inDest.name)}">${INBOX_SVG}</button></div></div>`;
 let inPop = null;
 const closeInPop = () => { if (inPop) { inPop.remove(); inPop = null; } document.removeEventListener('mousedown', inPopOut, true); };
 const inPopOut = e => { if (inPop && !inPop.contains(e.target) && !e.target.closest('#inDestBtn, [data-mvitem], [data-more], [data-mv]')) closeInPop(); };
 const showInPop = (pop) => { inPop = pop; setTimeout(() => document.addEventListener('mousedown', inPopOut, true), 0); };
 // выбор места раскрывается внутри белой панели над строкой ввода: значки приложений «Сейв» и «Проект», дальше список
+// при раскрытии выбора лента остаётся прижатой к низу: карточки уходят вверх, а не сползают вниз
+function keepFeedBottom() {
+  const l = document.querySelector('.inpanel #list');
+  if (l) l.scrollTop = l.scrollHeight;
+}
 // значок категории по её названию (тот же, что на главной); для остальных — объёмная папка
 function catKey(name) {
   const n = (name || '').toLowerCase();
@@ -203,7 +208,6 @@ async function openInPop(anchor, onPick, {mode = 'move'} = {}) {
     cur = [step, arg];
     if (step === 'root') {
       return head('Куда', null)
-        + `<div class="pk-list">${mode === 'add' ? `<button class="pi${pending && pending.kind === 'inbox' ? ' on' : ''}" data-pick="inbox" data-name="Входящие">Входящие</button>` : ''}</div>`
         + `<div class="pk-root"><button class="pk-cw" data-go="cats"><span class="pk-c"><img src="/static/ico/app-safe.png?v=1" alt=""></span>Сейв</button><button class="pk-cw" data-go="boards"><span class="pk-c"><img src="/static/ico/app-boards.png?v=1" alt=""></span>Проект</button></div>` + footer();
     }
     if (step === 'cats') {
@@ -213,9 +217,9 @@ async function openInPop(anchor, onPick, {mode = 'move'} = {}) {
         + `</div>` + footer();
     }
     if (step === 'boards') {
-      // проекты — квадраты, как доски на главной
+      // проекты — цветные квадраты, как доски на главной
       return head('Проект', 'root') + `<div class="pk-grid">`
-        + (work.length ? work.map(b => `<button class="pk-sq" data-go="board" data-board="${b.id}" data-bname="${esc(b.name)}"><span class="pk-sqi">${KB_ICON}</span><span class="pk-lbl">${esc(b.name)}</span></button>`).join('') : `<div class="sec">Досок пока нет</div>`)
+        + (work.length ? work.map(b => `<button class="htile hboard pk-sq" style="--c1:${HUB_BPAL[b.id % HUB_BPAL.length]}" data-go="board" data-board="${b.id}" data-bname="${esc(b.name)}" aria-label="${esc(b.name)}"><span class="hb-n">${esc(b.name)}</span></button>`).join('') : `<div class="sec">Досок пока нет</div>`)
         + `</div>` + footer();
     }
     // колонки доски — круги с названием колонки внутри
@@ -227,7 +231,7 @@ async function openInPop(anchor, onPick, {mode = 'move'} = {}) {
       + cols.map(col => `<button class="pk-col${mark({kind: 'col', col: String(col.id)})}" data-pick="col" data-col="${col.id}" data-name="${esc(boardName)} · ${esc(col.name)}">${esc(col.name)}</button>`).join('')
       + `</div>` + footer();
   };
-  const show = async (step, arg) => { pop.innerHTML = await render(step, arg); };
+  const show = async (step, arg) => { pop.innerHTML = await render(step, arg); keepFeedBottom(); };
   pop.onclick = async e => {
     if (e.target.closest('[data-close]')) { closeInPop(); return; }
     if (e.target.closest('[data-confirm]')) {
@@ -247,7 +251,7 @@ async function openInPop(anchor, onPick, {mode = 'move'} = {}) {
   };
   const first = await render('root');
   // выбор появляется над полем ввода без перехода на весь экран (иначе мелькает старая карточка)
-  addBar.prepend(pop); pop.innerHTML = first;
+  addBar.prepend(pop); pop.innerHTML = first; keepFeedBottom();
   showInPop(pop);
 }
 // раскрытая карточка входящих: расширяется на месте строки, без всплывающего окна
@@ -377,7 +381,7 @@ async function inboxMove(id, d) {
 }
 function bindInbox() {
   const btn = $('#inDestBtn');
-  if (btn) btn.onclick = () => openInPop(btn, d => { inDest = d; const b = $('#inDestBtn'); if (b) b.textContent = d.name + ' ▾'; inboxSend(); }, {mode: 'add'});
+  if (btn) btn.onclick = () => openInPop(btn, d => { inDest = d; const b = $('#inDestBtn'); if (b) b.title = d.name; inboxSend(); }, {mode: 'add'});
   const go = $('#inGo');
   if (go) go.onclick = inboxSend;
   const inp = $('#inTxt');
