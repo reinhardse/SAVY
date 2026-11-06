@@ -283,7 +283,7 @@ function inboxOpenRow(id) {
   // без перехода-анимации: карточка меняется на месте, без «падения» соседних строк
   inboxRedraw();
   const oc = document.querySelector('.ibrow.open');
-  if (oc) oc.scrollIntoView({block: 'nearest'});
+  if (oc) oc.scrollIntoView({block: 'nearest', behavior: 'smooth'});
   const t = $('#ibT'), d = $('#ibD');
   if (d) { autosize(d); d.oninput = () => autosize(d); }
   if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
@@ -307,7 +307,7 @@ async function inboxClose() {
 }
 function inboxExpandedHtml(i, cat) {
   const url = i.url ? `<a class="ib-link" href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.url)}</a>` : '';
-  return `<div class="row ibrow open" data-id="${i.id}" style="view-transition-name:ib${i.id}"><div class="ibx"><input class="ib-title" id="ibT" value="${esc(i.title || '')}" placeholder="${esc(titleOf(i))}" autocomplete="off"><textarea class="ib-desc" id="ibD" placeholder="Описание">${esc(i.description || '')}</textarea>${url}</div></div>`;
+  return `<div class="row ibrow open" data-id="${i.id}" style="view-transition-name:ib${i.id}"><div class="ibx"><input class="ib-title" id="ibT" value="${esc(i.title || '')}" placeholder="${esc(titleOf(i))}" autocomplete="off"><textarea class="ib-desc" id="ibD" placeholder="Описание">${esc(i.description || '')}</textarea>${url}</div><div class="ibacts"><button class="rb inmv" data-mv="${i.id}" aria-label="Перенести">${MOVE_ICO}</button><button class="rb inmore" data-more="${i.id}" aria-label="Ещё">⋯</button></div><button class="rb ib-del" data-del="${i.id}">Удалить</button></div>`;
 }
 
 // карточка входящих: название и описание в теле, ссылка если есть, место назначения; сохраняется при закрытии
