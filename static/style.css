@@ -1878,3 +1878,25 @@ body.inbox-pg .ibrow .hov{align-self:center}
 .hrow.happs{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;max-width:720px;margin:0 auto}
 .hrow.happs::-webkit-scrollbar{display:none}
 .hrow.happs>*{flex:0 0 calc((100% - 36px) / 4);scroll-snap-align:start;min-width:0}
+
+/* выбор места: кружки «Сейв» и «Проект», внизу кнопка «Отправить» или «Перенести» */
+.inpop .pk-root{display:flex;justify-content:center;gap:14px;padding:14px 4px 10px}
+.inpop .pk-c{width:92px;height:92px;border-radius:50%;border:1px solid #e3e3ea;background:#f4f4f7;font:inherit;font-size:14px;font-weight:600;color:#2b2f3a;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.inpop .pk-c:hover{background:#eef1ff;color:#2f4bb0}
+.inpop .pi.on{background:#eef1ff;color:#2f4bb0}
+.inpop .pk-foot{position:sticky;bottom:-8px;background:#fff;display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #ececf0;margin-top:8px;padding:10px 6px 4px}
+.inpop .pk-sel{font-size:13px;color:#4a4f5e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.inpop .pk-go{flex:none;border:0;border-radius:999px;background:#2f4bb0;color:#fff;font:inherit;font-size:14px;font-weight:600;padding:9px 18px;cursor:pointer}
+
+/* значок переноса в строке, плавная смена вида */
+.ibrow .inmv{color:#8a8fa0}
+.ibrow .inmv svg{width:18px;height:18px;display:block}
+::view-transition-old(root),::view-transition-new(root){animation:none}
+::view-transition-group(*){animation-duration:.34s;animation-timing-function:cubic-bezier(.2,.7,.2,1)}
+
+/* входящие: белая строка добавления, больше воздуха между записями, раскрытая карточка 80% ширины */
+body.inbox-pg .inadd{background:#fff;border:1px solid #e3e3ea}
+body.inbox-pg .list{gap:14px;padding:18px 18px 20px}
+body.inbox-pg .ibrow{padding:14px 18px}
+body.inbox-pg .ibrow.open{align-self:flex-start;width:80%;max-width:80%;padding:20px 22px}
+

@@ -52,6 +52,7 @@ const FULL_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 const RESTORE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>';
 const isFull = bid => { try { return localStorage.getItem('kb_full_' + bid) === '1'; } catch { return false; } };
 const setFull = (bid, v) => { try { localStorage.setItem('kb_full_' + bid, v ? '1' : '0'); } catch {} };
+const MOVE_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9H6.5A2.5 2.5 0 0 0 4 11.5v6A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5v-6A2.5 2.5 0 0 0 17.5 9H16"/><path d="M12 14V3.5M8.5 7 12 3.5 15.5 7"/></svg>';
 const PEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>';
 // глаз: серый по умолчанию, пастельная зелёная галочка, когда материал проработан
 const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M7 12c1.5-2.5 3.2-3.8 5-3.8s3.5 1.3 5 3.8c-1.5 2.5-3.2 3.8-5 3.8S8.5 14.5 7 12z"/><circle cx="12" cy="12" r="1.7"/></svg>';
@@ -167,48 +168,67 @@ let inDest = {kind: 'inbox', name: 'Входящие'};
 const inboxAddHtml = () => `<div class="inadd"><input id="inTxt" placeholder="Вставить ссылку или написать задачу" autocapitalize="off"><button class="inchip" id="inDestBtn">${esc(inDest.name)} ▾</button></div>`;
 let inPop = null;
 const closeInPop = () => { if (inPop) { inPop.remove(); inPop = null; } document.removeEventListener('mousedown', inPopOut, true); };
-const inPopOut = e => { if (inPop && !inPop.contains(e.target) && !e.target.closest('#inDestBtn, [data-mvitem], [data-more]')) closeInPop(); };
+const inPopOut = e => { if (inPop && !inPop.contains(e.target) && !e.target.closest('#inDestBtn, [data-mvitem], [data-more], [data-mv]')) closeInPop(); };
 const placePop = (pop, anchor) => {
   const r = anchor.getBoundingClientRect();
-  pop.style.top = (r.bottom + 6) + 'px';
+  const h = pop.offsetHeight;
+  // снизу не помещается — открываем над кнопкой, чтобы не уходило за экран
+  const below = r.bottom + 6 + h <= window.innerHeight - 8;
+  pop.style.top = (below ? r.bottom + 6 : Math.max(8, r.top - h - 6)) + 'px';
   pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
 };
 const showInPop = (pop) => { inPop = pop; setTimeout(() => document.addEventListener('mousedown', inPopOut, true), 0); };
-// пошаговый выбор места: Куда → Сейв (категории) или Доска (доска → статус-колонка); «‹» возвращает на шаг назад
-async function openInPop(anchor, onPick, {withInbox = false} = {}) {
+// выбор места: два кружка «Сейв» и «Проект», дальше список; внизу кнопка «Отправить» (строка добавления) или «Перенести» (перенос)
+async function openInPop(anchor, onPick, {mode = 'move'} = {}) {
   closeInPop();
   const [cs, bs] = await Promise.all([api('/categories').catch(() => []), api('/boards').catch(() => [])]);
   const work = bs.filter(b => (b.status || 'work') === 'work');
   const pop = document.createElement('div');
   pop.className = 'inpop';
   document.body.appendChild(pop);
-  let boardName = '';
-  const pick = d => { closeInPop(); onPick(d); };
+  const cache = {};
+  let cur = ['root', null], boardName = '', pending = null;
+  const goLabel = mode === 'add' ? 'Отправить' : 'Перенести';
+  const footer = () => pending
+    ? `<div class="pk-foot"><span class="pk-sel">${esc(pending.name)}</span><button class="pk-go" data-confirm="1">${goLabel}</button></div>`
+    : '';
+  const mark = (b) => (pending && pending.kind === b.kind && pending.slug === b.slug && pending.col === b.col) ? ' on' : '';
   const show = async (step, arg) => {
+    cur = [step, arg];
     if (step === 'root') {
-      pop.innerHTML = `<div class="sec">Куда</div>`
-        + (withInbox ? `<button class="pi" data-pick="inbox" data-name="Входящие">Входящие</button>` : '')
-        + `<button class="pi" data-go="cats">Сейв ›</button><button class="pi" data-go="boards">Доска ›</button>`;
+      pop.innerHTML = (mode === 'add' ? `<button class="pi${pending && pending.kind === 'inbox' ? ' on' : ''}" data-pick="inbox" data-name="Входящие">Входящие</button>` : '')
+        + `<div class="pk-root"><button class="pk-c" data-go="cats">Сейв</button><button class="pk-c" data-go="boards">Проект</button></div>` + footer();
     } else if (step === 'cats') {
-      pop.innerHTML = `<button class="pi back" data-go="root">‹ Куда</button>`
-        + (cs.length ? cs.map(c => `<button class="pi" data-pick="cat" data-slug="${esc(c.slug)}" data-name="${esc(c.name)}">${esc(c.name)}</button>`).join('') : `<div class="sec">Категорий пока нет</div>`);
+      pop.innerHTML = `<button class="pi back" data-go="root">‹ Назад</button>`
+        + (cs.length ? cs.map(c => `<button class="pi${mark({kind: 'cat', slug: c.slug})}" data-pick="cat" data-slug="${esc(c.slug)}" data-name="${esc(c.name)}">${esc(c.name)}</button>`).join('') : `<div class="sec">Категорий пока нет</div>`) + footer();
     } else if (step === 'boards') {
-      pop.innerHTML = `<button class="pi back" data-go="root">‹ Куда</button>`
-        + (work.length ? work.map(b => `<button class="pi" data-go="board" data-board="${b.id}" data-bname="${esc(b.name)}">${esc(b.name)} ›</button>`).join('') : `<div class="sec">Досок пока нет</div>`);
+      pop.innerHTML = `<button class="pi back" data-go="root">‹ Назад</button>`
+        + (work.length ? work.map(b => `<button class="pi" data-go="board" data-board="${b.id}" data-bname="${esc(b.name)}">${esc(b.name)} ›</button>`).join('') : `<div class="sec">Досок пока нет</div>`) + footer();
     } else if (step === 'board') {
-      const d = await api('/boards/' + arg).catch(() => null);
+      cache[arg] = cache[arg] || await api('/boards/' + arg).catch(() => null);
+      const d = cache[arg];
       boardName = (d && d.name) || boardName;
       const cols = (d && d.columns) || [];
-      pop.innerHTML = `<button class="pi back" data-go="boards">‹ Доски</button>`
-        + cols.map(col => `<button class="pi" data-pick="col" data-col="${col.id}" data-name="${esc(boardName)} · ${esc(col.name)}">${esc(col.name)}</button>`).join('');
+      pop.innerHTML = `<button class="pi back" data-go="boards">‹ Проекты</button>`
+        + cols.map(col => `<button class="pi${mark({kind: 'col', col: String(col.id)})}" data-pick="col" data-col="${col.id}" data-name="${esc(boardName)} · ${esc(col.name)}">${esc(col.name)}</button>`).join('') + footer();
     }
     placePop(pop, anchor);
   };
-  pop.onclick = e => {
+  pop.onclick = async e => {
+    if (e.target.closest('[data-confirm]')) {
+      const d = pending;
+      if (mode === 'add' && !$('#inTxt').value.trim()) { alert('Сначала напишите текст'); return; }
+      closeInPop();
+      await onPick(d);
+      return;
+    }
     const g = e.target.closest('[data-go]');
     if (g) { if (g.dataset.go === 'board') boardName = g.dataset.bname; show(g.dataset.go, g.dataset.board); return; }
     const p = e.target.closest('[data-pick]');
-    if (p) pick({kind: p.dataset.pick, name: p.dataset.name, slug: p.dataset.slug, col: p.dataset.col});
+    if (p) {
+      pending = {kind: p.dataset.pick, name: p.dataset.name, slug: p.dataset.slug, col: p.dataset.col};
+      show(cur[0], cur[1]);
+    }
   };
   await show('root');
   showInPop(pop);
@@ -222,10 +242,12 @@ function inboxRedraw() {
   delete el.dataset.h;
   paintList(el, lastItems, lastEmpty);
 }
+// плавная смена вида там, где браузер умеет; иначе сразу
+const vt = fn => (document.startViewTransition ? document.startViewTransition(fn) : Promise.resolve(fn()));
 function inboxOpenRow(id) {
   if (inboxOpen === id) return;
   inboxOpen = id;
-  inboxRedraw();
+  vt(() => inboxRedraw());
   const t = $('#ibT'), d = $('#ibD');
   if (d) { autosize(d); d.oninput = () => autosize(d); }
   if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
@@ -245,11 +267,11 @@ async function inboxClose() {
   const id = inboxOpen;
   try { await inboxSaveDraft(id); } catch (err) { alert(err.message); }
   inboxOpen = null;
-  loadList();
+  vt(() => loadList());
 }
 function inboxExpandedHtml(i, cat) {
   const url = i.url ? `<a class="ib-link" href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.url)}</a>` : '';
-  return `<div class="row ibrow open" data-id="${i.id}"><div class="ibx"><input class="ib-title" id="ibT" value="${esc(i.title || '')}" placeholder="${esc(titleOf(i))}" autocomplete="off"><textarea class="ib-desc" id="ibD" placeholder="Описание">${esc(i.description || '')}</textarea>${url}<div class="ib-foot"><button class="inchip" id="ibDest" data-id="${i.id}">${esc(cat ? cat.name : 'Входящие')} ▾</button><button class="inchip ib-done" id="ibDone" data-id="${i.id}">Выполнено</button></div></div></div>`;
+  return `<div class="row ibrow open" data-id="${i.id}" style="view-transition-name:ib${i.id}"><div class="ibx"><input class="ib-title" id="ibT" value="${esc(i.title || '')}" placeholder="${esc(titleOf(i))}" autocomplete="off"><textarea class="ib-desc" id="ibD" placeholder="Описание">${esc(i.description || '')}</textarea>${url}<div class="ib-foot"><button class="inchip" id="ibDest" data-id="${i.id}">${esc(cat ? cat.name : 'Входящие')} ▾</button><button class="inchip ib-done" id="ibDone" data-id="${i.id}">Выполнено</button></div></div></div>`;
 }
 
 // карточка входящих: название и описание в теле, ссылка если есть, место назначения; сохраняется при закрытии
@@ -338,7 +360,7 @@ async function inboxMove(id, d) {
 }
 function bindInbox() {
   const btn = $('#inDestBtn');
-  if (btn) btn.onclick = () => openInPop(btn, d => { inDest = d; const b = $('#inDestBtn'); if (b) b.textContent = d.name + ' ▾'; }, {withInbox: true});
+  if (btn) btn.onclick = () => openInPop(btn, d => { inDest = d; const b = $('#inDestBtn'); if (b) b.textContent = d.name + ' ▾'; inboxSend(); }, {mode: 'add'});
   const go = $('#inGo');
   if (go) go.onclick = inboxSend;
   const inp = $('#inTxt');
@@ -350,7 +372,7 @@ function bindInbox() {
     openInPop(dest, async d => {
       try { await inboxSaveDraft(id); inboxOpen = null; await inboxMove(id, d); }
       catch (err) { alert(err.message); }
-    });
+    }, {mode: 'move'});
   };
   const done = $('#ibDone');
   if (done) done.onclick = async e => {
@@ -371,6 +393,8 @@ function bindInbox() {
   if (list) list.onclick = e => {
     const more = e.target.closest('[data-more]');
     if (more) { e.stopPropagation(); openMorePop(more, +more.dataset.more); return; }
+    const mvb = e.target.closest('[data-mv]');
+    if (mvb) { e.stopPropagation(); const id = +mvb.dataset.mv; openInPop(mvb, d => inboxMove(id, d), {mode: 'move'}); return; }
     const mv = e.target.closest('[data-mvitem]');
     if (!mv) return;
     e.stopPropagation();
@@ -389,7 +413,7 @@ function row(i) {
     const cat = cats.find(c => c.slug === i.category);
     const info = [SRC[i.source], cat ? cat.name : 'Без категории', ...i.tags.map(t => '#' + t)].filter(Boolean).join(' · ');
     const time = new Date(i.created_at).toLocaleTimeString('ru', {hour: '2-digit', minute: '2-digit'});
-    return `<div class="row ibrow" data-id="${i.id}" data-url="${esc(i.url)}"><div class="ibtxt"><div class="it">${esc(titleOf(i))}</div>${d ? `<div class="ibd">${esc(d)}</div>` : ''}<div class="ibm">${esc(info)} · ${time}</div></div><div class="hov"><button class="rb inmore" data-more="${i.id}" aria-label="Ещё">⋯</button></div></div>`;
+    return `<div class="row ibrow" data-id="${i.id}" data-url="${esc(i.url)}" style="view-transition-name:ib${i.id}"><div class="ibtxt"><div class="it">${esc(titleOf(i))}</div>${d ? `<div class="ibd">${esc(d)}</div>` : ''}<div class="ibm">${esc(info)} · ${time}</div></div><div class="hov"><button class="rb inmv" data-mv="${i.id}" aria-label="Перенести">${MOVE_ICO}</button><button class="rb inmore" data-more="${i.id}" aria-label="Ещё">⋯</button></div></div>`;
   }
   const wait = i.meta_state === 'pending' ? ' · собираю данные…' : '';
   const cat = cats.find(c => c.slug === i.category);
