@@ -169,23 +169,16 @@ const inboxAddHtml = () => `<div class="inadd"><input id="inTxt" placeholder="В
 let inPop = null;
 const closeInPop = () => { if (inPop) { inPop.remove(); inPop = null; } document.removeEventListener('mousedown', inPopOut, true); };
 const inPopOut = e => { if (inPop && !inPop.contains(e.target) && !e.target.closest('#inDestBtn, [data-mvitem], [data-more], [data-mv]')) closeInPop(); };
-const placePop = (pop, anchor) => {
-  const r = anchor.getBoundingClientRect();
-  const h = pop.offsetHeight;
-  // снизу не помещается — открываем над кнопкой, чтобы не уходило за экран
-  const below = r.bottom + 6 + h <= window.innerHeight - 8;
-  pop.style.top = (below ? r.bottom + 6 : Math.max(8, r.top - h - 6)) + 'px';
-  pop.style.left = Math.max(8, Math.min(r.left, window.innerWidth - pop.offsetWidth - 8)) + 'px';
-};
 const showInPop = (pop) => { inPop = pop; setTimeout(() => document.addEventListener('mousedown', inPopOut, true), 0); };
-// выбор места: два кружка «Сейв» и «Проект», дальше список; внизу кнопка «Отправить» (строка добавления) или «Перенести» (перенос)
+// выбор места раскрывается внутри белой панели над строкой ввода: значки приложений «Сейв» и «Проект», дальше список
 async function openInPop(anchor, onPick, {mode = 'move'} = {}) {
   closeInPop();
   const [cs, bs] = await Promise.all([api('/categories').catch(() => []), api('/boards').catch(() => [])]);
   const work = bs.filter(b => (b.status || 'work') === 'work');
+  const addBar = document.querySelector('.inadd');
+  if (!addBar) return;
   const pop = document.createElement('div');
-  pop.className = 'inpop';
-  document.body.appendChild(pop);
+  pop.className = 'inpick';
   const cache = {};
   let cur = ['root', null], boardName = '', pending = null;
   const goLabel = mode === 'add' ? 'Отправить' : 'Перенести';
@@ -193,28 +186,36 @@ async function openInPop(anchor, onPick, {mode = 'move'} = {}) {
     ? `<div class="pk-foot"><span class="pk-sel">${esc(pending.name)}</span><button class="pk-go" data-confirm="1">${goLabel}</button></div>`
     : '';
   const mark = (b) => (pending && pending.kind === b.kind && pending.slug === b.slug && pending.col === b.col) ? ' on' : '';
-  const show = async (step, arg) => {
+  const head = (title, back) => `<div class="pk-head">${back ? `<button class="pk-back" data-go="${back}" aria-label="Назад">‹</button>` : ''}<span class="pk-title">${esc(title)}</span><button class="pk-x" data-close="1" aria-label="Закрыть">×</button></div>`;
+  const render = async (step, arg) => {
     cur = [step, arg];
     if (step === 'root') {
-      pop.innerHTML = (mode === 'add' ? `<button class="pi${pending && pending.kind === 'inbox' ? ' on' : ''}" data-pick="inbox" data-name="Входящие">Входящие</button>` : '')
-        + `<div class="pk-root"><button class="pk-c" data-go="cats">Сейв</button><button class="pk-c" data-go="boards">Проект</button></div>` + footer();
-    } else if (step === 'cats') {
-      pop.innerHTML = `<button class="pi back" data-go="root">‹ Назад</button>`
-        + (cs.length ? cs.map(c => `<button class="pi${mark({kind: 'cat', slug: c.slug})}" data-pick="cat" data-slug="${esc(c.slug)}" data-name="${esc(c.name)}">${esc(c.name)}</button>`).join('') : `<div class="sec">Категорий пока нет</div>`) + footer();
-    } else if (step === 'boards') {
-      pop.innerHTML = `<button class="pi back" data-go="root">‹ Назад</button>`
-        + (work.length ? work.map(b => `<button class="pi" data-go="board" data-board="${b.id}" data-bname="${esc(b.name)}">${esc(b.name)} ›</button>`).join('') : `<div class="sec">Досок пока нет</div>`) + footer();
-    } else if (step === 'board') {
-      cache[arg] = cache[arg] || await api('/boards/' + arg).catch(() => null);
-      const d = cache[arg];
-      boardName = (d && d.name) || boardName;
-      const cols = (d && d.columns) || [];
-      pop.innerHTML = `<button class="pi back" data-go="boards">‹ Проекты</button>`
-        + cols.map(col => `<button class="pi${mark({kind: 'col', col: String(col.id)})}" data-pick="col" data-col="${col.id}" data-name="${esc(boardName)} · ${esc(col.name)}">${esc(col.name)}</button>`).join('') + footer();
+      return head('Куда', null)
+        + `<div class="pk-list">${mode === 'add' ? `<button class="pi${pending && pending.kind === 'inbox' ? ' on' : ''}" data-pick="inbox" data-name="Входящие">Входящие</button>` : ''}</div>`
+        + `<div class="pk-root"><button class="pk-cw" data-go="cats"><span class="pk-c"><img src="/static/ico/app-safe.png?v=1" alt=""></span>Сейв</button><button class="pk-cw" data-go="boards"><span class="pk-c"><img src="/static/ico/app-boards.png?v=1" alt=""></span>Проект</button></div>` + footer();
     }
-    placePop(pop, anchor);
+    if (step === 'cats') {
+      return head('Сейв', 'root') + `<div class="pk-list">`
+        + (cs.length ? cs.map(c => `<button class="pi${mark({kind: 'cat', slug: c.slug})}" data-pick="cat" data-slug="${esc(c.slug)}" data-name="${esc(c.name)}">${esc(c.name)}</button>`).join('') : `<div class="sec">Категорий пока нет</div>`)
+        + `</div>` + footer();
+    }
+    if (step === 'boards') {
+      return head('Проект', 'root') + `<div class="pk-list">`
+        + (work.length ? work.map(b => `<button class="pi" data-go="board" data-board="${b.id}" data-bname="${esc(b.name)}">${esc(b.name)} ›</button>`).join('') : `<div class="sec">Досок пока нет</div>`)
+        + `</div>` + footer();
+    }
+    // колонки доски
+    cache[arg] = cache[arg] || await api('/boards/' + arg).catch(() => null);
+    const d = cache[arg];
+    boardName = (d && d.name) || boardName;
+    const cols = (d && d.columns) || [];
+    return head(boardName || 'Проект', 'boards') + `<div class="pk-list">`
+      + cols.map(col => `<button class="pi${mark({kind: 'col', col: String(col.id)})}" data-pick="col" data-col="${col.id}" data-name="${esc(boardName)} · ${esc(col.name)}">${esc(col.name)}</button>`).join('')
+      + `</div>` + footer();
   };
+  const show = async (step, arg) => { pop.innerHTML = await render(step, arg); };
   pop.onclick = async e => {
+    if (e.target.closest('[data-close]')) { vt(() => closeInPop()); return; }
     if (e.target.closest('[data-confirm]')) {
       const d = pending;
       if (mode === 'add' && !$('#inTxt').value.trim()) { alert('Сначала напишите текст'); return; }
@@ -230,7 +231,10 @@ async function openInPop(anchor, onPick, {mode = 'move'} = {}) {
       show(cur[0], cur[1]);
     }
   };
-  await show('root');
+  const first = await render('root');
+  vt(() => { addBar.before(pop); pop.innerHTML = first; });
+  // прокручиваем вниз, чтобы выбор и строка ввода были на экране вместе
+  addBar.scrollIntoView({block: 'end', behavior: 'smooth'});
   showInPop(pop);
 }
 // раскрытая карточка входящих: расширяется на месте строки, без всплывающего окна

@@ -1900,3 +1900,20 @@ body.inbox-pg .list{gap:14px;padding:18px 18px 20px}
 body.inbox-pg .ibrow{padding:14px 18px}
 body.inbox-pg .ibrow.open{align-self:flex-start;width:80%;max-width:80%;padding:20px 22px}
 
+/* выбор места внутри белой панели над полем ввода: значки как на главной, маленькие */
+body.inbox-pg .inpanel .inpick{flex:none;margin:0 16px 4px;background:#fff;border:1px solid #e3e3ea;border-radius:22px;padding:10px 12px 10px;box-shadow:0 2px 10px rgba(0,0,0,.06);max-height:min(280px,40vh);overflow:auto}
+.inpick .pk-head{display:flex;align-items:center;gap:6px;padding:0 0 6px}
+.inpick .pk-title{flex:1;font-size:13px;font-weight:600;color:#2b2f3a;min-width:0}
+.inpick .pk-back,.inpick .pk-x{flex:none;width:28px;height:28px;border:0;border-radius:50%;background:transparent;font:inherit;font-size:18px;line-height:1;color:#8a8fa0;cursor:pointer}
+.inpick .pk-back:hover,.inpick .pk-x:hover{background:#f2f2f5;color:#2b2f3a}
+.inpick .pk-root{display:flex;justify-content:center;gap:24px;padding:4px 0 2px}
+.inpick .pk-cw{display:flex;flex-direction:column;align-items:center;gap:5px;border:0;background:transparent;font:inherit;font-size:12px;color:#4a4f5e;cursor:pointer;padding:0}
+.inpick .pk-c{width:56px;height:56px;border-radius:50%;background:#f4f4f7;border:1px solid #e6e6ec;display:flex;align-items:center;justify-content:center}
+.inpick .pk-cw:hover .pk-c{background:#eef1ff;border-color:#d6dcf5}
+.inpick .pk-c img{width:34px;height:34px;object-fit:contain;display:block;pointer-events:none;user-select:none}
+.inpick .pk-list .pi{display:block;width:100%;text-align:left;border:0;background:transparent;border-radius:12px;padding:8px 10px;font:inherit;font-size:14px;color:#2b2f3a;cursor:pointer}
+.inpick .pk-list .pi:hover,.inpick .pk-list .pi.on{background:#eef1ff;color:#2f4bb0}
+.inpick .pk-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;border-top:1px solid #ececf0;margin-top:8px;padding:10px 2px 0}
+.inpick .pk-sel{font-size:13px;color:#4a4f5e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.inpick .pk-go{flex:none;border:0;border-radius:999px;background:#2f4bb0;color:#fff;font:inherit;font-size:13px;font-weight:600;padding:8px 16px;cursor:pointer}
+
