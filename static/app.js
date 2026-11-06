@@ -532,9 +532,11 @@ function bindInbox() {
 }
 
 // строка материала: обложка, название, источник и карандаш, теги под ними; справа глаз и крестик
+// входящие — по текущей странице: класс выставляется синхронно при переходе, поэтому прошлый список не влияет
+const onInboxPage = () => document.body.classList.contains('inbox-pg');
 function row(i) {
   // входящие: лента сообщений — каждая запись пузырём, нажатие открывает карточку, «⋯» справа при наведении
-  if (listParams && listParams.inbox) {
+  if (onInboxPage()) {
     const cat0 = cats.find(c => c.slug === i.category);
     if (inboxOpen === i.id) return inboxExpandedHtml(i, cat0);
     const d = (i.description || '').replace(/\s+/g, ' ').trim();
@@ -585,9 +587,9 @@ function dayLabel(dt) {
 function paintList(el, items, empty) {
   lastItems = items; lastEmpty = empty;
   // входящие всегда списком задач: плитки для них не применяем
-  el.classList.toggle('grid', viewMode === 'tiles' && !(listParams && listParams.inbox));
+  el.classList.toggle('grid', viewMode === 'tiles' && !onInboxPage());
   // входящие — лента как в мессенджере: старые сверху, новые внизу, при открытии страница прокручивается вниз
-  const inbox = listParams && listParams.inbox;
+  const inbox = onInboxPage();
   let html = '';
   if (inbox) {
     // лента: старые сверху; когда начинается новый день — маленькая плашка с датой
@@ -678,9 +680,10 @@ async function home() {
 
 // на главной обновляем только список последних, без перерисовки всей страницы
 async function homeList() {
+  const at = location.hash;
   const items = await api('/items?limit=15');
   const el = $('#list');
-  if (!el) return;
+  if (!el || location.hash !== at) return;
   paintList(el, items, '<div class="empty">Пока пусто. Вставьте ссылку выше.</div>');
   schedulePoll(items, homeList);
 }
@@ -761,9 +764,10 @@ async function loadTags() {
 async function loadList() {
   const p = new URLSearchParams({...listParams, limit: 200});
   if (q) p.set('q', q);
+  const at = location.hash;
   const items = await api('/items?' + p);
   const el = $('#list');
-  if (!el) return;
+  if (!el || location.hash !== at) return; // ушли на другую страницу — этот ответ уже не нужен
   const empty = q ? 'Ничего не найдено' : listParams.status === 'done' ? 'Тут пусто' : 'Здесь пока пусто';
   paintList(el, items, `<div class="empty">${empty}</div>`);
   schedulePoll(items, loadList);
