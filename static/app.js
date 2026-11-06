@@ -312,7 +312,10 @@ function bindInbox() {
 function row(i) {
   // входящие: простой список задач — кружок выполняет, справа при наведении карандаш и «⋯»
   if (listParams && listParams.inbox) {
-    return `<div class="row ibrow" data-id="${i.id}" data-url="${esc(i.url)}"><button class="ck" data-check="${i.id}" aria-label="Выполнить"></button><div class="it">${esc(titleOf(i))}</div><div class="hov"><button class="rb pen" data-id="${i.id}" data-inbox="1" aria-label="Открыть карточку">${PEN}</button><button class="rb inmore" data-more="${i.id}" aria-label="Ещё">⋯</button></div></div>`;
+    const d = (i.description || '').replace(/\s+/g, ' ').trim();
+    const cat = cats.find(c => c.slug === i.category);
+    const info = [SRC[i.source], cat ? cat.name : 'Без категории', ...i.tags.map(t => '#' + t)].filter(Boolean).join(' · ');
+    return `<div class="row ibrow" data-id="${i.id}" data-url="${esc(i.url)}"><button class="ck" data-check="${i.id}" aria-label="Выполнить"></button><div class="ibtxt"><div class="it">${esc(titleOf(i))}</div>${d ? `<div class="ibd">${esc(d)}</div>` : ''}<div class="ibm">${esc(info)}</div></div><div class="hov"><button class="rb pen" data-id="${i.id}" data-inbox="1" aria-label="Открыть карточку">${PEN}</button><button class="rb inmore" data-more="${i.id}" aria-label="Ещё">⋯</button></div></div>`;
   }
   const wait = i.meta_state === 'pending' ? ' · собираю данные…' : '';
   const cat = cats.find(c => c.slug === i.category);
@@ -529,6 +532,7 @@ function tabTitle(t) { document.title = t; }
 
 async function route() {
   const [view, ...rest] = (location.hash.slice(2) || 'hub').split('/');
+  document.body.classList.toggle('inbox-pg', view === 'inbox'); // входящие: серый фон, белые панели задач
   const arg = decodeURIComponent(rest.join('/'));
   pollLeft = view === 'home' ? 6 : pollLeft;
   const tabs = {hub: 'Хаб', kanban: 'Доски', calendar: 'Календарь', crm: 'CRM', home: 'Сейф'};
