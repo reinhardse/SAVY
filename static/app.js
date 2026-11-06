@@ -529,7 +529,7 @@ async function listView(title, params, active, withTags = false) {
     ${params.category || params.inbox ? '<div class="catsub" id="csub"></div>' : ''}
     <input class="search" id="q" placeholder="Поиск" style="display:${q || wantSearch ? 'block' : 'none'}" value="${esc(q)}">
     ${withTags ? '<div class="tags" id="tags"></div>' : ''}
-    <div class="list${viewMode === 'tiles' ? ' grid' : ''}" id="list"></div>${active === 'inbox' ? inboxAddHtml() : ''}${nav(active)}`;
+    ${active === 'inbox' ? '<div class="inpanel">' : ''}<div class="list${viewMode === 'tiles' ? ' grid' : ''}" id="list"></div>${active === 'inbox' ? inboxAddHtml() + '</div>' : ''}${nav(active)}`;
   if (active === 'inbox') bindInbox(); else bindPaste();
   $('#vbtn').onclick = toggleView;
   // «Входящие» — отдельный раздел: кнопка «домой» ведёт на главную хаба, а не в Сейв
