@@ -213,6 +213,45 @@ async function openInPop(anchor, onPick, {withInbox = false} = {}) {
   await show('root');
   showInPop(pop);
 }
+// раскрытая карточка входящих: расширяется на месте строки, без всплывающего окна
+let inboxOpen = null;
+let inboxBound = false;
+function inboxRedraw() {
+  const el = $('#list');
+  if (!el) return;
+  delete el.dataset.h;
+  paintList(el, lastItems, lastEmpty);
+}
+function inboxOpenRow(id) {
+  if (inboxOpen === id) return;
+  inboxOpen = id;
+  inboxRedraw();
+  const t = $('#ibT'), d = $('#ibD');
+  if (d) { autosize(d); d.oninput = () => autosize(d); }
+  if (t) { t.focus(); t.setSelectionRange(t.value.length, t.value.length); }
+}
+// сохраняем название и описание из открытой карточки (если что-то поменялось)
+async function inboxSaveDraft(id) {
+  const it = lastItems.find(x => x.id === id) || {};
+  const t = $('#ibT'), d = $('#ibD');
+  const body = {};
+  if (t && t.value.trim() !== (it.title || '')) body.title = t.value.trim();
+  if (d && d.value !== (it.description || '')) body.description = d.value;
+  if (Object.keys(body).length) await api('/items/' + id, {method: 'PATCH', body});
+}
+// сворачиваем карточку и сохраняем
+async function inboxClose() {
+  if (inboxOpen === null) return;
+  const id = inboxOpen;
+  try { await inboxSaveDraft(id); } catch (err) { alert(err.message); }
+  inboxOpen = null;
+  loadList();
+}
+function inboxExpandedHtml(i, cat) {
+  const url = i.url ? `<a class="ib-link" href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.url)}</a>` : '';
+  return `<div class="row ibrow open" data-id="${i.id}"><div class="ibx"><input class="ib-title" id="ibT" value="${esc(i.title || '')}" placeholder="${esc(titleOf(i))}" autocomplete="off"><textarea class="ib-desc" id="ibD" placeholder="Описание">${esc(i.description || '')}</textarea>${url}<div class="ib-foot"><button class="inchip" id="ibDest" data-id="${i.id}">${esc(cat ? cat.name : 'Входящие')} ▾</button><button class="inchip ib-done" id="ibDone" data-id="${i.id}">Выполнено</button></div></div></div>`;
+}
+
 // карточка входящих: название и описание в теле, ссылка если есть, место назначения; сохраняется при закрытии
 async function openInboxCard(id) {
   const it = await api('/items/' + id);
@@ -304,6 +343,30 @@ function bindInbox() {
   if (go) go.onclick = inboxSend;
   const inp = $('#inTxt');
   if (inp) inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); inboxSend(); } };
+  const dest = $('#ibDest');
+  if (dest) dest.onclick = e => {
+    e.stopPropagation();
+    const id = +dest.dataset.id;
+    openInPop(dest, async d => {
+      try { await inboxSaveDraft(id); inboxOpen = null; await inboxMove(id, d); }
+      catch (err) { alert(err.message); }
+    });
+  };
+  const done = $('#ibDone');
+  if (done) done.onclick = async e => {
+    e.stopPropagation();
+    const id = +done.dataset.id;
+    try { await inboxSaveDraft(id); await api('/items/' + id, {method: 'PATCH', body: {done: true}}); inboxOpen = null; loadList(); }
+    catch (err) { alert(err.message); }
+  };
+  if (!inboxBound) {
+    inboxBound = true;
+    document.addEventListener('mousedown', e => {
+      if (inboxOpen === null || e.target.closest('.ibrow.open, .inpop')) return;
+      inboxClose();
+    }, true);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && inboxOpen !== null) inboxClose(); });
+  }
   const list = $('#list');
   if (list) list.onclick = e => {
     const more = e.target.closest('[data-more]');
@@ -320,6 +383,8 @@ function bindInbox() {
 function row(i) {
   // входящие: лента сообщений — каждая запись пузырём, нажатие открывает карточку, «⋯» справа при наведении
   if (listParams && listParams.inbox) {
+    const cat0 = cats.find(c => c.slug === i.category);
+    if (inboxOpen === i.id) return inboxExpandedHtml(i, cat0);
     const d = (i.description || '').replace(/\s+/g, ' ').trim();
     const cat = cats.find(c => c.slug === i.category);
     const info = [SRC[i.source], cat ? cat.name : 'Без категории', ...i.tags.map(t => '#' + t)].filter(Boolean).join(' · ');
@@ -385,7 +450,8 @@ function bindRows() {
   const app = $('#app');
   app.querySelectorAll('.row').forEach(el => el.onclick = e => {
     if (e.target.closest('.rb, .eyechip, .more-d, .inmove, .ck')) return;
-    if (el.classList.contains('ibrow')) return openInboxCard(+el.dataset.id);
+    if (el.classList.contains('open')) return;
+    if (el.classList.contains('ibrow')) return inboxOpenRow(+el.dataset.id);
     if (!el.dataset.url) return; // заметка без адреса: открывается только карточкой (карандаш)
     window.open(el.dataset.url, '_blank', 'noopener');
   });
@@ -536,7 +602,7 @@ async function loadList() {
 }
 
 function schedulePoll(items, fn) {
-  if (items.some(i => i.meta_state === 'pending') && pollLeft-- > 0) setTimeout(fn || route, 2500);
+  if (items.some(i => i.meta_state === 'pending') && !inboxOpen && pollLeft-- > 0) setTimeout(fn || route, 2500);
 }
 
 // название вкладки браузера: раздел, а на доске и в воронке — их название (задаётся при открытии)
@@ -544,7 +610,8 @@ function tabTitle(t) { document.title = t; }
 
 async function route() {
   const [view, ...rest] = (location.hash.slice(2) || 'hub').split('/');
-  document.body.classList.toggle('inbox-pg', view === 'inbox'); // входящие: серый фон, белые панели задач
+  document.body.classList.toggle('inbox-pg', view === 'inbox'); // входящие: серый фон на весь экран, белые панели задач
+  document.documentElement.classList.toggle('inbox-pg', view === 'inbox');
   const arg = decodeURIComponent(rest.join('/'));
   pollLeft = view === 'home' ? 6 : pollLeft;
   const tabs = {hub: 'Хаб', kanban: 'Доски', calendar: 'Календарь', crm: 'CRM', home: 'Сейф'};
