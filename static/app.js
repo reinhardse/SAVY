@@ -1276,6 +1276,155 @@ const cardHtml = (c, colName = '') => {
   return `<div class="kcard${od ? ' od' : ''}" data-card="${c.id}"><div class="kct${c.title ? '' : ' ph'}">${hasNote ? NOTE_ICON : ''}${esc(c.title || 'Без названия')}</div>${row ? `<div class="kc-tags">${row}</div>` : ''}</div>`;
 };
 
+// меню «Добавить»: ссылка или папка материалов
+function closeAddMenu() {
+  document.getElementById('addmenu')?.remove();
+  document.removeEventListener('mousedown', addMenuOut, true);
+}
+function addMenuOut(e) { if (!e.target.closest('#addmenu')) closeAddMenu(); }
+function openAddMenu(anchor) {
+  closeAddMenu();
+  const m = document.createElement('div');
+  m.id = 'addmenu';
+  m.className = 'addmenu';
+  m.innerHTML = '<button class="am-i" data-am="link">Ссылку</button><button class="am-i" data-am="folder">Папку материалов</button>';
+  document.body.appendChild(m);
+  const r = anchor.getBoundingClientRect();
+  m.style.left = Math.max(8, Math.min(r.left, innerWidth - m.offsetWidth - 8)) + 'px';
+  m.style.top = (r.bottom + 8) + 'px';
+  m.querySelector('[data-am="link"]').onclick = () => { closeAddMenu(); openLink(null); };
+  m.querySelector('[data-am="folder"]').onclick = () => {
+    closeAddMenu();
+    inlineEdit(anchor, '', async v => {
+      await api('/boards/' + curBoard + '/folders', {method: 'POST', body: {name: v}});
+      board(curBoard);
+    }, () => board(curBoard), 'Название папки');
+  };
+  setTimeout(() => document.addEventListener('mousedown', addMenuOut, true), 0);
+}
+
+// окно папки материалов: поверх доски, внутри — папки и материалы; папки открываются поверх друг друга
+const folderStack = [];
+const foMeta = (i, host) => {
+  const d = new Date(i.created_at);
+  return d.toLocaleTimeString('ru', {hour: '2-digit', minute: '2-digit'});
+};
+function folderHtml(f, full) {
+  const subs = f.folders.map(s => `<button class="fo-sub" data-sub="${s.id}"><span class="fo-sub-ic">${FOLDER_ICON}</span><span class="fo-sub-n">${esc(s.name)}</span><span class="fo-sub-c">${s.items + s.folders}</span></button>`).join('');
+  const items = f.items.map(i => {
+    const title = i.title || i.host || i.url;
+    const link = i.kind === 'link' ? `<a class="fo-it-link" href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.host || i.url)}</a>` : '';
+    return `<div class="fo-item" data-iid="${i.id}" data-url="${esc(i.url)}">
+        <div class="fo-it-body"><div class="fo-it-t">${esc(title)}</div>${i.description ? `<div class="fo-it-d">${esc(i.description)}</div>` : ''}<div class="fo-it-m">${link}${link ? ' · ' : ''}${foMeta(i)}</div></div>
+        <button class="fo-more" data-fmore="${i.id}" aria-label="Ещё">⋯</button>
+        <button class="fo-del" data-fdel="${i.id}">Удалить</button>
+      </div>`;
+  }).join('');
+  return `<div class="fo-card${full ? ' full' : ''}">
+      <div class="fo-top">
+        <div class="fo-title fo-name" title="Нажмите, чтобы переименовать">${esc(f.name)}</div>
+        <div class="fo-tools">
+          <button class="kb-ib fo-full" aria-label="${full ? 'Вернуть' : 'На весь экран'}">${full ? RESTORE_ICON : FULL_ICON}</button>
+          <button class="kb-ib fo-x" aria-label="Закрыть">${XICON}</button>
+        </div>
+      </div>
+      <div class="fo-subs">${subs}<button class="fo-addsub fo-addsub-btn">+ Папка</button></div>
+      <div class="fo-add">
+        <input class="fo-t fo-in" placeholder="Название или ссылка" autocomplete="off" autocorrect="off" spellcheck="false">
+        <textarea class="fo-d fo-desc" placeholder="Описание" rows="2" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+        <div class="fo-addbar"><button class="inchip fo-send">Добавить</button></div>
+      </div>
+      <div class="fo-list">${items || '<div class="fo-empty">Пока пусто</div>'}</div>
+    </div>`;
+}
+async function renderFolder(ov, fid) {
+  const f = await api('/folders/' + fid);
+  const full = ov.querySelector('.fo-card')?.classList.contains('full');
+  ov.innerHTML = folderHtml(f, full);
+  bindFolder(ov, f);
+}
+function bindFolder(ov, f) {
+  const card = ov.querySelector('.fo-card');
+  ov.onclick = e => { if (e.target === ov) closeFolder(); };
+  ov.querySelector('.fo-x').onclick = () => closeFolder();
+  ov.querySelector('.fo-full').onclick = () => {
+    card.classList.toggle('full');
+    const on = card.classList.contains('full');
+    ov.querySelector('.fo-full').innerHTML = on ? RESTORE_ICON : FULL_ICON;
+    ov.querySelector('.fo-full').setAttribute('aria-label', on ? 'Вернуть' : 'На весь экран');
+  };
+  ov.querySelector('.fo-name').onclick = () => inlineEdit(ov.querySelector('.fo-name'), f.name,
+    async v => { await api('/folders/' + f.id, {method: 'PATCH', body: {name: v}}); renderFolder(ov, f.id); },
+    () => renderFolder(ov, f.id), 'Название папки');
+  ov.querySelector('.fo-addsub-btn').onclick = () => inlineEdit(ov.querySelector('.fo-addsub-btn'), '',
+    async v => { await api('/folders/' + f.id + '/folders', {method: 'POST', body: {name: v}}); renderFolder(ov, f.id); },
+    () => renderFolder(ov, f.id), 'Название папки');
+  ov.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => openFolder(+b.dataset.sub));
+  const t = ov.querySelector('.fo-t'), d = ov.querySelector('.fo-d');
+  const send = async () => {
+    const title = t.value.trim(), desc = d.value.trim();
+    if (!title && !desc) return;
+    try {
+      await api('/folders/' + f.id + '/items', {method: 'POST', body: {title, description: desc}});
+      await renderFolder(ov, f.id);
+      ov.querySelector('.fo-t')?.focus(); // можно сразу вводить следующий материал
+    } catch (err) { alert(err.message); }
+  };
+  ov.querySelector('.fo-send').onclick = send;
+  t.onkeydown = e => {
+    if (e.isComposing) return;
+    if (e.key === 'Enter') { e.preventDefault(); send(); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); d.focus(); }
+  };
+  d.onkeydown = e => {
+    if (e.isComposing) return;
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+  };
+  ov.querySelectorAll('.fo-item').forEach(el => {
+    el.onclick = e => {
+      if (e.target.closest('.fo-more, .fo-del, .fo-it-link')) return;
+      if (el.dataset.url) window.open(el.dataset.url, '_blank', 'noopener');
+    };
+  });
+  ov.querySelectorAll('[data-fmore]').forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    const row = b.closest('.fo-item');
+    ov.querySelectorAll('.fo-item.more').forEach(x => { if (x !== row) x.classList.remove('more'); });
+    row.classList.toggle('more');
+  });
+  ov.querySelectorAll('[data-fdel]').forEach(b => b.onclick = async e => {
+    e.stopPropagation();
+    if (!confirm('Удалить материал?')) return;
+    try { await api('/folder-items/' + b.dataset.fdel, {method: 'DELETE'}); renderFolder(ov, f.id); }
+    catch (err) { alert(err.message); }
+  });
+}
+async function openFolder(fid) {
+  const ov = document.createElement('div');
+  ov.className = 'fo-ov';
+  ov.style.zIndex = 100 + folderStack.length * 10;
+  document.body.appendChild(ov);
+  folderStack.push(ov);
+  if (folderStack.length === 1) document.addEventListener('keydown', foKey);
+  try {
+    await renderFolder(ov, fid);
+  } catch (err) { closeFolder(); alert(err.message); return; }
+  requestAnimationFrame(() => ov.classList.add('open'));
+  ov.querySelector('.fo-t')?.focus();
+}
+function closeFolder() {
+  const ov = folderStack.pop();
+  if (!ov) return;
+  ov.classList.remove('open');
+  setTimeout(() => ov.remove(), 220);
+  if (!folderStack.length) {
+    document.removeEventListener('keydown', foKey);
+    // доска обновляет счётчики папок после закрытия
+    if (location.hash.startsWith('#/board/') && curBoard) board(curBoard);
+  }
+}
+function foKey(e) { if (e.key === 'Escape') closeFolder(); }
+
 async function board(bid) {
   curBoard = bid;
   const b = await api('/boards/' + bid);
@@ -1287,7 +1436,8 @@ async function board(bid) {
       <button class="kadd" data-addcard="${col.id}">+ Добавить карточку</button>
     </div>`).join('');
   $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
-  const hlStrip = `<div class="hl-strip" id="hlstrip">${(b.links || []).map(hlItem).join('')}<div class="hl-item hl-fixed"><button class="hl-tile hl-add" id="hladd" aria-label="Добавить ссылку">${PLUS_ICON}</button><div class="hl-name">Добавить</div></div></div>`;
+  const folderHl = (b.folders || []).map(f => `<div class="hl-item hl-folder-item"><button class="hl-tile hl-folder" data-folder-open="${f.id}" aria-label="Открыть папку ${esc(f.name)}">${FOLDER_ICON}<span class="hl-fcount">${f.items + f.folders}</span></button><div class="hl-name" title="${esc(f.name)}">${esc(f.name)}</div></div>`).join('');
+  const hlStrip = `<div class="hl-strip" id="hlstrip">${folderHl}${(b.links || []).map(hlItem).join('')}<div class="hl-item hl-fixed"><button class="hl-tile hl-add" id="hladd" aria-label="Добавить">${PLUS_ICON}</button><div class="hl-name">Добавить</div></div></div>`;
   $('#app').innerHTML = `<div class="titlerow"><div class="kbtitle" id="kbname" title="Нажмите, чтобы переименовать">${esc(b.name)}</div>
       <div class="tr-actions"><button class="iconbtn" id="kball" aria-label="Все доски" title="Все доски">${HOME_ICON}</button>
       <button class="iconbtn" id="kfull" aria-label="Во всю ширину" title="${isFull(bid) ? 'Вернуть' : 'Во всю ширину'}">${isFull(bid) ? RESTORE_ICON : FULL_ICON}</button></div></div>
@@ -1295,7 +1445,8 @@ async function board(bid) {
     <div class="kcols">${cols}<div class="kcol kaddcol"><button class="kadd" id="addcol">+ Колонка</button></div></div>`;
   $('#kball').onclick = () => { location.hash = '#/kanban'; };
   const linkById = id => (b.links || []).find(x => x.id === id);
-  $('#hladd').onclick = () => openLink(null);
+  $('#hladd').onclick = e => { e.stopPropagation(); openAddMenu($('#hladd')); };
+  document.querySelectorAll('[data-folder-open]').forEach(el => el.onclick = () => openFolder(+el.dataset.folderOpen));
   document.querySelectorAll('[data-hl-open]').forEach(el => el.onclick = () => { if (hlSuppress) return; const l = linkById(+el.dataset.hlOpen); if (l) window.open(l.url, '_blank', 'noopener'); });
   bindHlDrag();
   document.querySelectorAll('[data-hl-edit]').forEach(el => el.onclick = e => { e.stopPropagation(); openLink(linkById(+el.dataset.hlEdit)); });

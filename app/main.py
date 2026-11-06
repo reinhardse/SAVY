@@ -22,7 +22,7 @@ from . import gcal, meta
 from types import SimpleNamespace
 from urllib.parse import urlparse
 from .db import (BASE_DIR, DATA_DIR, STATUSES, Board, BoardLink, Card, CardSub, Category, Company, Contact, CrmPipeline, CrmStage,
-                 CrmTask, CRM_NEW_FUNNEL_STAGES, Deal, DealMessage, GCalToken, Item, KColumn, SessionLocal, Tag, init_db)
+                 CrmTask, CRM_NEW_FUNNEL_STAGES, Deal, DealMessage, Folder, FolderItem, GCalToken, Item, KColumn, SessionLocal, Tag, init_db)
 
 PASSWORD = os.environ.get("LIBRARY_PASSWORD")
 API_TOKEN = os.environ.get("LIBRARY_API_TOKEN")  # для бота и «Быстрых команд» iOS
@@ -606,7 +606,158 @@ def board_create(body: BoardIn, db: Session = Depends(get_db), _: int = Depends(
 def board_read(bid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     out = board_out(_board(db, bid))
     out["links"] = [link_out(l) for l in db.scalars(select(BoardLink).where(BoardLink.board_id == bid).order_by(BoardLink.sort, BoardLink.id)).all()]
+    out["folders"] = [folder_brief(f, db) for f in db.scalars(select(Folder).where(Folder.board_id == bid, Folder.parent_id.is_(None)).order_by(Folder.sort, Folder.id)).all()]
     return out
+
+
+# ----- папки материалов: на доске и внутри папок -----
+class FolderIn(BaseModel):
+    name: str
+
+
+class FolderItemIn(BaseModel):
+    title: str = ""
+    description: str = ""
+    url: str | None = None
+
+
+class FolderItemPatch(BaseModel):
+    title: str | None = None
+    description: str | None = None
+
+
+def folder_brief(f: Folder, db: Session | None = None) -> dict:
+    if db is None:
+        return {"id": f.id, "name": f.name, "parent_id": f.parent_id, "items": 0, "folders": 0}
+    items = db.scalar(select(func.count()).select_from(FolderItem).where(FolderItem.folder_id == f.id)) or 0
+    subs = db.scalar(select(func.count()).select_from(Folder).where(Folder.parent_id == f.id)) or 0
+    return {"id": f.id, "name": f.name, "parent_id": f.parent_id, "items": items, "folders": subs}
+
+
+def folder_item_out(i: FolderItem) -> dict:
+    host = (urlparse(i.url).hostname or "").removeprefix("www.") if i.url else ""
+    return {"id": i.id, "kind": i.kind, "url": i.url or "", "host": host, "title": i.title or "",
+            "description": i.description or "", "created_at": i.created_at.isoformat() if i.created_at else None}
+
+
+def _folder(db: Session, fid: int) -> Folder:
+    f = db.get(Folder, fid)
+    if not f:
+        raise HTTPException(404, "Папка не найдена")
+    return f
+
+
+@app.post("/api/boards/{bid}/folders")
+def board_folder_create(bid: int, body: FolderIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    _board(db, bid)
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(400, "Название не может быть пустым")
+    last = db.scalar(select(func.max(Folder.sort)).where(Folder.board_id == bid, Folder.parent_id.is_(None))) or 0
+    f = Folder(board_id=bid, parent_id=None, name=name[:300], sort=last + 1)
+    db.add(f)
+    db.commit()
+    return folder_brief(f, db)
+
+
+@app.get("/api/folders/{fid}")
+def folder_read(fid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    f = _folder(db, fid)
+    subs = db.scalars(select(Folder).where(Folder.parent_id == f.id).order_by(Folder.sort, Folder.id)).all()
+    items = db.scalars(select(FolderItem).where(FolderItem.folder_id == f.id).order_by(FolderItem.id)).all()
+    # цепочка папок сверху вниз, чтобы окно показывало, где открыта папка
+    path, cur = [], f
+    while cur is not None:
+        path.insert(0, {"id": cur.id, "name": cur.name})
+        cur = db.get(Folder, cur.parent_id) if cur.parent_id else None
+    out = folder_brief(f, db)
+    out.update({"board_id": f.board_id, "path": path,
+                "folders": [folder_brief(s, db) for s in subs],
+                "items": [folder_item_out(i) for i in items]})
+    return out
+
+
+@app.post("/api/folders/{fid}/folders")
+def folder_child_create(fid: int, body: FolderIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    parent = _folder(db, fid)
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(400, "Название не может быть пустым")
+    last = db.scalar(select(func.max(Folder.sort)).where(Folder.parent_id == parent.id)) or 0
+    f = Folder(board_id=parent.board_id, parent_id=parent.id, name=name[:300], sort=last + 1)
+    db.add(f)
+    db.commit()
+    return folder_brief(f, db)
+
+
+@app.patch("/api/folders/{fid}")
+def folder_rename(fid: int, body: FolderIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    f = _folder(db, fid)
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(400, "Название не может быть пустым")
+    f.name = name[:300]
+    db.commit()
+    return folder_brief(f, db)
+
+
+def _delete_folder_tree(db: Session, f: Folder) -> None:
+    for sub in db.scalars(select(Folder).where(Folder.parent_id == f.id)).all():
+        _delete_folder_tree(db, sub)
+    db.query(FolderItem).filter(FolderItem.folder_id == f.id).delete()
+    db.delete(f)
+
+
+@app.delete("/api/folders/{fid}")
+def folder_delete(fid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    _delete_folder_tree(db, _folder(db, fid))
+    db.commit()
+    return {"ok": True}
+
+
+@app.post("/api/folders/{fid}/items")
+def folder_item_create(fid: int, body: FolderItemIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    f = _folder(db, fid)
+    text = body.title.strip()
+    url = (body.url or "").strip()
+    # ссылка: если строка похожа на адрес; иначе — заметка с текстом названия
+    if url:
+        kind, link = "link", _norm(url)
+    elif re.match(r"^https?://", text, re.I) or re.match(r"^[^\s]+\.[^\s]{2,}$", text):
+        kind, link = "link", _norm(text)
+    else:
+        kind, link = "note", None
+    if kind == "note" and not text:
+        raise HTTPException(400, "Напишите текст")
+    i = FolderItem(folder_id=f.id, kind=kind, url=link, title=("" if kind == "link" else text)[:300],
+                   description=body.description.strip())
+    if kind == "link":
+        i.title = (text if text and not re.match(r"^https?://", text, re.I) else "")[:300]
+    db.add(i)
+    db.commit()
+    return folder_item_out(i)
+
+
+@app.patch("/api/folder-items/{iid}")
+def folder_item_patch(iid: int, body: FolderItemPatch, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    i = db.get(FolderItem, iid)
+    if not i:
+        raise HTTPException(404, "Материал не найден")
+    if body.title is not None:
+        i.title = body.title.strip()[:300]
+    if body.description is not None:
+        i.description = body.description.strip()
+    db.commit()
+    return folder_item_out(i)
+
+
+@app.delete("/api/folder-items/{iid}")
+def folder_item_delete(iid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    i = db.get(FolderItem, iid)
+    if i:
+        db.delete(i)
+        db.commit()
+    return {"ok": True}
 
 
 # ----- ссылки-«хайлайты» над доской -----

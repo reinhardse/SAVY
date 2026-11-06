@@ -125,6 +125,29 @@ class BoardLink(Base):
     created_at = Column(DateTime, default=now)
 
 
+class Folder(Base):
+    """Папка материалов: на доске или внутри другой папки. Внутри можно создавать новые папки."""
+    __tablename__ = "folders"
+    id = Column(Integer, primary_key=True)
+    board_id = Column(Integer, ForeignKey("boards.id", ondelete="CASCADE"), nullable=True, index=True)
+    parent_id = Column(Integer, ForeignKey("folders.id", ondelete="CASCADE"), nullable=True, index=True)
+    name = Column(String(300), nullable=False, default="")
+    sort = Column(Integer, default=0)
+    created_at = Column(DateTime, default=now)
+
+
+class FolderItem(Base):
+    """Материал внутри папки: ссылка или заметка (текст без ссылки)."""
+    __tablename__ = "folder_items"
+    id = Column(Integer, primary_key=True)
+    folder_id = Column(Integer, ForeignKey("folders.id", ondelete="CASCADE"), nullable=False, index=True)
+    kind = Column(String(10), nullable=False, default="note")  # link или note
+    url = Column(Text, nullable=True)
+    title = Column(String(300), nullable=False, default="")
+    description = Column(Text, default="")
+    created_at = Column(DateTime, default=now)
+
+
 class KColumn(Base):
     __tablename__ = "kcolumns"
     id = Column(Integer, primary_key=True)
