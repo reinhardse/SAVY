@@ -2031,10 +2031,10 @@ body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
 .fo-t{flex:1;min-width:0;border:0;outline:none;background:transparent;font:inherit;font-size:16px;color:#2b2f3a;padding:6px 0}
 .fo-d{width:100%;box-sizing:border-box;border:0;outline:none;resize:none;background:transparent;font:inherit;font-size:15px;line-height:1.4;color:#2b2f3a;max-height:0;opacity:0;overflow:hidden;padding:0;transition:max-height .25s cubic-bezier(.22,.7,.2,1),opacity .2s ease,padding .25s ease}
 .fo-d::placeholder{color:#9a9eab}
-.fo-add:hover .fo-d,.fo-add:focus-within .fo-d,.fo-add.keep .fo-d{max-height:110px;opacity:1;padding:2px 0 6px}
+.fo-add:focus-within .fo-d,.fo-add.keep .fo-d{max-height:110px;opacity:1;padding:2px 0 6px}
 .fo-subs{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 12px}
 .fo-add .inchip{opacity:0;pointer-events:none;transition:opacity .15s}
-.fo-add:hover .inchip,.fo-add:focus-within .inchip,.fo-add.keep .inchip{opacity:1;pointer-events:auto}
+.fo-add:focus-within .inchip,.fo-add.keep .inchip{opacity:1;pointer-events:auto}
 
 .fo-sub{margin:0}
 .fo-list{display:flex;flex-direction:column}
@@ -2053,3 +2053,5 @@ body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
 .sheet .fo-add .fo-send{height:30px;padding:0 14px}
 .sheet .fo-add .fo-d{display:block}
 .fo-sub-ic svg{width:18px;height:18px;display:block;color:#2f4bb0}
+
+.sheet.card-sheet.fo-sheet:not(.kb-full){min-height:min(86vh,820px)}

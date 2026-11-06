@@ -819,7 +819,10 @@ async function route() {
 let beforeClose = null; // сохранение перед закрытием окна (текст карточки)
 async function closeSheet() {
   if (beforeClose) { const f = beforeClose; beforeClose = null; await f(); }
-  $('#sheet-root').innerHTML = ''; route();
+  $('#sheet-root').innerHTML = '';
+  const back = foReturn; foReturn = null;
+  route();
+  if (back) openFolder(back); // карточка материала закрыта — папка остаётся на месте
 }
 
 function sheet(html, cls = '') {
@@ -1313,16 +1316,15 @@ function openAddMenu(anchor) {
 }
 
 // окно папки материалов: то же окно, что у карточки задачи (общий sheet, класс card-sheet)
+let foReturn = null; // папка, в которую вернёмся после закрытия карточки материала
 const folderPath = []; // открытые папки; последняя — текущая, вложенная открывается тем же окном
 let foView = 'list';
 let foFull = false;
 const FO_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>';
 function folderHtml(f, items) {
-  const nested = folderPath.length > 1;
-  const subs = f.folders.map(s => `<button class="fo-sub" data-sub="${s.id}"><span class="fo-sub-ic">${BOX_ICON}</span><span class="fo-sub-n">${esc(s.name)}</span></button>`).join('');
   return `<div class="sheet-body kb-card">
       <div class="kb-top">
-        ${nested ? `<button class="kb-ib fo-back" aria-label="Назад">${FO_BACK_ICON}</button>` : '<span class="kb-saved">Папка материалов</span>'}
+        <span class="kb-saved">Папка материалов</span>
         <div class="kb-tools">
           <button class="kb-ib fo-view" aria-label="Вид" title="${foView === 'tiles' ? 'Строкой' : 'Плиткой'}">${foView === 'tiles' ? FO_LIST_ICON : FO_TILES_ICON}</button>
           <button class="kb-ib fo-more" aria-label="Действия">${FO_DOTS_ICON}</button>
@@ -1332,7 +1334,6 @@ function folderHtml(f, items) {
       </div>
       <div class="kb-body">
       <textarea class="kb-title fo-name" rows="1" placeholder="Название папки">${esc(f.name)}</textarea>
-      ${subs ? `<div class="fo-subs">${subs}</div>` : ''}
       <div class="fo-add">
         <div class="fo-row"><input class="fo-t" placeholder="Название или ссылка" autocomplete="off" autocorrect="off" spellcheck="false"><button class="inchip fo-send">Добавить</button></div>
         <textarea class="fo-d" rows="2" placeholder="Описание" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
@@ -1343,7 +1344,8 @@ function folderHtml(f, items) {
 }
 async function renderFolder(fid) {
   const [f, items] = await Promise.all([api('/folders/' + fid), api('/items?folder=' + fid + '&limit=200')]);
-  sheet(folderHtml(f, items), 'card-sheet');
+  foReturn = null;
+  sheet(folderHtml(f, items), 'card-sheet fo-sheet');
   const box = $('#ov .sheet');
   if (foFull) box.classList.add('kb-full');
   // закрытие окна: состояние папок сбрасывается, доска перерисуется через route()
@@ -1365,7 +1367,6 @@ function bindFolder(f) {
   const box = $('#ov .sheet');
   const menu = box.querySelector('.fo-menu');
   box.querySelector('.fo-x').onclick = () => closeSheet();
-  box.querySelector('.fo-back')?.addEventListener('click', folderBack);
   box.querySelector('.fo-more').onclick = e => { e.stopPropagation(); menu.hidden = !menu.hidden; };
   box.addEventListener('click', e => { if (!e.target.closest('.fo-more, .fo-menu')) menu.hidden = true; });
   box.querySelector('.fo-full').onclick = () => {
@@ -1393,7 +1394,6 @@ function bindFolder(f) {
     catch (err) { alert(err.message); name.value = f.name; }
   };
   name.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); name.blur(); } };
-  box.querySelectorAll('[data-sub]').forEach(b => b.onclick = () => openFolder(+b.dataset.sub, true));
   // строка добавления: описание появляется при наведении или фокусе и остаётся, если в нём есть текст
   const addBox = box.querySelector('.fo-add'), t = box.querySelector('.fo-t'), d = box.querySelector('.fo-d');
   const syncKeep = () => addBox.classList.toggle('keep', !!(t.value.trim() || d.value.trim()));
@@ -1427,6 +1427,7 @@ function bindFolder(f) {
   });
   box.querySelectorAll('.fo-list .rb.pen, .fo-list .more-d').forEach(b => b.onclick = e => {
     e.stopPropagation();
+    foReturn = f.id;
     openItem(+b.dataset.id);
   });
   box.querySelectorAll('.fo-list .rb.del').forEach(b => b.onclick = async e => {
