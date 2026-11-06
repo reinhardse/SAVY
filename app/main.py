@@ -219,6 +219,8 @@ def list_items(status: str | None = None, category: str | None = None, favorite:
         stmt = stmt.where(Item.status.notin_(["archived", "done"]))
     if inbox:  # входящие: всё, что ещё не отнесено ни к одной категории
         stmt = stmt.where(Item.category_id.is_(None))
+    elif not category:  # в Сейве — только отнесённое к категории; без категории материал живёт во входящих
+        stmt = stmt.where(Item.category_id.isnot(None))
     if category:
         c = cat_by_slug(db, category)
         stmt = stmt.where(Item.category_id == (c.id if c else -1))
@@ -301,7 +303,7 @@ def refresh_item(item_id: int, tasks: BackgroundTasks, db: Session = Depends(get
 # ---------- сводка, категории, экспорт ----------
 @app.get("/api/me")
 def me(db: Session = Depends(get_db), _: int = Depends(require_auth)):
-    base = (Item.user_id == USER_ID, Item.status.notin_(["archived", "done"]))
+    base = (Item.user_id == USER_ID, Item.status.notin_(["archived", "done"]), Item.category_id.isnot(None))
     total = db.scalar(select(func.count()).select_from(Item).where(*base))
     new = db.scalar(select(func.count()).select_from(Item).where(*base, Item.status == "new"))
     done = db.scalar(select(func.count()).select_from(Item).where(Item.user_id == USER_ID, Item.status == "done"))
