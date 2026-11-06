@@ -245,8 +245,7 @@ async function home() {
   const tile = (go, st, icon, count, label) => `<button class="tile" style="--c:${st.bg};--tc:${st.tc}" data-go="${go}"><div class="ic">${icon}</div><div class="tf"><div class="n">${count}</div><div class="l">${esc(label)}</div></div></button>`;
   const catTiles = me.categories.map(c => tile('#/cat/' + c.slug, styleOf(c.slug), ICONS[c.slug] || FOLDER_ICON, c.count, c.name)).join('');
   // порядок: «Входящие», «Все», затем категории в порядке создания (новые — в конце)
-  const tilesHtml = tile('#/inbox', INBOX_STYLE, INBOX_ICON, inbox.count, 'Входящие')
-    + tile('#/all', ALL_STYLE, TILES_ICON, me.total, 'Все') + catTiles;
+  const tilesHtml = tile('#/all', ALL_STYLE, TILES_ICON, me.total, 'Все') + catTiles;
   $('#app').classList.remove('kfull'); // ширина меняется в ту же секунду, что и страница — без промежуточного скачка
   $('#app').innerHTML = `<div class="titlerow"><div class="brand logo" id="brandgo" style="cursor:pointer" title="Приложения">СЕЙВ</div>
       <div class="tr-actions"><button class="iconbtn" id="hsbtn" aria-label="Поиск">${LOUPE}</button></div></div>
@@ -702,7 +701,7 @@ async function hub() {
   const tile = (go, bg, ic, label) => `<div class="htw"><button class="htile" style="--c:${bg}" data-go="${go}" aria-label="${label}">${ic}</button><span class="htile-l">${label}</span></div>`;
   $('#app').innerHTML = `<div class="titlerow"><div class="brand">Приложения</div></div>
     <section class="hsec">
-      <div class="hrow">${tile('#/calendar', '#eef3ff', '<img src="/static/ico/app-calendar.png?v=1" alt="" draggable="false">', 'Календарь')}${tile('#/kanban', '#e7f6ee', '<img src="/static/ico/app-boards.png?v=1" alt="" draggable="false">', 'Доски')}${tile('#/home', '#fff0f3', '<img src="/static/ico/app-safe.png?v=1" alt="" draggable="false">', 'Сейв')}${tile('#/crm', '#f3f0ff', '<img src="/static/ico/app-crm.png?v=1" alt="" draggable="false">', 'CRM')}</div>
+      <div class="hrow">${tile('#/inbox', '#e7edff', `<span class="hi-flat">${INBOX_SVG}</span>`, 'Входящие')}${tile('#/calendar', '#eef3ff', '<img src="/static/ico/app-calendar.png?v=1" alt="" draggable="false">', 'Календарь')}${tile('#/kanban', '#e7f6ee', '<img src="/static/ico/app-boards.png?v=1" alt="" draggable="false">', 'Доски')}${tile('#/home', '#fff0f3', '<img src="/static/ico/app-safe.png?v=1" alt="" draggable="false">', 'Сейв')}${tile('#/crm', '#f3f0ff', '<img src="/static/ico/app-crm.png?v=1" alt="" draggable="false">', 'CRM')}</div>
     </section>
     <section class="hsec"><button class="hsec-h hsec-link" data-go="#/kanban">Доски<span class="hsec-chev">›</span></button>
       <div class="hrow">${boards.map(b => { const p = HUB_BPAL[b.id % HUB_BPAL.length]; return `<div class="htw"><button class="htile hboard" style="--c1:${p}" data-go="#/board/${b.id}" aria-label="${esc(b.name)}"><span class="hb-n">${esc(b.name)}</span><span class="hb-c">${b.count || 0}</span></button></div>`; }).join('') || '<div class="hempty">Пока нет досок</div>'}</div>

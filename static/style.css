@@ -1749,7 +1749,7 @@ body.kdragging,body.kdragging *{cursor:grabbing!important;user-select:none!impor
 .hsec-h{display:flex;align-items:center;gap:4px;margin:0 0 14px;padding:0;border:0;background:none;font:inherit;font-size:20px;font-weight:700;color:var(--ink);text-align:left}
 .hsec-link{cursor:pointer}
 .hsec-chev{font-size:22px;font-weight:500;color:var(--muted);line-height:1}
-.hrow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.hrow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
 .htw{display:flex;flex-direction:column;min-width:0}
 .htile{width:100%;aspect-ratio:1.45;border:1px solid #ececf0;border-radius:20px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:transform .15s,box-shadow .15s}
 .htile:hover{transform:translateY(-1px);box-shadow:var(--sh-md)}
@@ -1815,3 +1815,8 @@ html:has(.hsec),body:has(.hsec){background:#eef3fb}
 .ypanel .bgrid .bcard.sq .bdel{top:auto;bottom:10px;right:10px}
 .ypanel .bgrid .bcard.sq.off{opacity:.62}
 .bgrid.bcar .bcard.sq{flex:0 0 190px}
+
+
+/* «Входящие» в ряду приложений: плоская иконка в цвете плитки */
+.hrow .htile .hi-flat{display:flex;width:100px;height:100px;color:#2f4bb0}
+.hrow .htile .hi-flat svg{width:100%;height:100%;display:block}
