@@ -1401,6 +1401,16 @@ async function refreshFolderList(fid) {
   if (!list) return;
   foItems = items;
   list.innerHTML = foListHtml();
+  const bar = foTagsHtml();
+  const old = box.querySelector('.fo-tags');
+  if (old) { if (bar) old.outerHTML = bar; else old.remove(); }
+  else if (bar) list.insertAdjacentHTML('beforebegin', bar);
+  box.querySelectorAll('[data-fotag]').forEach(b => b.onclick = () => {
+    foTag = b.dataset.fotag || null;
+    box.querySelectorAll('.fo-tg').forEach(x => x.classList.toggle('on', (x.dataset.fotag || null) === foTag));
+    list.innerHTML = foListHtml();
+    bindFolderRows(box, {id: fid});
+  });
   bindFolderRows(box, {id: fid});
 }
 async function renderFolder(fid) {
@@ -1504,76 +1514,39 @@ function closeVideo() {
   $('#pl-ov')?.remove();
   $('#ov .sheet')?.classList.remove('pl-under');
 }
-function openVideo(url, itemId) {
-  const src = igEmbed(url);
-  if (!src) return false;
-  closeVideo();
-  $('#sheet-root').insertAdjacentHTML('beforeend', `<div class="overlay pl-ov" id="pl-ov"><div class="sheet pl-sheet"><div class="pl-top"><span class="kb-saved">Видео</span><div class="pl-tools"><a class="pl-ext" href="${esc(url)}" target="_blank" rel="noopener">Открыть в Instagram</a><button class="pl-reload" aria-label="Обновить плеер">Обновить</button><button class="kb-ib pl-x" aria-label="Закрыть">${XICON}</button></div></div><div class="pl-body"><div class="pl-player"><iframe class="pl-frame" src="${esc(src)}" sandbox="allow-scripts allow-same-origin allow-presentation allow-forms allow-popups allow-popups-to-escape-sandbox" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div><div class="pl-comments"><div class="pl-clist"></div><div class="pl-cadd"><textarea class="pl-ctxt" rows="1" placeholder="Комментарий"></textarea><button class="inchip pl-csend">Отправить</button></div></div></div></div></div>`);
-  const ov = $('#pl-ov');
-  const pl = ov.querySelector('.pl-sheet');
-  // окно видео — того же размера и на том же месте, что карточка папки
-  const fo = $('#ov .sheet');
-  if (fo) {
-    const r = fo.getBoundingClientRect();
-    pl.style.left = r.left + 'px';
-    pl.style.top = r.top + 'px';
-    pl.style.width = r.width + 'px';
-    pl.style.height = r.height + 'px';
-  }
-  ov.onclick = e => { if (e.target === ov) closeVideo(); };
-  ov.querySelector('.pl-x').onclick = closeVideo;
-  const frame = ov.querySelector('.pl-frame');
-  ov.querySelector('.pl-reload').onclick = () => { frame.src = 'about:blank'; setTimeout(() => { frame.src = src; }, 60); };
-  // свои комментарии под видео: сохраняются у материала, их можно писать сколько угодно
-  const list = ov.querySelector('.pl-clist'), txt = ov.querySelector('.pl-ctxt');
-  const drawComments = async () => {
-    if (!itemId) { list.innerHTML = ''; return; }
-    try {
-      const cs = await api('/items/' + itemId + '/comments');
-      list.innerHTML = cs.length ? cs.map(c => `<div class="pl-c"><div class="pl-ct">${esc(c.text)}</div><div class="pl-cm">${c.created_at ? esc(new Date(c.created_at).toLocaleString('ru-RU', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})) : ''}</div><button class="rb del pl-cdel" data-cid="${c.id}" aria-label="Удалить комментарий">${XICON}</button></div>`).join('') : '<div class="pl-empty">Комментариев пока нет</div>';
-      list.querySelectorAll('.pl-cdel').forEach(bt => bt.onclick = async () => {
-        try { await api('/item-comments/' + bt.dataset.cid, {method: 'DELETE'}); drawComments(); }
-        catch (err) { alert(err.message); }
-      });
-      list.scrollTop = list.scrollHeight;
-    } catch (err) { list.innerHTML = `<div class="pl-empty">${esc(err.message)}</div>`; }
-  };
-  const sendComment = async () => {
-    const t = txt.value.trim();
-    if (!t || !itemId) return;
-    try {
-      await api('/items/' + itemId + '/comments', {method: 'POST', body: {text: t}});
-      txt.value = '';
-      await drawComments();
-      // окно прокручивается вниз, чтобы поле для следующего комментария оставалось на виду
-      pl.scrollTo({top: pl.scrollHeight, behavior: 'smooth'});
-      txt.focus({preventScroll: true});
-    }
-    catch (err) { alert(err.message); }
-  };
-  ov.querySelector('.pl-csend').onclick = sendComment;
-  txt.onfocus = () => setTimeout(() => pl.scrollTo({top: pl.scrollHeight, behavior: 'smooth'}), 50);
-  txt.onkeydown = e => { if (e.isComposing) return; if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendComment(); } };
-  drawComments();
-  return true;
-}
 // окно текстового материала: заголовок, линия и редактор с меню «/»; открывается поверх папки того же размера
 function closeTextItem() {
   $('#tx-ov')?.remove();
+}
+const YT_RE = /(?:youtube\.com\/(?:watch\?(?:[^#]*&)?v=|shorts\/|embed\/|live\/)|youtu\.be\/)([\w-]{11})/i;
+// плеер материала: Инстаграм, Ютуб; для остальных ссылок плеера нет
+function playerOf(url) {
+  const ig = igEmbed(url);
+  if (ig) return {kind: 'ig', src: ig};
+  const m = YT_RE.exec(url || '');
+  if (m) return {kind: 'yt', src: 'https://www.youtube.com/embed/' + m[1]};
+  return null;
 }
 async function openTextItem(itemId) {
   let it;
   try { it = await api('/items/' + itemId); } catch (e) { alert(e.message); return; }
   closeTextItem(); closeVideo();
   const DOTS = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';
+  const hasUrl = /^https?:\/\//i.test(it.url || '');
+  const pl0 = hasUrl ? playerOf(it.url) : null;
+  const sbx = 'allow-scripts allow-same-origin allow-presentation allow-forms allow-popups allow-popups-to-escape-sandbox';
+  const embed = pl0 ? `<div class="tx-embed ${pl0.kind}"><iframe class="tx-frame" src="${esc(pl0.src)}" sandbox="${sbx}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`
+    : hasUrl ? `<a class="tx-link" href="${esc(it.url)}" target="_blank" rel="noopener">Открыть: ${esc(it.url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 70))}</a>` : '';
   $('#sheet-root').insertAdjacentHTML('beforeend', `<div class="overlay pl-ov" id="tx-ov"><div class="sheet pl-sheet card-sheet tx-sheet"><div class="sheet-body kb-card">
     <div class="kb-top"><span class="kb-saved" id="txs">Сохранено</span><div class="kb-tools">
       <button class="kb-ib" id="txmore" aria-label="Действия">${DOTS}</button>
       <button class="kb-ib" id="txx" aria-label="Закрыть">${XICON}</button>
-      <div class="kb-menu" id="txmenu" hidden><button class="kb-mi bad" id="txdel">Удалить материал</button></div></div></div>
+      <div class="kb-menu" id="txmenu" hidden>${hasUrl ? `<a class="kb-mi" href="${esc(it.url)}" target="_blank" rel="noopener">Открыть источник</a>` : ''}<button class="kb-mi bad" id="txdel">Удалить материал</button></div></div></div>
     <div class="kb-body"><div class="kb-title" id="txt" contenteditable="true" spellcheck="false" data-ph="Заголовок"></div>
+    <div class="tx-tagrow"><span class="tx-tl">Теги</span><div class="tx-tags" id="txtags"></div></div>
     <hr class="kb-hr">
-    <div class="kb-note kb-edit" id="txn" contenteditable="true" spellcheck="false">${renderNoteEdit(it.note || '')}</div></div>
+    ${embed}
+    <div class="kb-note kb-edit" id="txn" contenteditable="true" spellcheck="false" data-ph="Пишите текст… «/» — блоки">${renderNoteEdit(it.note || '')}</div></div>
   </div></div></div>`);
   const ov = $('#tx-ov'), pl = ov.querySelector('.pl-sheet');
   const fo = $('#ov .sheet');
@@ -1583,17 +1556,20 @@ async function openTextItem(itemId) {
     pl.style.width = r.width + 'px'; pl.style.height = r.height + 'px';
   }
   const t = $('#txt'), n = $('#txn');
-  t.textContent = titleOf(it) === 'Без названия' ? '' : (it.title || titleOf(it));
+  const t0 = titleOf(it) === 'Без названия' ? '' : (it.title || titleOf(it));
+  t.textContent = t0;
   NOTE_ROOT = []; NOTE_KID = null;
   renumber(n);
-  let timer = null, dirty = false, gone = false;
+  let timer = null, dirty = false, gone = false, tagsChanged = false;
   const titleText = () => t.textContent.replace(/\s+/g, ' ').trim().slice(0, 100);
   const flush = async () => {
     clearTimeout(timer); timer = null;
     if (!dirty || gone) return;
     dirty = false;
+    const body = {note: readNote(n)};
+    if (titleText() !== t0) body.title = titleText(); // заголовок не трогаем, пока его не правили
     try {
-      await api('/items/' + itemId, {method: 'PATCH', body: {title: titleText(), note: readNote(n)}});
+      await api('/items/' + itemId, {method: 'PATCH', body});
       const s = $('#txs'); if (s) s.textContent = 'Сохранено';
     } catch (e) { alert(e.message); }
   };
@@ -1606,11 +1582,52 @@ async function openTextItem(itemId) {
   t.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); n.focus(); } });
   t.addEventListener('paste', e => { e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').replace(/\s*\n\s*/g, ' ')); });
   attachNoteEditor(n, queue, null, flush, false);
+
+  // теги: у материала — свои, во всплывающем окне — все теги этой папки; новые добавляются там же
+  let folderTags = [];
+  try { folderTags = (await api('/tags?folder=' + (it.folder_id || foCurId))).map(x => x.name); } catch (e) {}
+  const tagBox = $('#txtags');
+  const saveTags = async () => {
+    tagsChanged = true;
+    try { const r = await api('/items/' + itemId, {method: 'PATCH', body: {tags: it.tags}}); it.tags = r.tags || it.tags; } catch (e) { alert(e.message); }
+  };
+  const closeTagPop = () => { $('#txpop')?.remove(); document.removeEventListener('mousedown', tagOut, true); };
+  const tagOut = e => { if (!e.target.closest('#txpop, #txaddtag')) closeTagPop(); };
+  const paintTags = () => {
+    tagBox.innerHTML = it.tags.map(x => `<span class="tagbadge">#${esc(x)}</span>`).join('') + `<button class="tx-add" id="txaddtag">${it.tags.length ? '+' : '+ Добавить тег'}</button>`;
+    $('#txaddtag').onclick = e => { e.stopPropagation(); $('#txpop') ? closeTagPop() : openTagPop(); };
+  };
+  const openTagPop = () => {
+    const names = [...new Set([...folderTags, ...it.tags])].sort();
+    tagBox.insertAdjacentHTML('beforeend', `<div class="tx-pop" id="txpop">${names.map(x => `<span class="tagbadge ${it.tags.includes(x) ? '' : 'off'}" data-tt="${esc(x)}">#${esc(x)}</span>`).join('')}<input class="chip-in" id="txnew" placeholder="Новый тег"></div>`);
+    $('#txpop').querySelectorAll('[data-tt]').forEach(el => el.onclick = async () => {
+      const x = el.dataset.tt;
+      it.tags = it.tags.includes(x) ? it.tags.filter(y => y !== x) : [...it.tags, x].sort();
+      closeTagPop(); paintTags(); await saveTags(); openTagPop();
+    });
+    const inp = $('#txnew');
+    inp.onkeydown = async e => {
+      if (e.isComposing) return;
+      if (e.key === 'Escape') { e.stopPropagation(); closeTagPop(); return; }
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      const name = inp.value.trim().toLowerCase().replace(/^#/, '');
+      if (!name) return;
+      if (!folderTags.includes(name)) folderTags.push(name);
+      it.tags = [...new Set([...it.tags, name])].sort();
+      closeTagPop(); paintTags(); await saveTags(); openTagPop();
+    };
+    document.addEventListener('mousedown', tagOut, true);
+    inp.focus();
+  };
+  paintTags();
+
   const close = () => {
+    closeTagPop();
     const wasDirty = dirty;
     const p = flush(); // текст уходит на сервер сразу, окно при этом закрывается без ожидания
     closeTextItem();
-    if (wasDirty) p.then(() => refreshFolderList(foCurId));
+    if (wasDirty || tagsChanged) p.then(() => refreshFolderList(foCurId));
   };
   ov.onclick = e => { if (e.target === ov) close(); };
   $('#txx').onclick = close;
@@ -1624,12 +1641,13 @@ async function openTextItem(itemId) {
     try { await api('/items/' + itemId, {method: 'DELETE'}); } catch (e) { alert(e.message); }
     refreshFolderList(foCurId);
   };
-  if (!it.title && !it.note) t.focus();
+  if (!it.title && !it.note && !hasUrl) t.focus();
 }
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && $('#tx-ov')) {
     e.stopImmediatePropagation();
     if ($('.slash')) return;
+    if ($('#txpop')) { $('#txpop').remove(); return; } // сначала закрывается список тегов
     $('#txx')?.click();
   }
 }, true);
@@ -1642,9 +1660,8 @@ function bindFolderRows(box, f) {
   // карточки — как в Сейве: открыть ссылку, карандаш — карточка, крестик — удалить
   box.querySelectorAll('.fo-list .row').forEach(el => el.onclick = e => {
     if (e.target.closest('.rb, .eyechip, .more-d, .inmove, .ck')) return;
-    // инстаграм-видео открывается во втором окне поверх папки, остальные ссылки — в новой вкладке
-    if (!el.dataset.url) { openTextItem(+el.dataset.id); return; }
-    if (el.dataset.url && !openVideo(el.dataset.url, +el.dataset.id)) window.open(el.dataset.url, '_blank', 'noopener');
+    // любой материал открывается в одном окне: заголовок, теги, линия, плеер (если есть) и текст
+    openTextItem(+el.dataset.id);
   });
   box.querySelectorAll('.fo-list .rb.pen, .fo-list .more-d').forEach(b => b.onclick = e => {
     e.stopPropagation();

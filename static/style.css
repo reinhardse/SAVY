@@ -2177,3 +2177,20 @@ body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
 .tx-sheet .kb-body{position:relative}
 .tx-sheet .kb-note{min-height:50vh}
 .tx-sheet .kb-top{z-index:6}
+
+/* единое окно материала: теги, плеер по центру, текст под ним */
+.tx-tagrow{display:flex;align-items:flex-start;gap:14px;margin:0 0 16px}
+.tx-tl{flex:none;width:52px;padding-top:5px;font-size:13px;color:#9a9aa5}
+.tx-tags{position:relative;display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:0}
+.tx-add{border:0;background:transparent;color:#9a9aa5;font:inherit;font-size:13px;padding:3px 8px;border-radius:8px;cursor:pointer}
+.tx-add:hover{background:#f2f2f5;color:#555}
+.tx-pop{position:absolute;left:0;top:calc(100% + 6px);z-index:8;display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-width:240px;max-width:420px;padding:10px;background:#fff;border:1px solid #ececf0;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.14)}
+.tx-pop .chip-in{flex:1 1 110px;min-width:90px}
+.tx-embed{display:flex;justify-content:center;margin:0 0 22px}
+.tx-embed.ig .tx-frame{width:100%;max-width:540px;height:658px}
+.tx-embed.yt .tx-frame{width:100%;max-width:640px;aspect-ratio:16/9;height:auto}
+.tx-frame{display:block;border:0;border-radius:12px;background:#fff}
+.tx-link{display:inline-block;margin:0 0 22px;color:#2f6fed;text-decoration:none;word-break:break-all}
+.tx-link:hover{text-decoration:underline}
+.tx-sheet .kb-note[data-ph]:empty::before,.tx-sheet .kb-title[data-ph]:empty::before{content:attr(data-ph);color:#c2c2ca;pointer-events:none}
+.tx-sheet .kb-menu a.kb-mi{display:block;text-decoration:none;color:inherit}
