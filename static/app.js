@@ -827,13 +827,18 @@ async function route() {
 /* ---------- карточка материала: окно по центру ---------- */
 let beforeClose = null; // сохранение перед закрытием окна (текст карточки)
 async function closeSheet() {
-  if (beforeClose) { const f = beforeClose; beforeClose = null; await f(); }
+  // окно убираем сразу: сохранение идёт параллельно, без задержки перед закрытием
+  let pending = null;
+  if (beforeClose) { const f = beforeClose; beforeClose = null; pending = f(); }
   $('#sheet-root').innerHTML = '';
   const back = foReturn; foReturn = null;
+  if (pending) await pending;
   route();
-  if (back) await openFolder(back, false, true); // карточка материала закрыта — папка остаётся на месте
+  // возврат в папку — без анимации появления, иначе окно мерцает
+  if (back) { skipSwap = true; await openFolder(back, false, true); } // карточка материала закрыта — папка остаётся на месте
   dropGhost();
 }
+let skipSwap = false;
 
 // пока открыта карточка материала из папки, папка остаётся на месте: приглушённая копия чуть позади карточки
 let foGhost = null;
@@ -864,7 +869,8 @@ function sheet(html, cls = '') {
   box.className = 'sheet ' + cls;
   box.innerHTML = html;
   // содержимое плавно проявляется, окно и его фон не перерисовываются
-  box.classList.remove('swap'); void box.offsetWidth; box.classList.add('swap');
+  box.classList.remove('swap');
+  if (skipSwap) skipSwap = false; else { void box.offsetWidth; box.classList.add('swap'); }
 }
 
 function autosize(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
@@ -1385,6 +1391,18 @@ function folderHtml(f, items) {
     </div>`;
 }
 let foCurId = null;
+// обновляет только список материалов открытой папки — без перерисовки всего окна
+async function refreshFolderList(fid) {
+  if (!fid) return;
+  let items;
+  try { items = await api('/items?folder=' + fid + '&limit=200'); } catch (e) { return; }
+  const box = $('#ov .sheet');
+  const list = box?.querySelector('.fo-list');
+  if (!list) return;
+  foItems = items;
+  list.innerHTML = foListHtml();
+  bindFolderRows(box, {id: fid});
+}
 async function renderFolder(fid) {
   foCurId = fid;
   const [f, items] = await Promise.all([api('/folders/' + fid), api('/items?folder=' + fid + '&limit=200')]);
@@ -1588,10 +1606,11 @@ async function openTextItem(itemId) {
   t.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); n.focus(); } });
   t.addEventListener('paste', e => { e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').replace(/\s*\n\s*/g, ' ')); });
   attachNoteEditor(n, queue, null, flush, false);
-  const close = async () => {
-    await flush();
+  const close = () => {
+    const wasDirty = dirty;
+    const p = flush(); // текст уходит на сервер сразу, окно при этом закрывается без ожидания
     closeTextItem();
-    if ($('#ov .fo-list') && foCurId) renderFolder(foCurId); // папка остаётся открытой, плитка обновляется
+    if (wasDirty) p.then(() => refreshFolderList(foCurId));
   };
   ov.onclick = e => { if (e.target === ov) close(); };
   $('#txx').onclick = close;
@@ -1601,9 +1620,9 @@ async function openTextItem(itemId) {
   $('#txdel').onclick = async () => {
     if (!confirm('Удалить материал?')) return;
     gone = true; clearTimeout(timer);
-    try { await api('/items/' + itemId, {method: 'DELETE'}); } catch (e) { alert(e.message); }
     closeTextItem();
-    if ($('#ov .fo-list') && foCurId) renderFolder(foCurId);
+    try { await api('/items/' + itemId, {method: 'DELETE'}); } catch (e) { alert(e.message); }
+    refreshFolderList(foCurId);
   };
   if (!it.title && !it.note) t.focus();
 }
@@ -1636,7 +1655,7 @@ function bindFolderRows(box, f) {
   box.querySelectorAll('.fo-list .rb.del').forEach(b => b.onclick = async e => {
     e.stopPropagation();
     if (!confirm('Удалить материал?')) return;
-    try { await api('/items/' + b.dataset.id, {method: 'DELETE'}); await renderFolder(f.id); }
+    try { await api('/items/' + b.dataset.id, {method: 'DELETE'}); await refreshFolderList(f.id); }
     catch (err) { alert(err.message); }
   });
 }
