@@ -1572,8 +1572,9 @@ async function openTextItem(itemId) {
   const fo = $('#ov .sheet');
   if (fo) {
     const r = fo.getBoundingClientRect();
+    // окно стартует ровно с размером папки, а если содержимое выше — растёт вниз, прокручивается вся страница окна
     pl.style.left = r.left + 'px'; pl.style.top = r.top + 'px';
-    pl.style.width = r.width + 'px'; pl.style.height = r.height + 'px';
+    pl.style.width = r.width + 'px'; pl.style.minHeight = r.height + 'px';
     pl.style.setProperty('--tr', getComputedStyle(fo).borderTopLeftRadius); // те же скругления, что у папки под окном: её углы не выглядывают
   }
   const t = $('#txt'), n = $('#txn');

@@ -2252,3 +2252,15 @@ body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
 .sheet.pl-sheet.tx-sheet{border-radius:var(--tr,14px)}
 .tx-sheet .kb-card{border-radius:var(--tr,14px)}
 .tx-sheet.has-cover .kb-body{border-radius:0 0 var(--tr,14px) var(--tr,14px)}
+
+/* окно материала растёт по содержимому: внутри своей прокрутки нет, прокручивается всё окно */
+#tx-ov{overflow-y:auto;overflow-x:hidden}
+.sheet.pl-sheet.tx-sheet{position:absolute;max-height:none;height:auto;overflow:visible;box-shadow:0 10px 28px rgba(0,0,0,.16)}
+.tx-sheet .kb-card{min-height:0}
+.tx-sheet .kb-note{min-height:50vh}
+/* перерисовка при вводе не трогает iframe плеера и остальной текст окна */
+.tx-embed{contain:strict;isolation:isolate}
+.tx-sheet .kb-note{contain:layout style}
+/* подложка окна всегда белая: просвечивать папка не должна, даже если обложка не загрузилась */
+.tx-sheet.has-cover .kb-card{background:#fff;display:block}
+.tx-sheet.has-cover .tx-cover{border-radius:var(--tr,14px) var(--tr,14px) 0 0;flex:none}
