@@ -2154,3 +2154,19 @@ body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
 /* окно видео: больше воздуха под полем комментария */
 .pl-body{padding-bottom:48px}
 .pl-cadd{margin-bottom:8px}
+
+/* плитки папки: затемнение только снизу и слабое; карандаш и крестик всегда видны и лежат поверх картинки */
+.sheet .fo-list.grid .row .t{padding:34px 14px 12px;background:linear-gradient(to top,rgba(0,0,0,.5) 0%,rgba(0,0,0,.18) 55%,rgba(0,0,0,0) 100%);text-shadow:0 1px 3px rgba(0,0,0,.35)}
+.sheet .fo-list.grid .rb.pen,.sheet .fo-list.grid .rb.del{z-index:6;opacity:1;pointer-events:auto}
+.sheet .fo-list.grid .rb.pen{opacity:1;transition:none}
+.sheet .fo-list.grid .row:hover .rb.pen{opacity:1}
+@media (hover:none){.sheet .fo-list.grid .rb.pen{opacity:1}}
+/* карточка-текст: цветной пастельный фон, на нём заголовок и начало описания; тёмного градиента нет */
+.sheet .fo-list.grid .cover-text{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:8px;padding:44px 16px 16px;color:#2b2f3a;overflow:hidden}
+.sheet .fo-list.grid .cover-text b{font-size:17px;font-weight:700;line-height:1.25;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;text-shadow:none}
+.sheet .fo-list.grid .cover-text i{font-style:normal;font-size:13px;line-height:1.4;color:#4b4f5b;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.sheet .fo-list.grid .row:has(.cover-text) .t{display:none}
+.sheet .fo-list:not(.grid) .cover-text b{font-size:12px;line-height:1.25}
+.sheet .fo-list:not(.grid) .cover-text i{display:none}
+/* общее правило окон красило заглушку в серый — в папке цвет берётся из градиента записи */
+.sheet .fo-list .cover-gen{background:linear-gradient(140deg,var(--c1),var(--c2))}

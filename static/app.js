@@ -105,8 +105,17 @@ function titleOf(i) {
 }
 
 // Обложка: настоящая картинка, а если её нет, сгенерированная из названия
+// пастельные градиенты для записей без картинки в папке: цвет берётся от номера записи, поэтому не меняется
+const PASTELS = [['#ffe3ec', '#ffc9d9'], ['#e0ecff', '#c5d8ff'], ['#e4f7e1', '#c8edc3'], ['#fff2d6', '#ffe0a3'], ['#ece3ff', '#d6c6ff'], ['#dff6f4', '#bdeae5'], ['#ffe6da', '#ffcdb4'], ['#f1f1d9', '#e1e3a8']];
+let foPastel = false;
 function coverHtml(i, cls) {
   if (i.thumb) return `<img class="${cls}" src="${esc(i.thumb)}" loading="lazy" alt="">`;
+  if (foPastel) {
+    // текстовая карточка: на цветном фоне — заголовок и начало описания
+    const [c1, c2] = PASTELS[(i.id || 0) % PASTELS.length];
+    const d = (i.description || '').replace(/\s+/g, ' ').trim().slice(0, 140);
+    return `<div class="${cls} cover-gen cover-text" style="--c1:${c1};--c2:${c2}"><b>${esc(titleOf(i))}</b>${d ? `<i>${esc(d)}</i>` : ''}</div>`;
+  }
   const st = i.category ? styleOf(i.category) : DEF_COVER;
   return `<div class="${cls} cover-gen" style="--c1:${st.c1};--c2:${st.c2}"><span>${esc(titleOf(i))}</span></div>`;
 }
@@ -1341,7 +1350,7 @@ let foItems = []; // материалы открытой папки
 let foFull = false;
 const FO_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>';
 const foShown = () => foTag ? foItems.filter(i => i.tags.includes(foTag)) : foItems;
-const foListHtml = () => { const sh = foShown(); return sh.length ? sh.map(row).join('') : `<div class="fo-empty">${foTag ? 'Нет материалов с этим тегом' : 'Пока пусто'}</div>`; };
+const foListHtml = () => { const sh = foShown(); foPastel = true; try { return sh.length ? sh.map(row).join('') : `<div class="fo-empty">${foTag ? 'Нет материалов с этим тегом' : 'Пока пусто'}</div>`; } finally { foPastel = false; } };
 // полоса тегов под строкой добавления: «Все» и теги этой папки; появляется, когда есть хотя бы один тег
 function foTagsHtml() {
   const counts = {};
