@@ -301,6 +301,49 @@ def patch_item(item_id: int, body: ItemPatch, db: Session = Depends(get_db), _: 
     return item_out(item)
 
 
+class FolderTagRename(BaseModel):
+    old: str
+    new: str
+
+
+class FolderTagName(BaseModel):
+    name: str
+
+
+def _folder_items(db: Session, fid: int):
+    _folder(db, fid)
+    return list(db.scalars(select(Item).where(Item.user_id == USER_ID, Item.folder_id == fid)).unique())
+
+
+@app.post("/api/folders/{fid}/tags/rename")
+def folder_tag_rename(fid: int, body: FolderTagRename, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    """Переименовать тег в пределах одной папки: на материалах других разделов он остаётся прежним."""
+    old, new = body.old.strip().lower(), body.new.strip().lower()[:60]
+    if not new:
+        raise HTTPException(400, "Название тега пустое")
+    tag = db.scalars(select(Tag).where(Tag.user_id == USER_ID, Tag.name == new)).first()
+    if not tag:
+        tag = Tag(user_id=USER_ID, name=new)
+        db.add(tag)
+    for it in _folder_items(db, fid):
+        if any(t.name == old for t in it.tags):
+            keep = [t for t in it.tags if t.name != old]
+            it.tags = keep if any(t.name == new for t in keep) else keep + [tag]
+    db.commit()
+    return {"ok": True}
+
+
+@app.post("/api/folders/{fid}/tags/delete")
+def folder_tag_delete(fid: int, body: FolderTagName, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    """Снять тег со всех материалов папки."""
+    name = body.name.strip().lower()
+    for it in _folder_items(db, fid):
+        if any(t.name == name for t in it.tags):
+            it.tags = [t for t in it.tags if t.name != name]
+    db.commit()
+    return {"ok": True}
+
+
 @app.get("/api/items/{item_id}/comments")
 def item_comments(item_id: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     get_item(db, item_id)

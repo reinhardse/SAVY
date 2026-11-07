@@ -58,6 +58,7 @@ const RESTORE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
 const isFull = bid => { try { return localStorage.getItem('kb_full_' + bid) === '1'; } catch { return false; } };
 const setFull = (bid, v) => { try { localStorage.setItem('kb_full_' + bid, v ? '1' : '0'); } catch {} };
 const MOVE_ICO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 9H6.5A2.5 2.5 0 0 0 4 11.5v6A2.5 2.5 0 0 0 6.5 20h11a2.5 2.5 0 0 0 2.5-2.5v-6A2.5 2.5 0 0 0 17.5 9H16"/><path d="M12 14V3.5M8.5 7 12 3.5 15.5 7"/></svg>';
+const GLOBE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.9 5.6 3.9 9s-1.3 6.4-3.9 9c-2.6-2.6-3.9-5.6-3.9-9S9.4 5.6 12 3z"/></svg>';
 const PEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>';
 // глаз: серый по умолчанию, пастельная зелёная галочка, когда материал проработан
 const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M7 12c1.5-2.5 3.2-3.8 5-3.8s3.5 1.3 5 3.8c-1.5 2.5-3.2 3.8-5 3.8S8.5 14.5 7 12z"/><circle cx="12" cy="12" r="1.7"/></svg>';
@@ -576,8 +577,8 @@ function row(i) {
     body = `${esc(head)} <span class="nw">${esc(tail)}<button class="more-d" data-id="${i.id}" aria-label="Дочитать">…</button></span>`;
   }
   const desc = d ? `<div class="rdesc">${body}</div>` : '';
-  const tags = `${desc}<div class="tagline">${eye}${i.tags.map(t => `<span class="tagbadge">#${esc(t)}</span>`).join('')}</div>`;
-  return `<div class="row" data-id="${i.id}" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m"><span>${esc(meta)}</span><button class="rb pen" data-id="${i.id}" aria-label="Открыть карточку">${PEN}</button></div>${tags}</div>${listParams && listParams.inbox ? `<button class="inmove" data-mvitem="${i.id}">Перенести</button><button class="rb inmore" data-more="${i.id}" aria-label="Ещё">⋯</button>` : `<button class="rb del" data-id="${i.id}" aria-label="Удалить">${XICON}</button>`}</div>`;
+  const tags = `${desc}<div class="tagline">${eye}${i.tags.map(t => { if (!foPastel) return `<span class="tagbadge">#${esc(t)}</span>`; const k = tagColor(t); return `<span class="kc-tag" style="background:${k.bg};color:${k.tc}">${esc(t)}</span>`; }).join('')}</div>`;
+  return `<div class="row" data-id="${i.id}" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m"><span>${esc(meta)}</span>${foPastel && /^https?:\/\//i.test(i.url || '') ? `<button class="rb web" data-url="${esc(i.url)}" aria-label="Открыть ссылку">${GLOBE}</button>` : ''}<button class="rb pen" data-id="${i.id}" aria-label="Открыть карточку">${PEN}</button></div>${tags}</div>${listParams && listParams.inbox ? `<button class="inmove" data-mvitem="${i.id}">Перенести</button><button class="rb inmore" data-more="${i.id}" aria-label="Ещё">⋯</button>` : `<button class="rb del" data-id="${i.id}" aria-label="Удалить">${XICON}</button>`}</div>`;
 }
 
 // перерисовываем список только если что-то изменилось, иначе клик теряется между опросами
@@ -1364,7 +1365,7 @@ function foTagsHtml() {
   const names = Object.keys(counts).sort();
   if (foTag && !names.includes(foTag)) foTag = null;
   if (!names.length) return '';
-  return `<div class="fo-tags">${[null, ...names].map(n => `<button class="fo-tg${n === foTag ? ' on' : ''}" data-fotag="${n == null ? '' : esc(n)}">${n == null ? 'Все' : '#' + esc(n)}</button>`).join('')}</div>`;
+  return `<div class="fo-tags">${[null, ...names].map(n => `<button class="fo-tg${n === foTag ? ' on' : ''}${n == null ? '' : ' col'}" data-fotag="${n == null ? '' : esc(n)}"${n == null ? '' : ` style="--tb:${tagColor(n).bg};--tt:${tagColor(n).tc}"`}>${n == null ? 'Все' : esc(n)}</button>`).join('')}</div>`;
 }
 function folderHtml(f, items) {
   foItems = items;
@@ -1527,6 +1528,9 @@ function playerOf(url) {
   if (m) return {kind: 'yt', src: 'https://www.youtube.com/embed/' + m[1]};
   return null;
 }
+const LINK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>';
+const TAG_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9-9-9z"/><circle cx="8" cy="8" r="1.4"/></svg>';
+const GRIP_NONE = '';
 async function openTextItem(itemId) {
   let it;
   try { it = await api('/items/' + itemId); } catch (e) { alert(e.message); return; }
@@ -1535,17 +1539,22 @@ async function openTextItem(itemId) {
   const hasUrl = /^https?:\/\//i.test(it.url || '');
   const pl0 = hasUrl ? playerOf(it.url) : null;
   const sbx = 'allow-scripts allow-same-origin allow-presentation allow-forms allow-popups allow-popups-to-escape-sandbox';
-  const embed = pl0 ? `<div class="tx-embed ${pl0.kind}"><iframe class="tx-frame" src="${esc(pl0.src)}" sandbox="${sbx}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>`
-    : hasUrl ? `<a class="tx-link" href="${esc(it.url)}" target="_blank" rel="noopener">Открыть: ${esc(it.url.replace(/^https?:\/\/(www\.)?/, '').slice(0, 70))}</a>` : '';
+  const embed = pl0 ? `<div class="tx-embed ${pl0.kind}"><iframe class="tx-frame" src="${esc(pl0.src)}" sandbox="${sbx}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>` : '';
+  const linkText = u => u.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, '');
   $('#sheet-root').insertAdjacentHTML('beforeend', `<div class="overlay pl-ov" id="tx-ov"><div class="sheet pl-sheet card-sheet tx-sheet"><div class="sheet-body kb-card">
     <div class="kb-top"><span class="kb-saved" id="txs">Сохранено</span><div class="kb-tools">
       <button class="kb-ib" id="txmore" aria-label="Действия">${DOTS}</button>
       <button class="kb-ib" id="txx" aria-label="Закрыть">${XICON}</button>
-      <div class="kb-menu" id="txmenu" hidden>${hasUrl ? `<a class="kb-mi" href="${esc(it.url)}" target="_blank" rel="noopener">Открыть источник</a>` : ''}<button class="kb-mi bad" id="txdel">Удалить материал</button></div></div></div>
+      <div class="kb-menu" id="txmenu" hidden>${hasUrl ? `<a class="kb-mi" href="${esc(it.url)}" target="_blank" rel="noopener">Открыть ссылку</a>` : ''}<button class="kb-mi bad" id="txdel">Удалить материал</button></div></div></div>
+    <div class="tx-cover" id="txcover" hidden></div>
     <div class="kb-body"><div class="kb-title" id="txt" contenteditable="true" spellcheck="false" data-ph="Заголовок"></div>
-    <div class="tx-tagrow"><span class="tx-tl">Теги</span><div class="tx-tags" id="txtags"></div></div>
+    <div class="kb-props">
+      <div class="kb-prop"><div class="kb-pl">${TAG_SVG}<span>Теги</span></div><div class="kb-pv" id="txtags"></div></div>
+      ${hasUrl ? `<div class="kb-prop"><div class="kb-pl">${LINK_SVG}<span>Ссылка</span></div><div class="kb-pv tx-linkv"><a class="tx-linkurl" id="txurl" href="${esc(it.url)}" target="_blank" rel="noopener" title="${esc(it.url)}">${esc(linkText(it.url))}</a></div></div>` : ''}
+    </div>
     <hr class="kb-hr">
     ${embed}
+    <div class="tx-desc-wrap" id="txdw"><div class="tx-desc" id="txdesc"></div>${hasUrl ? '<button class="tx-rf" id="txrf">Обновить</button>' : ''}</div>
     <div class="kb-note kb-edit" id="txn" contenteditable="true" spellcheck="false" data-ph="Пишите текст… «/» — блоки">${renderNoteEdit(it.note || '')}</div></div>
   </div></div></div>`);
   const ov = $('#tx-ov'), pl = ov.querySelector('.pl-sheet');
@@ -1556,8 +1565,22 @@ async function openTextItem(itemId) {
     pl.style.width = r.width + 'px'; pl.style.height = r.height + 'px';
   }
   const t = $('#txt'), n = $('#txn');
-  const t0 = titleOf(it) === 'Без названия' ? '' : (it.title || titleOf(it));
+  let t0 = titleOf(it) === 'Без названия' ? '' : (it.title || titleOf(it));
   t.textContent = t0;
+  // обложка во всю ширину над заголовком: у фильмов и книг; у видео вместо неё — плеер
+  const paintCover = () => {
+    const c = $('#txcover');
+    if (!c) return;
+    if (it.thumb && !pl0) { c.innerHTML = `<img src="${esc(it.thumb)}" alt="">`; c.hidden = false; pl.classList.add('has-cover'); }
+    else { c.hidden = true; c.innerHTML = ''; pl.classList.remove('has-cover'); }
+  };
+  const paintDesc = () => {
+    const d = (it.description || '').trim();
+    $('#txdesc').textContent = d;
+    $('#txdesc').hidden = !d;
+    $('#txdw').hidden = !d && !hasUrl;
+  };
+  paintCover(); paintDesc();
   NOTE_ROOT = []; NOTE_KID = null;
   renumber(n);
   let timer = null, dirty = false, gone = false, tagsChanged = false;
@@ -1570,6 +1593,7 @@ async function openTextItem(itemId) {
     if (titleText() !== t0) body.title = titleText(); // заголовок не трогаем, пока его не правили
     try {
       await api('/items/' + itemId, {method: 'PATCH', body});
+      if (body.title !== undefined) t0 = body.title;
       const s = $('#txs'); if (s) s.textContent = 'Сохранено';
     } catch (e) { alert(e.message); }
   };
@@ -1583,47 +1607,129 @@ async function openTextItem(itemId) {
   t.addEventListener('paste', e => { e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').replace(/\s*\n\s*/g, ' ')); });
   attachNoteEditor(n, queue, null, flush, false);
 
-  // теги: у материала — свои, во всплывающем окне — все теги этой папки; новые добавляются там же
+  // обновить: данные страницы (название, обложка, описание) загружаются заново; плеер перезапускается
+  const rf = $('#txrf');
+  if (rf) rf.onclick = async () => {
+    rf.disabled = true; rf.textContent = 'Обновляю…';
+    try {
+      await api('/items/' + itemId + '/refresh', {method: 'POST'});
+      for (let k = 0; k < 15; k++) {
+        await new Promise(r => setTimeout(r, 1200));
+        if (!$('#tx-ov')) return;
+        const x = await api('/items/' + itemId);
+        if (x.meta_state !== 'pending') { it = {...it, ...x}; break; }
+      }
+      if (titleText() === t0 && it.title) { t.textContent = it.title; t0 = it.title; }
+      paintCover(); paintDesc();
+      const fr = ov.querySelector('.tx-frame');
+      if (fr) { const src = fr.src; fr.src = 'about:blank'; setTimeout(() => { fr.src = src; }, 60); }
+    } catch (e) { alert(e.message); }
+    rf.disabled = false; rf.textContent = 'Обновить';
+  };
+
+  // теги — как на карточках досок: выбранные сверху, ниже теги этой папки; можно выбрать несколько
+  const fid = it.folder_id || foCurId;
   let folderTags = [];
-  try { folderTags = (await api('/tags?folder=' + (it.folder_id || foCurId))).map(x => x.name); } catch (e) {}
+  try { folderTags = (await api('/tags?folder=' + fid)).map(x => x.name); } catch (e) {}
+  const tagStyle = x => { const k = tagColor(x); return `--tb:${k.bg};--tt:${k.tc}`; };
+  const chipTag = x => `<span class="kbp-chip" style="${tagStyle(x)}">${esc(x)}</span>`;
+  const TRASH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 12.5h9l1-12.5M10 11v5M14 11v5"/></svg>';
   const tagBox = $('#txtags');
-  const saveTags = async () => {
-    tagsChanged = true;
-    try { const r = await api('/items/' + itemId, {method: 'PATCH', body: {tags: it.tags}}); it.tags = r.tags || it.tags; } catch (e) { alert(e.message); }
+  const popClose = () => { document.querySelectorAll('.kbp-pop,.kbp-sub').forEach(x => x.remove()); document.removeEventListener('mousedown', popOut, true); };
+  const popOut = e => { if (e.target.closest && e.target.closest('.kbp-pop,.kbp-sub,#txtags')) return; popClose(); };
+  const place = (p, r) => {
+    p.style.left = Math.max(12, Math.min(r.left, innerWidth - p.offsetWidth - 12)) + 'px';
+    p.style.top = Math.min(r.bottom + 4, innerHeight - p.offsetHeight - 12) + 'px';
   };
-  const closeTagPop = () => { $('#txpop')?.remove(); document.removeEventListener('mousedown', tagOut, true); };
-  const tagOut = e => { if (!e.target.closest('#txpop, #txaddtag')) closeTagPop(); };
   const paintTags = () => {
-    tagBox.innerHTML = it.tags.map(x => `<span class="tagbadge">#${esc(x)}</span>`).join('') + `<button class="tx-add" id="txaddtag">${it.tags.length ? '+' : '+ Добавить тег'}</button>`;
-    $('#txaddtag').onclick = e => { e.stopPropagation(); $('#txpop') ? closeTagPop() : openTagPop(); };
+    tagBox.innerHTML = it.tags.length ? it.tags.map(chipTag).join(' ') : '<span class="kbp-ph">Пусто</span>';
+    tagBox.onclick = () => openPop('');
   };
-  const openTagPop = () => {
-    const names = [...new Set([...folderTags, ...it.tags])].sort();
-    tagBox.insertAdjacentHTML('beforeend', `<div class="tx-pop" id="txpop">${names.map(x => `<span class="tagbadge ${it.tags.includes(x) ? '' : 'off'}" data-tt="${esc(x)}">#${esc(x)}</span>`).join('')}<input class="chip-in" id="txnew" placeholder="Новый тег"></div>`);
-    $('#txpop').querySelectorAll('[data-tt]').forEach(el => el.onclick = async () => {
-      const x = el.dataset.tt;
-      it.tags = it.tags.includes(x) ? it.tags.filter(y => y !== x) : [...it.tags, x].sort();
-      closeTagPop(); paintTags(); await saveTags(); openTagPop();
-    });
-    const inp = $('#txnew');
-    inp.onkeydown = async e => {
-      if (e.isComposing) return;
-      if (e.key === 'Escape') { e.stopPropagation(); closeTagPop(); return; }
-      if (e.key !== 'Enter') return;
-      e.preventDefault();
-      const name = inp.value.trim().toLowerCase().replace(/^#/, '');
-      if (!name) return;
-      if (!folderTags.includes(name)) folderTags.push(name);
-      it.tags = [...new Set([...it.tags, name])].sort();
-      closeTagPop(); paintTags(); await saveTags(); openTagPop();
+  const focusIn = () => { const i = document.querySelector('#txnewtag'); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } };
+  const setTags = async (next, q = '') => {
+    it.tags = [...new Set(next)].sort(); tagsChanged = true;
+    paintTags(); openPop(q); focusIn();
+    try { const r = await api('/items/' + itemId, {method: 'PATCH', body: {tags: it.tags}}); it.tags = r.tags || it.tags; paintTags(); }
+    catch (e) { alert(e.message); }
+  };
+  const rowMenu = (row) => {
+    const cur = row.dataset.id;
+    document.querySelectorAll('.kbp-sub').forEach(x => x.remove());
+    const s = document.createElement('div');
+    s.className = 'kbp-sub';
+    s.innerHTML = `<div class="kbp-mhd"><input class="kbp-mname" value="${esc(cur)}" maxlength="40" aria-label="Название"></div><button class="kbp-mi bad" data-act="delete">${TRASH}Удалить</button>`;
+    document.body.appendChild(s);
+    const r = row.querySelector('.kbp-more').getBoundingClientRect();
+    s.style.left = Math.max(12, Math.min(r.right + 6, innerWidth - s.offsetWidth - 12)) + 'px';
+    s.style.top = Math.max(12, Math.min(r.top - 4, innerHeight - s.offsetHeight - 12)) + 'px';
+    const inp = s.querySelector('.kbp-mname');
+    inp.focus(); inp.select();
+    let fin = false;
+    const q = () => $('#txnewtag')?.value || '';
+    const save = async () => {
+      if (fin) return;
+      const v = inp.value.trim().toLowerCase();
+      if (!v || v === cur) return;
+      fin = true;
+      try {
+        await api(`/folders/${fid}/tags/rename`, {method: 'POST', body: {old: cur, new: v}});
+        folderTags = [...new Set(folderTags.map(x => x === cur ? v : x))].sort();
+        it.tags = [...new Set(it.tags.map(x => x === cur ? v : x))].sort(); tagsChanged = true;
+      } catch (e) { alert(e.message); }
+      paintTags(); openPop(q());
     };
-    document.addEventListener('mousedown', tagOut, true);
-    inp.focus();
+    inp.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); save(); } if (e.key === 'Escape') { e.stopPropagation(); fin = true; s.remove(); } };
+    inp.onblur = () => save();
+    s.querySelector('[data-act="delete"]').onclick = async () => {
+      fin = true;
+      try {
+        await api(`/folders/${fid}/tags/delete`, {method: 'POST', body: {name: cur}});
+        folderTags = folderTags.filter(x => x !== cur); it.tags = it.tags.filter(x => x !== cur); tagsChanged = true;
+      } catch (e) { alert(e.message); }
+      paintTags(); openPop(q());
+    };
+  };
+  const openPop = (q = '') => {
+    popClose();
+    const names = [...new Set([...folderTags, ...it.tags])].sort();
+    const term = q.trim().toLowerCase();
+    const shown = names.filter(x => !term || x.toLowerCase().includes(term));
+    const exact = names.some(x => x.toLowerCase() === term);
+    const sel = it.tags.map(x => `<span class="kbp-chip" style="${tagStyle(x)}">${esc(x)}<button class="kbp-rm" data-rm="${esc(x)}" aria-label="Убрать">×</button></span>`).join('');
+    const p = document.createElement('div');
+    p.className = 'kbp-pop';
+    p.innerHTML = `<div class="kbp-top"><div class="kbp-sel">${sel}<input class="kbp-in" id="txnewtag" value="${esc(q)}" maxlength="40" placeholder="${it.tags.length ? '' : 'Поиск или новый тег'}"></div></div>`
+      + '<div class="kbp-cap">Выберите вариант или создайте новый</div>'
+      + `<div class="kbp-list">${shown.map(x => `<div class="kbp-row" data-id="${esc(x)}"><button class="kbp-opt">${chipTag(x)}</button><button class="kbp-more" aria-label="Действия">${DOTS}</button></div>`).join('')}</div>`
+      + (term && !exact ? `<button class="kbp-create" data-create="1">Создать тег «${esc(q.trim())}»</button>` : '');
+    document.body.appendChild(p);
+    place(p, tagBox.getBoundingClientRect());
+    const inp = p.querySelector('#txnewtag');
+    const create = name => { name = name.trim().toLowerCase(); if (!name) return; if (!folderTags.includes(name)) folderTags.push(name); setTags([...it.tags, name]); };
+    inp.oninput = () => { openPop(inp.value); focusIn(); };
+    inp.onkeydown = e => {
+      if (e.isComposing || e.key !== 'Enter') return;
+      e.preventDefault();
+      const name = inp.value.trim().toLowerCase();
+      if (!name) return;
+      if (names.includes(name)) { if (!it.tags.includes(name)) setTags([...it.tags, name]); } else create(name);
+    };
+    p.querySelectorAll('.kbp-row').forEach(row => {
+      row.querySelector('.kbp-opt').onclick = () => {
+        const x = row.dataset.id;
+        setTags(it.tags.includes(x) ? it.tags.filter(y => y !== x) : [...it.tags, x], inp.value);
+      };
+      row.querySelector('.kbp-more').onclick = e => { e.stopPropagation(); rowMenu(row); };
+    });
+    p.querySelectorAll('[data-rm]').forEach(b => b.onclick = () => setTags(it.tags.filter(x => x !== b.dataset.rm), inp.value));
+    const cr = p.querySelector('[data-create]');
+    if (cr) cr.onclick = () => create(inp.value);
+    document.addEventListener('mousedown', popOut, true);
   };
   paintTags();
 
   const close = () => {
-    closeTagPop();
+    popClose();
     const wasDirty = dirty;
     const p = flush(); // текст уходит на сервер сразу, окно при этом закрывается без ожидания
     closeTextItem();
@@ -1636,7 +1742,7 @@ async function openTextItem(itemId) {
   ov.addEventListener('click', e => { if (!menu.contains(e.target) && e.target.id !== 'txmore') menu.hidden = true; });
   $('#txdel').onclick = async () => {
     if (!confirm('Удалить материал?')) return;
-    gone = true; clearTimeout(timer);
+    gone = true; clearTimeout(timer); popClose();
     closeTextItem();
     try { await api('/items/' + itemId, {method: 'DELETE'}); } catch (e) { alert(e.message); }
     refreshFolderList(foCurId);
@@ -1647,7 +1753,8 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && $('#tx-ov')) {
     e.stopImmediatePropagation();
     if ($('.slash')) return;
-    if ($('#txpop')) { $('#txpop').remove(); return; } // сначала закрывается список тегов
+    if ($('.kbp-sub')) { $('.kbp-sub').remove(); return; }
+    if ($('.kbp-pop')) { document.querySelectorAll('.kbp-pop').forEach(x => x.remove()); return; } // сначала закрывается список тегов
     $('#txx')?.click();
   }
 }, true);
@@ -1665,9 +1772,11 @@ function bindFolderRows(box, f) {
   });
   box.querySelectorAll('.fo-list .rb.pen, .fo-list .more-d').forEach(b => b.onclick = e => {
     e.stopPropagation();
-    foReturn = f.id;
-    ghostFolder();
-    openItem(+b.dataset.id);
+    openTextItem(+b.dataset.id);
+  });
+  box.querySelectorAll('.fo-list .rb.web').forEach(b => b.onclick = e => {
+    e.stopPropagation();
+    window.open(b.dataset.url, '_blank', 'noopener'); // сразу на ссылку, минуя окно материала
   });
   box.querySelectorAll('.fo-list .rb.del').forEach(b => b.onclick = async e => {
     e.stopPropagation();
