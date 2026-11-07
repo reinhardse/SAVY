@@ -1512,10 +1512,18 @@ function openVideo(url, itemId) {
   const sendComment = async () => {
     const t = txt.value.trim();
     if (!t || !itemId) return;
-    try { await api('/items/' + itemId + '/comments', {method: 'POST', body: {text: t}}); txt.value = ''; drawComments(); }
+    try {
+      await api('/items/' + itemId + '/comments', {method: 'POST', body: {text: t}});
+      txt.value = '';
+      await drawComments();
+      // окно прокручивается вниз, чтобы поле для следующего комментария оставалось на виду
+      pl.scrollTo({top: pl.scrollHeight, behavior: 'smooth'});
+      txt.focus({preventScroll: true});
+    }
     catch (err) { alert(err.message); }
   };
   ov.querySelector('.pl-csend').onclick = sendComment;
+  txt.onfocus = () => setTimeout(() => pl.scrollTo({top: pl.scrollHeight, behavior: 'smooth'}), 50);
   txt.onkeydown = e => { if (e.isComposing) return; if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendComment(); } };
   drawComments();
   return true;

@@ -2150,3 +2150,7 @@ body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
 .pl-player .pl-frame{height:658px}
 .pl-comments{flex:none;padding-top:14px}
 .pl-clist{flex:none;overflow:visible}
+
+/* окно видео: больше воздуха под полем комментария */
+.pl-body{padding-bottom:48px}
+.pl-cadd{margin-bottom:8px}
