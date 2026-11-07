@@ -354,6 +354,21 @@ def fetch_metadata(url: str, source: str) -> dict:
                 out["tried"].append(info)
             except Exception as e:  # noqa: BLE001
                 out["tried"].append({"method": "meta_oembed", "error": type(e).__name__})
+        if source == "instagram" and not out["thumbnail_url"]:
+            # без токена Meta Инстаграм отдаёт обложку и подпись ботам соцсетей: представляемся ссылочным ботом Facebook
+            try:
+                with httpx.Client(timeout=TIMEOUT, headers={"User-Agent": "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)", "Accept-Language": "ru,en;q=0.8"}) as fb:
+                    r = _get_retry(fb, url)
+                    info = {"method": "open_graph_fb", "status": r.status_code if r else None}
+                    if r is not None and r.status_code == 200:
+                        og = _og(r.text, url)
+                        info["fields"] = [k for k, v in og.items() if v]
+                        for k, v in og.items():
+                            if v and not out.get(k):
+                                out[k] = v
+                    out["tried"].append(info)
+            except Exception as e:  # noqa: BLE001
+                out["tried"].append({"method": "open_graph_fb", "error": type(e).__name__})
         if not (out["title"] and out["thumbnail_url"]):
             try:
                 r = _get_retry(client, url)
@@ -387,6 +402,12 @@ def fetch_metadata(url: str, source: str) -> dict:
                 out["tried"].append(info)
         except Exception as e:  # noqa: BLE001
             out["tried"].append({"method": "open_graph_desktop", "error": type(e).__name__})
+    if source == "youtube" and not out["thumbnail_url"]:
+        # обложка ролика лежит на CDN Ютуба по номеру ролика, даже когда страница и oEmbed с сервера не открылись
+        ym = re.search(r"(?:[?&]v=|youtu\.be/|/shorts/|/embed/|/live/)([\w-]{11})", url)
+        if ym:
+            out["thumbnail_url"] = f"https://i.ytimg.com/vi/{ym.group(1)}/hqdefault.jpg"
+            out["tried"].append({"method": "youtube_cdn_thumb"})
     if not out["thumbnail_url"] and out.get("icon_url"):
         out["thumbnail_url"] = out["icon_url"]
         out["tried"].append({"method": "site_icon"})

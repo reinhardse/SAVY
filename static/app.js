@@ -1392,6 +1392,16 @@ function folderHtml(f, items) {
     </div>`;
 }
 let foCurId = null;
+// у только что добавленной ссылки название и обложка подтягиваются в фоне: плитка обновляется сама, без кнопки
+async function watchMeta(id, fid) {
+  for (let k = 0; k < 15; k++) {
+    await new Promise(r => setTimeout(r, 2000));
+    if (!$('#ov .fo-list') || foCurId !== fid) return;
+    let x;
+    try { x = await api('/items/' + id); } catch (e) { return; }
+    if (x.meta_state !== 'pending') { if (!$('#tx-ov')) await refreshFolderList(fid); return; }
+  }
+}
 // обновляет только список материалов открытой папки — без перерисовки всего окна
 async function refreshFolderList(fid) {
   if (!fid) return;
@@ -1482,6 +1492,7 @@ function bindFolder(f) {
       const r = await api('/items', {method: 'POST', body: {url: title, folder_id: f.id}});
       if (desc && r.created && r.item) await api('/items/' + r.item.id, {method: 'PATCH', body: {description: desc}});
       await renderFolder(f.id);
+      if (r.created && r.item && /^https?:\/\//i.test(r.item.url || '')) watchMeta(r.item.id, f.id);
       $('#ov .fo-t')?.focus(); // можно сразу вводить следующий материал
     } catch (err) { alert(err.message); }
   };
@@ -1542,7 +1553,7 @@ async function openTextItem(itemId) {
   const embed = pl0 ? `<div class="tx-embed ${pl0.kind}"><iframe class="tx-frame" src="${esc(pl0.src)}" sandbox="${sbx}" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>` : '';
   const linkText = u => u.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, '');
   $('#sheet-root').insertAdjacentHTML('beforeend', `<div class="overlay pl-ov" id="tx-ov"><div class="sheet pl-sheet card-sheet tx-sheet"><div class="sheet-body kb-card">
-    <div class="kb-top"><span class="kb-saved" id="txs">Сохранено</span><div class="kb-tools">
+    <div class="kb-top"><div class="tx-left"><span class="kb-saved" id="txs">Сохранено</span>${hasUrl ? '<button class="tx-rf" id="txrf">Обновить</button>' : ''}</div><div class="kb-tools">
       <button class="kb-ib" id="txmore" aria-label="Действия">${DOTS}</button>
       <button class="kb-ib" id="txx" aria-label="Закрыть">${XICON}</button>
       <div class="kb-menu" id="txmenu" hidden>${hasUrl ? `<a class="kb-mi" href="${esc(it.url)}" target="_blank" rel="noopener">Открыть ссылку</a>` : ''}<button class="kb-mi bad" id="txdel">Удалить материал</button></div></div></div>
@@ -1554,7 +1565,7 @@ async function openTextItem(itemId) {
     </div>
     <hr class="kb-hr">
     ${embed}
-    <div class="tx-desc-wrap" id="txdw"><div class="tx-desc" id="txdesc"></div>${hasUrl ? '<button class="tx-rf" id="txrf">Обновить</button>' : ''}</div>
+    <div class="tx-desc-wrap" id="txdw"><div class="tx-desc" id="txdesc"></div></div>
     <div class="kb-note kb-edit" id="txn" contenteditable="true" spellcheck="false" data-ph="Пишите текст… «/» — блоки">${renderNoteEdit(it.note || '')}</div></div>
   </div></div></div>`);
   const ov = $('#tx-ov'), pl = ov.querySelector('.pl-sheet');
@@ -1563,6 +1574,7 @@ async function openTextItem(itemId) {
     const r = fo.getBoundingClientRect();
     pl.style.left = r.left + 'px'; pl.style.top = r.top + 'px';
     pl.style.width = r.width + 'px'; pl.style.height = r.height + 'px';
+    pl.style.setProperty('--tr', getComputedStyle(fo).borderTopLeftRadius); // те же скругления, что у папки под окном: её углы не выглядывают
   }
   const t = $('#txt'), n = $('#txn');
   let t0 = titleOf(it) === 'Без названия' ? '' : (it.title || titleOf(it));
@@ -1571,14 +1583,17 @@ async function openTextItem(itemId) {
   const paintCover = () => {
     const c = $('#txcover');
     if (!c) return;
-    if (it.thumb && !pl0) { c.innerHTML = `<img src="${esc(it.thumb)}" alt="">`; c.hidden = false; pl.classList.add('has-cover'); }
+    if (it.thumb && !pl0) {
+      c.innerHTML = `<img src="${esc(it.thumb)}" alt="">`; c.hidden = false; pl.classList.add('has-cover');
+      c.style.marginTop = -(pl.querySelector('.kb-top').offsetHeight) + 'px'; // обложка начинается ровно с верха окна
+    }
     else { c.hidden = true; c.innerHTML = ''; pl.classList.remove('has-cover'); }
   };
   const paintDesc = () => {
     const d = (it.description || '').trim();
     $('#txdesc').textContent = d;
     $('#txdesc').hidden = !d;
-    $('#txdw').hidden = !d && !hasUrl;
+    $('#txdw').hidden = !d;
   };
   paintCover(); paintDesc();
   NOTE_ROOT = []; NOTE_KID = null;
@@ -1607,12 +1622,15 @@ async function openTextItem(itemId) {
   t.addEventListener('paste', e => { e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData.getData('text/plain') || '').replace(/\s*\n\s*/g, ' ')); });
   attachNoteEditor(n, queue, null, flush, false);
 
-  // обновить: данные страницы (название, обложка, описание) загружаются заново; плеер перезапускается
+  // обновить: данные страницы (название, обложка, описание) загружаются заново; плеер перезапускается.
+  // Если у ссылки нет названия или обложки, это происходит само при первом открытии
   const rf = $('#txrf');
-  if (rf) rf.onclick = async () => {
-    rf.disabled = true; rf.textContent = 'Обновляю…';
+  let refreshing = false;
+  const runRefresh = async () => {
+    if (!rf || refreshing) return;
+    refreshing = true; rf.disabled = true; rf.textContent = 'Обновляю…';
     try {
-      await api('/items/' + itemId + '/refresh', {method: 'POST'});
+      if (it.meta_state !== 'pending') await api('/items/' + itemId + '/refresh', {method: 'POST'});
       for (let k = 0; k < 15; k++) {
         await new Promise(r => setTimeout(r, 1200));
         if (!$('#tx-ov')) return;
@@ -1620,12 +1638,14 @@ async function openTextItem(itemId) {
         if (x.meta_state !== 'pending') { it = {...it, ...x}; break; }
       }
       if (titleText() === t0 && it.title) { t.textContent = it.title; t0 = it.title; }
-      paintCover(); paintDesc();
+      paintCover(); paintDesc(); tagsChanged = true;
       const fr = ov.querySelector('.tx-frame');
       if (fr) { const src = fr.src; fr.src = 'about:blank'; setTimeout(() => { fr.src = src; }, 60); }
     } catch (e) { alert(e.message); }
-    rf.disabled = false; rf.textContent = 'Обновить';
+    refreshing = false;
+    if ($('#txrf')) { rf.disabled = false; rf.textContent = 'Обновить'; }
   };
+  if (rf) rf.onclick = runRefresh;
 
   // теги — как на карточках досок: выбранные сверху, ниже теги этой папки; можно выбрать несколько
   const fid = it.folder_id || foCurId;
@@ -1748,7 +1768,9 @@ async function openTextItem(itemId) {
     refreshFolderList(foCurId);
   };
   if (!it.title && !it.note && !hasUrl) t.focus();
+  if (hasUrl && (!it.thumb || !it.title || it.meta_state === 'pending') && !AUTO_TRIED.has(itemId)) { AUTO_TRIED.add(itemId); runRefresh(); }
 }
+const AUTO_TRIED = new Set(); // каждая ссылка сама обновляется один раз за сеанс
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && $('#tx-ov')) {
     e.stopImmediatePropagation();
