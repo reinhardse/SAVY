@@ -2259,7 +2259,7 @@ body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
 .tx-sheet .kb-card{min-height:0}
 .tx-sheet .kb-note{min-height:50vh}
 /* перерисовка при вводе не трогает iframe плеера и остальной текст окна */
-.tx-embed{contain:strict;isolation:isolate}
+.tx-embed{contain:layout paint;isolation:isolate}
 .tx-sheet .kb-note{contain:layout style}
 /* подложка окна всегда белая: просвечивать папка не должна, даже если обложка не загрузилась */
 .tx-sheet.has-cover .kb-card{background:#fff;display:block}
