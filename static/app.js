@@ -1479,9 +1479,19 @@ function openVideo(url) {
   const src = igEmbed(url);
   if (!src) return false;
   closeVideo();
-  $('#ov .sheet')?.classList.add('pl-under');
-  $('#sheet-root').insertAdjacentHTML('beforeend', `<div class="overlay pl-ov" id="pl-ov"><div class="sheet pl-sheet"><div class="pl-top"><span class="kb-saved">Видео</span><button class="kb-ib pl-x" aria-label="Закрыть">${XICON}</button></div><iframe class="pl-frame" src="${esc(src)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div></div>`);
+  $('#sheet-root').insertAdjacentHTML('beforeend', `<div class="overlay pl-ov" id="pl-ov"><div class="sheet pl-sheet"><div class="pl-top"><span class="kb-saved">Видео</span><button class="kb-ib pl-x" aria-label="Закрыть">${XICON}</button></div><div class="pl-body"><iframe class="pl-frame" src="${esc(src)}" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div></div></div>`);
   const ov = $('#pl-ov');
+  const pl = ov.querySelector('.pl-sheet');
+  // окно видео — того же размера и на том же месте, что карточка папки, но чуть выше: нижний край папки выглядывает
+  const fo = $('#ov .sheet');
+  if (fo) {
+    const r = fo.getBoundingClientRect();
+    pl.style.left = r.left + 'px';
+    // верх чуть опущен, нижний край — как у карточки папки: сверху видно объём карточки под окном
+    pl.style.top = (r.top + 14) + 'px';
+    pl.style.width = r.width + 'px';
+    pl.style.height = (r.height - 14) + 'px';
+  }
   ov.onclick = e => { if (e.target === ov) closeVideo(); };
   ov.querySelector('.pl-x').onclick = closeVideo;
   return true;

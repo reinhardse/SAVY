@@ -2113,11 +2113,9 @@ body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
 .sheet .fo-list.grid .row .t{align-self:stretch;display:flex;align-items:flex-end;padding:0 14px 14px;background:linear-gradient(to top,rgba(0,0,0,.82) 0%,rgba(0,0,0,.5) 45%,rgba(0,0,0,0) 100%)}
 
 /* инстаграм-видео: окно поверх папки; папка отодвинута назад; окно — объём стопкой карточек */
-.overlay.pl-ov{z-index:21;background:rgba(0,0,0,.5);backdrop-filter:none;-webkit-backdrop-filter:none}
-.sheet.pl-under{transform:scale(.95) translateY(-2.2vh);filter:brightness(.82);transition:transform .22s ease,filter .22s ease}
-.sheet.pl-sheet{position:relative;width:min(880px,calc(100% - 32px));height:min(84vh,760px);max-height:none;min-height:0;border-radius:18px;padding:0;overflow:hidden;box-shadow:0 1px 0 rgba(0,0,0,.06),0 9px 0 -2px #e9e9ee,0 18px 0 -4px #d9d9e0,0 34px 70px rgba(0,0,0,.35)}
+.overlay.pl-ov{z-index:21;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
+.sheet.pl-sheet{position:fixed;max-width:none;max-height:none;min-height:0;border-radius:20px;padding:0;overflow:hidden;box-shadow:0 26px 50px -12px rgba(0,0,0,.4),0 6px 14px rgba(0,0,0,.14)}
 .pl-top{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 10px 22px}
 .pl-top .kb-saved{color:#8a8a93;font-size:13px}
-.pl-frame{display:block;width:100%;height:calc(100% - 46px);border:0;background:#fff}
-@media (max-width:560px){.sheet.pl-sheet{width:calc(100% - 16px);height:78vh}}
-.sheet.pl-sheet{max-width:880px}
+.pl-body{height:calc(100% - 46px);max-width:708px;margin:0 auto;padding:0 0 16px;box-sizing:border-box}
+.pl-frame{display:block;width:100%;height:100%;border:0;background:#fff}
