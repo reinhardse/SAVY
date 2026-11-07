@@ -22,7 +22,7 @@ from . import gcal, meta
 from types import SimpleNamespace
 from urllib.parse import urlparse
 from .db import (BASE_DIR, DATA_DIR, STATUSES, Board, BoardLink, Card, CardSub, Category, Company, Contact, CrmPipeline, CrmStage,
-                 CrmTask, CRM_NEW_FUNNEL_STAGES, Deal, DealMessage, Folder, GCalToken, Item, KColumn, SessionLocal, Tag, init_db)
+                 CrmTask, CRM_NEW_FUNNEL_STAGES, Deal, DealMessage, Folder, GCalToken, Item, ItemComment, KColumn, SessionLocal, Tag, init_db)
 
 PASSWORD = os.environ.get("LIBRARY_PASSWORD")
 API_TOKEN = os.environ.get("LIBRARY_API_TOKEN")  # для бота и «Быстрых команд» iOS
@@ -301,9 +301,40 @@ def patch_item(item_id: int, body: ItemPatch, db: Session = Depends(get_db), _: 
     return item_out(item)
 
 
+@app.get("/api/items/{item_id}/comments")
+def item_comments(item_id: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    get_item(db, item_id)
+    rows = db.scalars(select(ItemComment).where(ItemComment.item_id == item_id).order_by(ItemComment.created_at, ItemComment.id)).all()
+    return [{"id": c.id, "text": c.text, "created_at": c.created_at.isoformat() if c.created_at else None} for c in rows]
+
+class CommentIn(BaseModel):
+    text: str = ""
+
+@app.post("/api/items/{item_id}/comments")
+def item_comment_add(item_id: int, body: CommentIn, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    get_item(db, item_id)
+    text = body.text.strip()
+    if not text:
+        raise HTTPException(400, "Пустой комментарий")
+    c = ItemComment(item_id=item_id, text=text[:2000])
+    db.add(c)
+    db.commit()
+    db.refresh(c)
+    return {"id": c.id, "text": c.text, "created_at": c.created_at.isoformat() if c.created_at else None}
+
+@app.delete("/api/item-comments/{cid}")
+def item_comment_del(cid: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
+    c = db.get(ItemComment, cid)
+    if not c:
+        raise HTTPException(404, "Комментарий не найден")
+    db.delete(c)
+    db.commit()
+    return {"ok": True}
+
 @app.delete("/api/items/{item_id}")
 def delete_item(item_id: int, db: Session = Depends(get_db), _: int = Depends(require_auth)):
     item = get_item(db, item_id)
+    db.query(ItemComment).filter(ItemComment.item_id == item.id).delete()
     if item.thumb_path and os.path.exists(item.thumb_path):
         os.remove(item.thumb_path)
     db.delete(item)

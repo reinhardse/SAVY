@@ -103,6 +103,15 @@ class CardSub(Base):
     created_at = Column(DateTime, default=now)
 
 
+class ItemComment(Base):
+    """Свой комментарий к материалу — под окном видео. Комментарии самого Instagram в его плеере, мы их не получаем."""
+    __tablename__ = "item_comments"
+    id = Column(Integer, primary_key=True)
+    item_id = Column(Integer, ForeignKey("items.id", ondelete="CASCADE"), nullable=False, index=True)
+    text = Column(Text, default="")
+    created_at = Column(DateTime, default=now)
+
+
 class Board(Base):
     __tablename__ = "boards"
     id = Column(Integer, primary_key=True)

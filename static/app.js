@@ -568,7 +568,7 @@ function row(i) {
   }
   const desc = d ? `<div class="rdesc">${body}</div>` : '';
   const tags = `${desc}<div class="tagline">${eye}${i.tags.map(t => `<span class="tagbadge">#${esc(t)}</span>`).join('')}</div>`;
-  return `<div class="row" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m"><span>${esc(meta)}</span><button class="rb pen" data-id="${i.id}" aria-label="Открыть карточку">${PEN}</button></div>${tags}</div>${listParams && listParams.inbox ? `<button class="inmove" data-mvitem="${i.id}">Перенести</button><button class="rb inmore" data-more="${i.id}" aria-label="Ещё">⋯</button>` : `<button class="rb del" data-id="${i.id}" aria-label="Удалить">${XICON}</button>`}</div>`;
+  return `<div class="row" data-id="${i.id}" data-url="${esc(i.url)}">${coverHtml(i, 'thumb')}<div class="mid"><div class="t">${esc(titleOf(i))}</div><div class="m"><span>${esc(meta)}</span><button class="rb pen" data-id="${i.id}" aria-label="Открыть карточку">${PEN}</button></div>${tags}</div>${listParams && listParams.inbox ? `<button class="inmove" data-mvitem="${i.id}">Перенести</button><button class="rb inmore" data-more="${i.id}" aria-label="Ещё">⋯</button>` : `<button class="rb del" data-id="${i.id}" aria-label="Удалить">${XICON}</button>`}</div>`;
 }
 
 // перерисовываем список только если что-то изменилось, иначе клик теряется между опросами
@@ -1475,14 +1475,14 @@ function closeVideo() {
   $('#pl-ov')?.remove();
   $('#ov .sheet')?.classList.remove('pl-under');
 }
-function openVideo(url) {
+function openVideo(url, itemId) {
   const src = igEmbed(url);
   if (!src) return false;
   closeVideo();
-  $('#sheet-root').insertAdjacentHTML('beforeend', `<div class="overlay pl-ov" id="pl-ov"><div class="sheet pl-sheet"><div class="pl-top"><span class="kb-saved">Видео</span><div class="pl-tools"><a class="pl-ext" href="${esc(url)}" target="_blank" rel="noopener">Открыть в Instagram</a><button class="kb-ib pl-x" aria-label="Закрыть">${XICON}</button></div></div><div class="pl-body"><iframe class="pl-frame" src="${esc(src)}" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div></div></div>`);
+  $('#sheet-root').insertAdjacentHTML('beforeend', `<div class="overlay pl-ov" id="pl-ov"><div class="sheet pl-sheet"><div class="pl-top"><span class="kb-saved">Видео</span><div class="pl-tools"><a class="pl-ext" href="${esc(url)}" target="_blank" rel="noopener">Открыть в Instagram</a><button class="pl-reload" aria-label="Обновить плеер">Обновить</button><button class="kb-ib pl-x" aria-label="Закрыть">${XICON}</button></div></div><div class="pl-body"><div class="pl-player"><iframe class="pl-frame" src="${esc(src)}" sandbox="allow-scripts allow-same-origin allow-popups allow-presentation" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe></div><div class="pl-comments"><div class="pl-clist"></div><div class="pl-cadd"><textarea class="pl-ctxt" rows="1" placeholder="Комментарий"></textarea><button class="inchip pl-csend">Отправить</button></div></div></div></div></div>`);
   const ov = $('#pl-ov');
   const pl = ov.querySelector('.pl-sheet');
-  // окно видео — того же размера и на том же месте, что карточка папки, но чуть выше: нижний край папки выглядывает
+  // окно видео — того же размера и на том же месте, что карточка папки
   const fo = $('#ov .sheet');
   if (fo) {
     const r = fo.getBoundingClientRect();
@@ -1493,6 +1493,31 @@ function openVideo(url) {
   }
   ov.onclick = e => { if (e.target === ov) closeVideo(); };
   ov.querySelector('.pl-x').onclick = closeVideo;
+  const frame = ov.querySelector('.pl-frame');
+  ov.querySelector('.pl-reload').onclick = () => { frame.src = 'about:blank'; setTimeout(() => { frame.src = src; }, 60); };
+  // свои комментарии под видео: сохраняются у материала, их можно писать сколько угодно
+  const list = ov.querySelector('.pl-clist'), txt = ov.querySelector('.pl-ctxt');
+  const drawComments = async () => {
+    if (!itemId) { list.innerHTML = ''; return; }
+    try {
+      const cs = await api('/items/' + itemId + '/comments');
+      list.innerHTML = cs.length ? cs.map(c => `<div class="pl-c"><div class="pl-ct">${esc(c.text)}</div><div class="pl-cm">${c.created_at ? esc(new Date(c.created_at).toLocaleString('ru-RU', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'})) : ''}</div><button class="rb del pl-cdel" data-cid="${c.id}" aria-label="Удалить комментарий">${XICON}</button></div>`).join('') : '<div class="pl-empty">Комментариев пока нет</div>';
+      list.querySelectorAll('.pl-cdel').forEach(bt => bt.onclick = async () => {
+        try { await api('/item-comments/' + bt.dataset.cid, {method: 'DELETE'}); drawComments(); }
+        catch (err) { alert(err.message); }
+      });
+      list.scrollTop = list.scrollHeight;
+    } catch (err) { list.innerHTML = `<div class="pl-empty">${esc(err.message)}</div>`; }
+  };
+  const sendComment = async () => {
+    const t = txt.value.trim();
+    if (!t || !itemId) return;
+    try { await api('/items/' + itemId + '/comments', {method: 'POST', body: {text: t}}); txt.value = ''; drawComments(); }
+    catch (err) { alert(err.message); }
+  };
+  ov.querySelector('.pl-csend').onclick = sendComment;
+  txt.onkeydown = e => { if (e.isComposing) return; if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendComment(); } };
+  drawComments();
   return true;
 }
 // Esc закрывает верхнее окно — видео, а папка остаётся
@@ -1505,7 +1530,7 @@ function bindFolderRows(box, f) {
   box.querySelectorAll('.fo-list .row').forEach(el => el.onclick = e => {
     if (e.target.closest('.rb, .eyechip, .more-d, .inmove, .ck')) return;
     // инстаграм-видео открывается во втором окне поверх папки, остальные ссылки — в новой вкладке
-    if (el.dataset.url && !openVideo(el.dataset.url)) window.open(el.dataset.url, '_blank', 'noopener');
+    if (el.dataset.url && !openVideo(el.dataset.url, +el.dataset.id)) window.open(el.dataset.url, '_blank', 'noopener');
   });
   box.querySelectorAll('.fo-list .rb.pen, .fo-list .more-d').forEach(b => b.onclick = e => {
     e.stopPropagation();
