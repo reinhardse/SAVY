@@ -2170,3 +2170,10 @@ body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
 .sheet .fo-list:not(.grid) .cover-text i{display:none}
 /* общее правило окон красило заглушку в серый — в папке цвет берётся из градиента записи */
 .sheet .fo-list .cover-gen{background:linear-gradient(140deg,var(--c1),var(--c2))}
+
+/* окно текстового материала поверх папки */
+.sheet.tx-sheet{overflow-y:auto;overflow-x:hidden;min-height:0}
+.tx-sheet .kb-card{min-height:100%}
+.tx-sheet .kb-body{position:relative}
+.tx-sheet .kb-note{min-height:50vh}
+.tx-sheet .kb-top{z-index:6}
