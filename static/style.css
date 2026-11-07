@@ -2141,3 +2141,12 @@ body.inbox-pg .ibrow.ibnew{animation:ibIn .34s cubic-bezier(.22,.7,.2,1)}
 .pl-ctxt:focus{border-color:#bdbdc7}
 .pl-reload{border:0;background:transparent;color:#6b6f7b;font:inherit;font-size:13px;cursor:pointer;padding:4px 6px;border-radius:8px}
 .pl-reload:hover{background:#f2f2f4}
+
+/* окно видео: плеер Instagram — его родная высота, комментарии ниже, окно прокручивается */
+.sheet.pl-sheet{overflow-y:auto;overflow-x:hidden}
+.pl-top{position:sticky;top:0;background:#fff;z-index:2}
+.pl-body{height:auto;gap:0}
+.pl-player{flex:none;height:658px}
+.pl-player .pl-frame{height:658px}
+.pl-comments{flex:none;padding-top:14px}
+.pl-clist{flex:none;overflow:visible}
